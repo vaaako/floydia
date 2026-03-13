@@ -5,7 +5,7 @@
 #include <RGFW.h>
 
 #include <iostream> // std::cerr
-#include <floydia/buffers/opengl.hpp>
+#include <floydia/gpu/opengl.hpp>
 
 namespace floyd {
 

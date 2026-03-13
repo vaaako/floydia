@@ -1,9 +1,9 @@
 #pragma once
 
 #include <unordered_map>
-#include <floydia/buffers/shader.hpp>
-#include <floydia/buffers/shaders.hpp>
-#include <floydia/buffers/shaderprogram.hpp>
+#include <floydia/gpu/shader.hpp>
+// #include <floydia/gpu/shaders.hpp>
+#include <floydia/gpu/shaderprogram.hpp>
 
 namespace floyd {
 
@@ -16,12 +16,12 @@ class BufferManager {
 
 		// NOTE: Not the proper place i think
 		// Default shader used by almost all models
-		static inline std::shared_ptr<ShaderProgram> default_program() noexcept {
-			static std::shared_ptr<ShaderProgram> program = BufferManager::get().load_shaderprogram(
-				Shaders::DEFAULT_VERTEX, Shaders::DEFAULT_FRAGMENT
-			);
-			return program;
-		}
+		// static inline std::shared_ptr<ShaderProgram> default_program() noexcept {
+		// 	static std::shared_ptr<ShaderProgram> program = BufferManager::get().load_shaderprogram(
+		// 		Shaders::DEFAULT_VERTEX, Shaders::DEFAULT_FRAGMENT
+		// 	);
+		// 	return program;
+		// }
 
 		// Checks for an existing Vertex Array.
 		// Returns an existing Vertex Array or uploads a newly created if it didn't

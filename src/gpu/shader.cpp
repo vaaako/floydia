@@ -1,4 +1,4 @@
-#include <floydia/buffers/shader.hpp>
+#include <floydia/gpu/shader.hpp>
 
 #include <stdexcept>
 #include <floydia/utilities/string.hpp>

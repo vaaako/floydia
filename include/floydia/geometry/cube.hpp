@@ -16,7 +16,8 @@ class Cube : public Renderable {
 	};
 
 	// Render all faces by default
-	Cube(const uint8 face_mask = 0b111111) noexcept;
+	// Cube(const uint8 face_mask = 0b111111) noexcept;
+	Cube() noexcept;
 };
 
 } // namespace floyd

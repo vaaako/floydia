@@ -1,8 +1,8 @@
 #pragma once
 
 #include <memory>
-#include <floydia/buffers/shader.hpp>
-#include <floydia/buffers/opengl.hpp>
+#include <floydia/gpu/shader.hpp>
+#include <floydia/gpu/opengl.hpp>
 
 namespace floyd {
 

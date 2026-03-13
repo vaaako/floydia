@@ -19,7 +19,7 @@ class Renderable : public Object {
 			return this->_model.get();
 		}
 
-		void submit(Renderer& renderer) override;
+		void submit(Renderer& renderer) const noexcept override;
 
 	protected:
 		std::shared_ptr<Model> _model;

@@ -20,7 +20,7 @@ SSBO
 namespace floyd {
 namespace Shaders {
 
-const char* DEFAULT_VERTEX = R"glsl(
+constexpr const char* DEFAULT_VERTEX = R"glsl(
 #version 450 core
 
 layout(location = 0) in vec3 aPos;
@@ -45,11 +45,11 @@ void main() {
 }
 )glsl";
 
-const char* DEFAULT_FRAGMENT = R"glsl(
+constexpr const char* DEFAULT_FRAGMENT = R"glsl(
 #version 450 core
 
 in vec2 texuv;
-out vec4 fragcolor
+out vec4 fragcolor;
 
 uniform vec4 color;
 uniform sampler2D tex2d;

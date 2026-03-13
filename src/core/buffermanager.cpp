@@ -1,4 +1,4 @@
-#include <floydia/buffers/buffermanager.hpp>
+#include <floydia/core/buffermanager.hpp>
 
 #include <stdexcept>
 #include <floydia/utilities/hash.hpp>

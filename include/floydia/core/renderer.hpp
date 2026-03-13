@@ -1,6 +1,9 @@
 #pragma once
 
+#include <floydia/types.hpp>
 #include <floydia/gfx/renderable.hpp>
+#include <floydia/gfx/mesh.hpp>
+#include <floydia/gfx/material.hpp>
 
 #include <vector>
 

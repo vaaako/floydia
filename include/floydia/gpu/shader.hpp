@@ -1,7 +1,7 @@
 #pragma once
 
 #include <floydia/types.hpp>
-#include <floydia/buffers/opengl.hpp>
+#include <floydia/gpu/opengl.hpp>
 
 namespace floyd {
 

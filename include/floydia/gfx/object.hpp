@@ -14,7 +14,7 @@ class Object {
 		Transform transform;
 
 		virtual ~Object() = default;
-		virtual void submit(Renderer& renderer) = 0;
+		virtual void submit(Renderer& renderer) const noexcept = 0;
 };
 
 } // namespace floyd
