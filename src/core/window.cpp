@@ -1,0 +1,64 @@
+#include <floydia/core/window.hpp>
+
+#define RGFW_IMPLEMENTATION
+#define RGFW_OPENGL
+#include <RGFW.h>
+
+#include <iostream> // std::cerr
+#include <floydia/buffers/opengl.hpp>
+
+namespace floyd {
+
+struct Window::impl {
+	RGFW_window* window;
+};
+
+Window::Window(const Settings& settings)
+	: pimpl(std::make_unique<impl>()),
+	width(settings.width), height(settings.height), title(settings.title) {
+	// Initialize Window
+	pimpl->window = RGFW_createWindow(
+		settings.title.c_str(),
+		0, 0,
+		settings.width, settings.height,
+		RGFW_windowCenter |
+		RGFW_windowNoResize |
+		RGFW_windowOpenGL
+	);
+
+	if(pimpl->window == NULL) {
+		std::cerr << "Failed to create window!" << std::endl;
+		return;
+	}
+
+	// Initialize OpenGL
+	RGFW_window_makeCurrentContext_OpenGL(pimpl->window);
+	if(!gladLoadGLLoader((GLADloadproc)RGFW_getProcAddress_OpenGL)) {
+		std::cerr << "Failed to create window!" << std::endl;
+		return;
+	}
+	RGFW_window_swapInterval_OpenGL(pimpl->window, settings.vsync);
+}
+
+Window::~Window() {
+	if(pimpl->window != nullptr) {
+		RGFW_window_close(pimpl->window);
+	}
+}
+
+bool Window::is_open() const noexcept {
+	return RGFW_window_shouldClose(pimpl->window) == RGFW_FALSE;
+}
+
+void Window::poll_events() noexcept {
+	RGFW_event event;
+	while(RGFW_window_checkEvent(pimpl->window, &event)) {
+		this->events.emplace(static_cast<Event>(event.type));
+	}
+}
+
+void Window::swap_buffers() const noexcept {
+	RGFW_window_swapBuffers_OpenGL(pimpl->window);
+}
+
+} // namespace floyd
