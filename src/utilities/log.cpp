@@ -14,17 +14,17 @@ std::string log::timestring() noexcept {
 	return ss.str();
 }
 
-const char* log::typetostr(const log::Type type) noexcept {
-	switch (type) {
-		case log::Type::Trace:
+const char* log::typetostr(const log::type t) noexcept {
+	switch (t) {
+		case log::type::Trace:
 			return "[TRACE]";
-		case log::Type::Debug:
+		case log::type::Debug:
 			return "[DEBUG]";
-		case log::Type::Info:
+		case log::type::Info:
 			return "[INFO]";
-		case log::Type::Warning:
+		case log::type::Warning:
 			return "[WARNING]";
-		case log::Type::Error:
+		case log::type::Error:
 			return "[ERROR]";
 		default:
 			return "[TRACE]";

@@ -9,7 +9,7 @@
 
 namespace floyd {
 namespace log {
-	enum class Type : uint8_t {
+	enum class type : uint8_t {
 		Trace,
 		Debug,
 		Info,
@@ -21,15 +21,15 @@ namespace log {
 	// Format: %Y-%m-%d %H:%M:%S
 	std::string timestring() noexcept;
 
-	// Converts 'log::Type' to 'const char*'
-	const char* typetostr(const Type type) noexcept;
+	// Converts 'log::type' to 'const char*'
+	const char* typetostr(const type t) noexcept;
 
 	// Trace in format:
 	// '[type] message'
 	template <typename... Args>
-	void TraceLog(const Type type, const char* format, Args&&... args) {
+	void TraceLog(const type t, const char* format, Args&&... args) {
 		std::cout
-			<< typetostr(type)
+			<< typetostr(t)
 			<< " " << string::format(format, std::forward<Args>(args)...)
 		<< '\n';
 	}
@@ -37,10 +37,10 @@ namespace log {
 	// Trace in format:
 	// '[location][type] message'
 	template <typename... Args>
-	void TraceLogLoc(const Type type, const char* location, const char *format, Args &&...args) {
+	void TraceLogLoc(const type t, const char* location, const char *format, Args &&...args) {
 		std::cout
 			<< "[" << location << "]"
-			<< typetostr(type)
+			<< typetostr(t)
 			<< " " << string::format(format, std::forward<Args>(args)...)
 		<< '\n';
 	}
