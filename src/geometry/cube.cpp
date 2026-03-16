@@ -4,13 +4,13 @@
 
 namespace floyd {
 
-Cube::Cube(const std::shared_ptr<Material>& material) noexcept
-	: Renderable(Cube::create_model(material)) {}
+Cube::Cube() noexcept
+	: Renderable(Cube::create_model()) {}
 
-std::shared_ptr<Model> Cube::create_model(const std::shared_ptr<Material>& material) noexcept {
+std::shared_ptr<Model> Cube::create_model() noexcept {
 	std::shared_ptr<Mesh> mesh = Assets::cube_mesh();
 	std::shared_ptr<Model> model = std::make_shared<Model>();
-	model->add_submesh(mesh, material);
+	model->add_submesh(mesh, nullptr); // use default material
 	return model;
 }
 

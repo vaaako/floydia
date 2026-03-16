@@ -14,32 +14,33 @@ namespace floyd {
 
 class Renderer final {
 	public:
+		Renderer() noexcept;
+		~Renderer() = default;
+
+		// Clear the screen
+		void clear() const noexcept;
+		// Changes the clear color
+		void set_clear_color(const vec4<uint8>& color) noexcept;
+
+		// Clear queue and update Uniform Buffer
+		void begin_draw(const Camera& camera) noexcept;
+		// Submit object to the queue
+		void push(const Renderable& object) noexcept;
+		// End frame
+		void flush();
+
+	private:
 		struct DrawCommand {
 			const Mesh* mesh;
 			const Material* material;
 			const glm::mat4 model;
 		};
 
-	public:
-		Renderer() noexcept;
-		~Renderer() = default;
-
-		// Clear queue and update Uniform Buffer
-		void begin_frame(Camera& camera) noexcept;
-		// End frame
-		void flush();
-		// Submit a object to the renderable queue
-		void submit(const DrawCommand& command) noexcept;
-		// Submit object to the queue
-		// void draw(const Renderable& object) noexcept;
-
-	private:
 		struct alignas(16) CameraData {
 			glm::mat4 view;
 			glm::mat4 proj;
 		};
 
-		// alignas(??)
 		struct alignas(16) InstanceData {
 			glm::mat4 model;
 		};
@@ -49,6 +50,8 @@ class Renderer final {
 
 		UniformBuffer ubo_camera;
 		ShaderStorageBuffer ssbo_instance;
+
+		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 };
 
 } // namespace floyd

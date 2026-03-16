@@ -12,9 +12,8 @@ class Renderer;
 class Object {
 	public:
 		Transform transform;
-
+		Object() = default;
 		virtual ~Object() = default;
-		virtual void submit(Renderer& renderer) const noexcept = 0;
 };
 
 } // namespace floyd

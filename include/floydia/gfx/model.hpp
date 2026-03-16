@@ -5,9 +5,11 @@
 #include <floydia/gfx/material.hpp>
 #include <floydia/gfx/mesh.hpp>
 
+#include <stdexcept>
 
 namespace floyd {
 
+// Stores all Meshes of a Model
 class Model final {
 	public:
 		struct SubMesh {
@@ -15,8 +17,14 @@ class Model final {
 			std::shared_ptr<Material> material;
 		};
 
-		inline void add_submesh(const std::shared_ptr<Mesh>& mesh, const std::shared_ptr<Material>& material) noexcept {
-			this->_submeshes.push_back({ mesh, material });
+		inline void add_submesh(const std::shared_ptr<Mesh>& mesh, const std::shared_ptr<Material>& material) {
+			if(mesh == nullptr) {
+				throw std::invalid_argument("mesh can not be nullptr");
+			}
+			this->_submeshes.push_back({
+				mesh,
+				(material != nullptr) ? material : std::make_shared<Material>()
+			});
 		}
 
 		inline const std::vector<SubMesh>& meshes() const noexcept {
