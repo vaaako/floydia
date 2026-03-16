@@ -5,7 +5,7 @@ namespace floyd {
 OrthoCamera::OrthoCamera(const float width, const float height) noexcept
 	: Camera(width, height) {}
 
-glm::mat4 OrthoCamera::projection() noexcept {
+glm::mat4 OrthoCamera::projection() const noexcept {
 	if(this->dirty) {
 		// left, right, bottom, top
 		this->proj = glm::ortho(0.0f, this->width, 0.0f, this->height);

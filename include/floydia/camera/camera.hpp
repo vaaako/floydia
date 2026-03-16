@@ -9,11 +9,9 @@ class Camera {
 		Camera(const float width, const float height) noexcept;
 
 		// Calculate projection matrix
-		virtual glm::mat4 projection() noexcept = 0;
-
+		virtual glm::mat4 projection() const noexcept = 0;
 		// Calculate view matrix
 		virtual glm::mat4 view() const noexcept = 0;
-		// return glm::inverse(this->transform.model_matrix());
 
 		void update_width(const float width) noexcept;
 		void update_height(const float height) noexcept;
@@ -21,11 +19,11 @@ class Camera {
 		void update_viewport(const float width, const float height) noexcept;
 
 	protected:
-		glm::mat4 proj;
+		mutable glm::mat4 proj; // I think it makes sense this be mutable
 		Transform transform;
 		float width;
 		float height;
-		bool dirty = true;
+		mutable bool dirty = true;
 };
 
 } // namespace floyd
