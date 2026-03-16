@@ -37,7 +37,7 @@ class Material {
 
 		// Set a color in a 0-255 range
 		inline void set_color(const vec4<uint8> color) {
-			this->color = (glm::vec4)color / glm::vec4(255.0f);
+			this->color = (vec4<float>)color / glm::vec4(255.0f);
 		}
 
 	private:

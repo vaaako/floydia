@@ -6,6 +6,7 @@
 
 #include <iostream> // std::cerr
 #include <floydia/gpu/opengl.hpp>
+#include <floydia/utilities/log.hpp>
 
 namespace floyd {
 
@@ -40,7 +41,11 @@ Window::Window(const Settings& settings)
 		std::cerr << "Failed to create window!" << std::endl;
 		return;
 	}
+	TRACELOG(log::type::Trace, "OpenGL 4.5 initialized!");
+
 	RGFW_window_swapInterval_OpenGL(pimpl->window, settings.vsync);
+
+	TRACELOG(log::type::Trace, "Window initialized completely!");
 }
 
 Window::~Window() {

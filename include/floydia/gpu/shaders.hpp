@@ -57,7 +57,7 @@ uniform vec4 u_color;
 // uniform sampler2D tex2d;
 
 void main() {
-	fragcolor = vec4(1.0); // * texture(tex2d, texuv);
+	fragcolor = u_color; // * texture(tex2d, texuv);
 }
 )glsl";
 

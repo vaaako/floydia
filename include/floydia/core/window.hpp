@@ -12,8 +12,8 @@ struct RGFW_window;
 namespace floyd {
 
 class Window final {
-	public:
-		// Renderer renderer;
+	// public:
+	// 	Renderer& renderer;
 
 	public:
 		struct Settings {

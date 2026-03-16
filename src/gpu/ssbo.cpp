@@ -22,7 +22,7 @@ ShaderStorageBuffer::~ShaderStorageBuffer() noexcept {
 
 void ShaderStorageBuffer::update(const void* data, const size_t size, const size_t offset) const noexcept {
 	if(offset + size > this->size) {
-		TRACELOG(log::Type::Error, "Shader Storage Buffer overflow. Aborting.");
+		TRACELOG(log::type::Error, "Shader Storage Buffer overflow. Aborting.");
 		return;
 	}
 	glNamedBufferSubData(this->ssbo, offset, size, data);

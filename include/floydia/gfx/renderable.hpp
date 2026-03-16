@@ -34,7 +34,6 @@ class Renderable : public Object {
 			if(this->_model->meshes().empty()) { return nullptr; }
 			return this->_model->meshes()[0].material.get();
 		}
-
 		// The material of the desired mesh.
 		// Returns 'nullptr' if no mesh
 		inline Material* material(const size_t index) noexcept { return this->_model->meshes().at(index).material.get(); }

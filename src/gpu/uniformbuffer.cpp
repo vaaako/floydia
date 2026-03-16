@@ -23,7 +23,7 @@ UniformBuffer::~UniformBuffer() noexcept {
 
 void UniformBuffer::update(const void* data, const size_t size, const size_t offset) const noexcept {
 	if(offset + size > this->size) {
-		TRACELOG(log::Type::Error, "Uniform Buffer overflow. Aborting.");
+		TRACELOG(log::type::Error, "Uniform Buffer overflow. Aborting.");
 		return;
 	}
 	glNamedBufferSubData(this->ubo, offset, size, data);
