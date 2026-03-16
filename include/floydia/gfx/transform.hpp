@@ -17,16 +17,15 @@ class Transform {
 		inline const vec3<float>& position() const noexcept { return _position; }
 		inline const vec3<float>& scale() const noexcept { return _scale; }
 		inline const glm::quat& rotation() const noexcept { return _rotation; }
-
+		// Retrives model matrix
 		const glm::mat4& model_matrix() const noexcept;
 	private:
 		glm::quat   _rotation = { 1.0f, 0.0f, 0.0f, 0.0f };
 		vec3<float> _position = { 0.0f, 0.0f, 0.0f };
 		vec3<float> _scale    = { 1.0f, 1.0f, 1.0f };
 
-		// Matrix used on the transformation
+		// NOTE: marked as 'mutable' so the get method can be used on const methods
 		mutable glm::mat4 cached_matrix;
-		// Used to mark when should update members
 		mutable bool dirty = true;
 };
 

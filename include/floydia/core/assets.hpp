@@ -1,13 +1,23 @@
 #pragma once
 
-#include <floydia/gfx/mesh.hpp>
-#include <unordered_map>
 #include <memory>
+#include <unordered_map>
+#include <floydia/gfx/mesh.hpp>
+#include <floydia/gpu/shaders.hpp>
+#include <floydia/core/buffermanager.hpp>
 
 namespace floyd {
 
 class Assets final {
 	public:
+		// Default shader used by almost all models
+		static inline std::shared_ptr<ShaderProgram> default_program() noexcept {
+			static std::shared_ptr<ShaderProgram> program = BufferManager::get().load_shaderprogram(
+				Shaders::DEFAULT_VERTEX, Shaders::DEFAULT_FRAGMENT
+			);
+			return program;
+		}
+
 		static std::shared_ptr<Mesh> cube_mesh();
 	//	std::shared_ptr<Texture> load_texture(const std::string& path) noexcept;
 	//private:

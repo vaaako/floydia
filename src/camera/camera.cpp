@@ -1,0 +1,30 @@
+#include <floydia/camera/camera.hpp>
+
+#include <stdexcept>
+
+namespace floyd {
+
+Camera::Camera(const float width, const float height) noexcept
+		: width(width), height(height) {
+
+	if(width == 0 || height == 0) {
+		std::invalid_argument("'width' or 'height' is 0");
+	}
+}
+
+void Camera::update_width(const float width) noexcept {
+	this->update_viewport(width, this->height);
+}
+
+void Camera::update_height(const float height) noexcept {
+	this->update_viewport(this->width, height);
+}
+
+// Updates width and height
+void Camera::update_viewport(const float width, const float height) noexcept {
+	this->width = width;
+	this->height = height;
+	this->dirty = true;
+}
+
+} // namespace floyd

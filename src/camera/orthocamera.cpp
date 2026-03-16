@@ -1,12 +1,9 @@
 #include <floydia/camera/orthocamera.hpp>
 
-//glm::mat4 OrthoCamera::view() noexcept {
-//	if(this->viewdirty) {
-
-//	}
-//}
-
 namespace floyd {
+
+OrthoCamera::OrthoCamera(const float width, const float height) noexcept
+	: Camera(width, height) {}
 
 glm::mat4 OrthoCamera::projection() noexcept {
 	if(this->dirty) {
@@ -21,21 +18,6 @@ glm::mat4 OrthoCamera::projection() noexcept {
 
 void OrthoCamera::set_zoom(const float zoom) noexcept {
 	this->zoom = zoom;
-	this->dirty = true;
-}
-
-void OrthoCamera::update_width(const float width) noexcept {
-	this->update_viewport(width, this->height);
-}
-
-void OrthoCamera::update_height(const float height) noexcept {
-	this->update_viewport(this->width, height);
-}
-
-// Updates width and height
-void OrthoCamera::update_viewport(const float width, const float height) noexcept {
-	this->width = width;
-	this->height = height;
 	this->dirty = true;
 }
 

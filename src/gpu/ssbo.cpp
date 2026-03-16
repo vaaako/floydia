@@ -1,0 +1,31 @@
+#include <floydia/gpu/ssbo.hpp>
+#include <floydia/utilities/log.hpp>
+
+namespace floyd {
+
+ShaderStorageBuffer::ShaderStorageBuffer(const uint32 binding, const size_t size) noexcept
+	: size(size) {
+	glCreateBuffers(1, &this->ssbo);
+	glNamedBufferStorage(
+		this->ssbo,
+		size,
+		NULL,
+		GL_DYNAMIC_STORAGE_BIT
+	);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, this->ssbo);
+}
+
+ShaderStorageBuffer::~ShaderStorageBuffer() noexcept {
+	// glUnmapNamedBuffer(this->ssbo);
+	glDeleteBuffers(1, &this->ssbo);
+}
+
+void ShaderStorageBuffer::update(const void* data, const size_t size, const size_t offset) const noexcept {
+	if(offset + size > this->size) {
+		TRACELOG(log::Type::Error, "Shader Storage Buffer overflow. Aborting.");
+		return;
+	}
+	glNamedBufferSubData(this->ssbo, offset, size, data);
+}
+
+} // namespace floyd

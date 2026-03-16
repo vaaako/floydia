@@ -20,24 +20,24 @@ ShaderProgram::ShaderProgram(const std::shared_ptr<Shader>& v_shader, const std:
 	GLuint fs = f_shader->get_id();
 
 	// Create program
-	if((this->id = glCreateProgram()) == 0) {
+	if((this->program = glCreateProgram()) == 0) {
 		throw std::runtime_error("Failed to compile Shader Program");
 	}
 
-	glAttachShader(this->id, vs);
-	glAttachShader(this->id, fs);
-	glLinkProgram(this->id);
+	glAttachShader(this->program, vs);
+	glAttachShader(this->program, fs);
+	glLinkProgram(this->program);
 
 	// Detach used shaders
-	glDetachShader(this->id, vs);
-	glDetachShader(this->id, fs);
+	glDetachShader(this->program, vs);
+	glDetachShader(this->program, fs);
 
 	GLint success;
-	glGetProgramiv(this->id, GL_LINK_STATUS, &success);
+	glGetProgramiv(this->program, GL_LINK_STATUS, &success);
 	if(!success) {
 		GLchar log[1024];
-		glGetProgramInfoLog(this->id, 1024, NULL, log);
-		glDeleteShader(this->id); // Clean up failed program
+		glGetProgramInfoLog(this->program, 1024, NULL, log);
+		glDeleteShader(this->program); // Clean up failed program
 		throw std::runtime_error(
 			string::format("Error compiling Shader Program:\n---\n%s\n---\n", log)
 		);
@@ -45,7 +45,17 @@ ShaderProgram::ShaderProgram(const std::shared_ptr<Shader>& v_shader, const std:
 }
 
 ShaderProgram::~ShaderProgram() noexcept {
-	glDeleteProgram(this->id);
+	glDeleteProgram(this->program);
+}
+
+
+GLint ShaderProgram::get_uniform_loc(const std::string& name) noexcept {
+	if(this->uniforms_cache.find(name) != this->uniforms_cache.end()) {
+		return this->uniforms_cache[name];
+	}
+	GLint location = glGetUniformLocation(this->program, name.c_str());
+	this->uniforms_cache[name] = location;
+	return location;
 }
 
 } // namespace floyd

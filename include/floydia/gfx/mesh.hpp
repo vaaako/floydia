@@ -11,6 +11,14 @@ namespace floyd {
 // Geometry asset
 class Mesh final {
 	public:
+		// Indicies amount
+		const size_t index_count;
+		// Size of vertices type
+		const uint32 vert_size;
+		// Indices Type
+		const GLenum index_type;
+
+	public:
 		template <typename T, typename U>
 		Mesh(
 			const std::vector<T>& vertices,
@@ -19,6 +27,11 @@ class Mesh final {
 			const bool dynamic = false
 		);
 		~Mesh() noexcept;
+
+		inline GLuint vaoid() const noexcept { return this->vao; }
+		inline GLuint vboid() const noexcept { return this->vbo; }
+		inline GLuint eboid() const noexcept { return this->ebo; }
+
 
 		inline void upload_data(const void* data, const size_t capacity, const bool dynamic) const noexcept {
 			glNamedBufferData(
@@ -33,9 +46,6 @@ class Mesh final {
 		GLuint vao;
 		GLuint vbo;
 		GLuint ebo;
-		size_t index_count;
-		uint32 vert_size; // Vertices type size
-		GLenum index_type;
 };
 
 template <typename T, typename U>

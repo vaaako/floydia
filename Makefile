@@ -59,8 +59,9 @@ clean:
 .PHONY: all clean dirs debug release
 
 # Debug build
+# -Wpadded
+# debug: CXXFLAGS += -O0 -fsanitize=address -g -Wall -Wextra -Wuninitialized -Wunreachable-code
 debug: CXXFLAGS += -O0 -g -Wall -Wextra -Wuninitialized -Wunreachable-code
-# debug: CXXFLAGS += -O0 -g -Wall -Wextra -Wpadded -Wuninitialized -Wunreachable-code
 debug: all
 
 # Release build

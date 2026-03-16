@@ -26,6 +26,8 @@ const char* log::typetostr(const log::Type type) noexcept {
 			return "[WARNING]";
 		case log::Type::Error:
 			return "[ERROR]";
+		default:
+			return "[TRACE]";
 	}
 }
 

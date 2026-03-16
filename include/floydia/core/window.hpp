@@ -5,6 +5,7 @@
 
 #include <floydia/types.hpp>
 #include <floydia/core/event.hpp>
+#include <floydia/core/core.hpp>
 
 struct RGFW_window;
 
@@ -38,16 +39,10 @@ class Window final {
 		inline bool has_event(const Event event) const noexcept {
 			return this->events.find(event) != this->events.end();
 		}
-
-		// -- Renderer
-	public:
-
-		// Submit an object to the renderer
-		//void submit(const Renderable& obj);
-		// Core::get().renderer.submit(obj);
-
-		// Flush renderer and swap buffers
-		//void display();
+		// Get renderer object
+		inline Renderer& renderer() const noexcept {
+			return Core::get().renderer;
+		}
 
 	private:
 		struct impl; // hide external libraries from header

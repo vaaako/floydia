@@ -4,7 +4,7 @@
 #include <floydia/gpu/opengl.hpp>
 
 
-#define GL_CHECK_ERROR() floyd::opengl::check_gl_error(__FILE__, __LINE__)
+#define GL_CHECK_ERROR() floyd::openglhelper::check_gl_error(__FILE__, __LINE__)
 
 namespace floyd {
 namespace openglhelper {

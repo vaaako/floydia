@@ -30,10 +30,12 @@
 
 #pragma once
 
+#include <cstdint>
+
 namespace floyd {
-enum class Event : char {
+enum class Event : uint8_t {
 	NONE = 0, /*!< no event has been sent */
- 	KEY_PRESSED, /* a key has been pressed */
+	KEY_PRESSED, /* a key has been pressed */
 	KEY_RELEASED, /*!< a key has been released */
 	/*! key event note
 		the code of the key pressed is stored in

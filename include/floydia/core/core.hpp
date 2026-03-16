@@ -4,14 +4,17 @@
 
 namespace floyd {
 
-class Core {
-	static inline Core& get() noexcept {
-		static Core core = Core();
-		return core;
-	}
+class Core final {
+	public:
+		Core() = default;
 
-	Renderer renderer = Renderer();
-	// InputSystem inputsystem = InputSystem();
+		static inline Core& get() noexcept {
+			static Core core = Core();
+			return core;
+		}
+
+		Renderer renderer = Renderer();
+		// InputSystem inputsystem = InputSystem();
 };
 
 } // namespace floyd

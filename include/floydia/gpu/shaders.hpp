@@ -24,7 +24,8 @@ constexpr const char* DEFAULT_VERTEX = R"glsl(
 #version 450 core
 
 layout(location = 0) in vec3 aPos;
-layout(location = 1) in vec2 aTex;
+layout(location = 1) in vec3 aNor;
+layout(location = 2) in vec2 aTex;
 
 out vec2 texuv;
 
@@ -38,9 +39,10 @@ layout(std430, binding = 1) buffer InstanceBuffer {
 };
 
 void main() {
-	mat4 model_matrix = model[gl_InstanceID];
+	mat4 model_matrix = models[gl_InstanceID];
 	vec4 worldpos     = model_matrix * vec4(aPos, 1.0);
 	gl_Position       = proj * view * worldpos;
+
 	texuv = aTex;
 }
 )glsl";
@@ -51,11 +53,11 @@ constexpr const char* DEFAULT_FRAGMENT = R"glsl(
 in vec2 texuv;
 out vec4 fragcolor;
 
-uniform vec4 color;
-uniform sampler2D tex2d;
+uniform vec4 u_color;
+// uniform sampler2D tex2d;
 
 void main() {
-	fragcolor = color * texture(tex2d, texuv);
+	fragcolor = vec4(1.0); // * texture(tex2d, texuv);
 }
 )glsl";
 

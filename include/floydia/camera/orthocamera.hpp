@@ -6,21 +6,17 @@ namespace floyd {
 
 class OrthoCamera final : public Camera {
 	public:
-		OrthoCamera(const float width, const float height);
+		OrthoCamera(const float width, const float height) noexcept;
 
 		// Calculate projection matrix
-		//glm::mat4 view() noexcept;
-		// Calculate view matrix
-		glm::mat4 projection() noexcept;
+		glm::mat4 projection() noexcept override;
+
+		inline glm::mat4 view() const noexcept override {
+			return glm::mat4(1.0f);
+		}
 
 		void set_zoom(const float zoom) noexcept;
-		void update_width(const float width) noexcept;
-		void update_height(const float height) noexcept;
-		// Updates width and height
-		void update_viewport(const float width, const float height) noexcept;
 	private:
-		float width;
-		float height;
 		float zoom = 1.0f;
 };
 

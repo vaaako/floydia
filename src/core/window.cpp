@@ -25,13 +25,16 @@ Window::Window(const Settings& settings)
 		RGFW_windowNoResize |
 		RGFW_windowOpenGL
 	);
-
 	if(pimpl->window == NULL) {
 		std::cerr << "Failed to create window!" << std::endl;
 		return;
 	}
 
 	// Initialize OpenGL
+	RGFW_glHints* hints = RGFW_getGlobalHints_OpenGL();
+	hints->major = 4;
+	hints->minor = 5;
+	RGFW_setGlobalHints_OpenGL(hints);
 	RGFW_window_makeCurrentContext_OpenGL(pimpl->window);
 	if(!gladLoadGLLoader((GLADloadproc)RGFW_getProcAddress_OpenGL)) {
 		std::cerr << "Failed to create window!" << std::endl;

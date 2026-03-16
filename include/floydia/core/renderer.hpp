@@ -1,24 +1,14 @@
 #pragma once
 
 #include <floydia/types.hpp>
+#include <floydia/camera/camera.hpp>
 #include <floydia/gfx/renderable.hpp>
 #include <floydia/gfx/mesh.hpp>
 #include <floydia/gfx/material.hpp>
+#include <floydia/gpu/uniformbuffer.hpp>
+#include <floydia/gpu/ssbo.hpp>
 
 #include <vector>
-
-// https://chatgpt.com/s/t_69ace069dc7c81918d8e4091737441e2
-// https://chatgpt.com/s/t_69ace0d2ca88819186f7c6f9f06e386d
-//class Renderer {
-//private:
-//    ShaderStorageBuffer instanceSSBO;
-
-//    std::vector<InstanceData> instanceCPU;
-
-//public:
-//    Renderer()
-//        : instanceSSBO(sizeof(InstanceData) * 10000, 1) {}
-//};
 
 namespace floyd {
 
@@ -31,17 +21,17 @@ class Renderer final {
 		};
 
 	public:
-		Renderer() = default;
-		~Renderer();
+		Renderer() noexcept;
+		~Renderer() = default;
 
-		void init();
-		void begin_frame();
-		void end_frame();
-
-		// void draw(const Renderable& object);
-
+		// Clear queue and update Uniform Buffer
+		void begin_frame(Camera& camera) noexcept;
+		// End frame
+		void flush();
 		// Submit a object to the renderable queue
 		void submit(const DrawCommand& command) noexcept;
+		// Submit object to the queue
+		// void draw(const Renderable& object) noexcept;
 
 	private:
 		struct alignas(16) CameraData {
@@ -54,14 +44,11 @@ class Renderer final {
 			glm::mat4 model;
 		};
 
-		//UniformBuffer cameraUBO;
-		//ShaderStorageBuffer instanceSSBO;
-
 		std::vector<DrawCommand> draw_queue;
-	
-	private:
-		//void upload_camera(const Camera& camera);
-		void flush();
+		std::vector<InstanceData> instances;
+
+		UniformBuffer ubo_camera;
+		ShaderStorageBuffer ssbo_instance;
 };
 
 } // namespace floyd

@@ -14,7 +14,7 @@ class Shader {
 			Fragment = GL_FRAGMENT_SHADER
 		};
 
-		inline GLuint get_id() const noexcept { return this->id; }
+		inline GLuint get_id() const noexcept { return this->shader; }
 		inline Shader::Type get_type() const noexcept { return this->type; }
 
 		Shader(const char* source, const Shader::Type type);
@@ -22,7 +22,7 @@ class Shader {
 
 	private:
 		Shader::Type type = Shader::Type::None;
-		GLuint id = 0;
+		GLuint shader = 0;
 };
 
 
