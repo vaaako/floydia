@@ -33,10 +33,11 @@ class Renderer final {
 		void flush();
 
 	private:
+		// Not const so it can be sorted
 		struct DrawCommand {
-			const Mesh* mesh;
-			const Material* material;
-			const glm::mat4 model;
+			Mesh* mesh;
+			Material* material;
+			glm::mat4 model;
 		};
 
 		struct alignas(16) CameraData {
@@ -48,6 +49,8 @@ class Renderer final {
 			glm::mat4 model;
 		};
 
+	private:
+
 		std::vector<DrawCommand> draw_queue;
 		std::vector<InstanceData> instances;
 
@@ -55,6 +58,7 @@ class Renderer final {
 		ShaderStorageBuffer ssbo_instance;
 
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
+		constexpr static uint32 INST_AMOUNT = 1000;
 };
 
 } // namespace floyd

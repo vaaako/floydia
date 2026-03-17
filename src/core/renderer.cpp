@@ -8,7 +8,8 @@ namespace floyd {
 	// TODO: this is fixeed to 1000 instances
 	// add dynamic resizing later
 Renderer::Renderer() noexcept
-	: ubo_camera(sizeof(CameraData)), ssbo_instance(sizeof(InstanceData) * 1000) {}
+	: ubo_camera(sizeof(CameraData)),
+	ssbo_instance(sizeof(InstanceData) * Renderer::INST_AMOUNT) {} // 1000
 
 void Renderer::init() noexcept {
 	ubo_camera.init(0);
@@ -17,7 +18,7 @@ void Renderer::init() noexcept {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 }
 
@@ -52,6 +53,7 @@ void Renderer::push(const Renderable& obj) noexcept {
 			mmatrix
 		});
 	}
+	this->instances.push_back({ mmatrix });
 }
 
 // TODO: sort instances
@@ -61,39 +63,45 @@ void Renderer::flush() {
 		return;
 	}
 
-	// Sort only higher than 100 objects?
 	// Group similar meshes
-	// std::sort(this->draw_queue.begin(), this->draw_queue.end(),
-	// [](const DrawCommand& a, const DrawCommand& b) {
-	// 	if(a.material != b.material) {
-	// 		return a.material < b.material;
-	// 	}
-	// 	return a.mesh < b.mesh;
-	// });
+	std::sort(this->draw_queue.begin(), this->draw_queue.end(),
+	[](const DrawCommand& a, const DrawCommand& b) {
+		if(a.material != b.material) {
+			return a.material < b.material;
+		}
+		return a.mesh < b.mesh;
+	});
 
-	// Update SSBO
-	this->instances.reserve(this->draw_queue.size());
-	for(const DrawCommand& cmd : this->draw_queue) {
-		this->instances.push_back({ cmd.model });
-	}
+	// Update SSBO with all instance data
+	this->instances.resize(this->draw_queue.size());
 	this->ssbo_instance.update(this->instances.data(),
 			this->instances.size() * sizeof(InstanceData));
 
 	// TODO: cache shader, texture and vao
 
-	// Draw
-	for(size_t i = 0; i < draw_queue.size(); i++) {
-		const DrawCommand& cmd = this->draw_queue[i];
-		cmd.material->bind();
+	Material* prev_material = nullptr;
+	Mesh* prev_mesh = nullptr;
 
-		glBindVertexArray(cmd.mesh->vaoid());
-		// TODO: current glDrawElementsInstanced is useless
+	// Draw in batches
+	const size_t amount = this->draw_queue.size();
+	for(const DrawCommand& cmd : this->draw_queue) {
+		if(cmd.material != prev_material) {
+			cmd.material->bind();
+			// bind texture
+			prev_material = cmd.material;
+		}
+
+		if(cmd.mesh != prev_mesh) {
+			glBindVertexArray(cmd.mesh->vaoid());
+			prev_mesh = cmd.mesh;
+		}
+
 		glDrawElementsInstanced(
 			GL_TRIANGLES,
 			cmd.mesh->index_count,
 			cmd.mesh->index_type,
 			NULL, // indices
-			1     // instance count
+			amount // instance count for this mesh
 		);
 	}
 }
