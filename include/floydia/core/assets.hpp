@@ -18,6 +18,14 @@ class Assets final {
 			return program;
 		}
 
+		// Default shader used by 2D models
+		static inline std::shared_ptr<ShaderProgram> default_program2d() noexcept {
+			static std::shared_ptr<ShaderProgram> program = BufferManager::get().load_shaderprogram(
+				Shaders::DEFAULT_VERTEX_2D, Shaders::DEFAULT_FRAGMENT
+			);
+			return program;
+		}
+
 		static std::shared_ptr<Mesh> cube_mesh() noexcept;
 		static std::shared_ptr<Mesh> quad_mesh() noexcept;
 	//	std::shared_ptr<Texture> load_texture(const std::string& path) noexcept;

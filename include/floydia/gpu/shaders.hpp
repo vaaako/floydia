@@ -39,8 +39,8 @@ layout(std430, binding = 1) buffer InstanceBuffer {
 };
 
 void main() {
-	mat4 model_matrix = models[gl_InstanceID];
-	vec4 worldpos     = model_matrix * vec4(aPos, 1.0);
+	mat4 model = models[gl_InstanceID];
+	vec4 worldpos     = model * vec4(aPos, 1.0);
 	gl_Position       = proj * view * worldpos;
 
 	texuv = aTex;
@@ -65,8 +65,8 @@ layout(std430, binding = 1) buffer InstanceBuffer {
 };
 
 void main() {
-	mat4 model_matrix = models[gl_InstanceID];
-	vec4 worldpos     = model_matrix * vec4(aPos, 1.0);
+	mat4 model = models[gl_InstanceID];
+	vec4 worldpos     = model * vec4(aPos, 1.0);
 	gl_Position       = proj * view * worldpos;
 
 	texuv = aTex;

@@ -64,8 +64,10 @@ Mesh::Mesh(const std::vector<T>& vertices, const std::vector<U>& indices, const 
 	index_type(openglhelper::to_glenum<U>()),
 	is_dynamic(dynamic) {
 
-	static_assert(std::is_standard_layout_v<T>);
-	// static_assert(std::is_base_of_v<Vertex, T>, "T must derive from Vertex");
+	// C-like memory layout (no C++ bloat like virtual)
+	static_assert(std::is_standard_layout_v<T>, "T must be standard layout (no inheritance/virtuals)");
+	// Safely copied as raw bytes (no custom copy logic or hidden ownership)
+	static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable");
 	static_assert(std::is_unsigned_v<U>, "U must be an unsigned arithmetic");
 
 	if(vertices.empty() || indices.empty()) {

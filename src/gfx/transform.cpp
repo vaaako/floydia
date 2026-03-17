@@ -8,7 +8,7 @@ void Transform::set_position(const vec3<float>& position) noexcept {
 }
 
 void Transform::set_scale(const vec3<float>& scale) noexcept {
-	this->_position = scale;
+	this->_scale = scale;
 	this->dirty = true;
 }
 

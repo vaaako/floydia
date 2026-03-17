@@ -75,11 +75,9 @@ namespace floyd {
 		return mesh;
 	}
 
-/*
 std::shared_ptr<Mesh> Assets::quad_mesh() noexcept {
 	static std::shared_ptr<Mesh> mesh = []() {
-		// ???
-		std::vector<Vertex> vertices = {
+		std::vector<Vertex2D> vertices = {
 			// positions                // texture coords
 			{ { -0.5f, -0.5f,  0.5f },  { 0.0f, 0.0f } },
 			{ {  0.5f, -0.5f,  0.5f },  { 1.0f, 0.0f } },
@@ -99,6 +97,5 @@ std::shared_ptr<Mesh> Assets::quad_mesh() noexcept {
 	}();
 	return mesh;
 }
-*/
 
 } // namespace floyd
