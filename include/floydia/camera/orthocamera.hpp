@@ -11,9 +11,7 @@ class OrthoCamera final : public Camera {
 		// Calculate projection matrix
 		glm::mat4 projection() const noexcept override;
 		// Calculate view matrix
-		inline glm::mat4 view() const noexcept override {
-			return glm::mat4(1.0f);
-		}
+		glm::mat4 view() const noexcept override;
 
 		void set_zoom(const float zoom) noexcept;
 	private:

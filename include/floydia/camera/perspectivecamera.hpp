@@ -37,8 +37,8 @@ class PerspectiveCamera final : public Camera {
 		glm::mat4 projection() const noexcept override;
 		// Calculate view matrix
 		inline glm::mat4 view() const noexcept override {
-			return glm::inverse(this->transform.model_matrix());
-			// return glm::lookAt(this->position, this->position + this->forward, this->up);
+			const vec3<float> position = this->transform.position(); // cache
+			return glm::lookAt(position, position + this->forward, this->up);
 		}
 
 		inline float get_fov() const noexcept {
@@ -78,11 +78,9 @@ class PerspectiveCamera final : public Camera {
 		//}
 
 	private:
-		// debug
-		vec3<float> position = vec3<float>(0.0f, 0.0f, 0.0f);
-		vec3<float> up       = vec3<float>(0.0f, 1.0f, 0.0f);
-		vec3<float> forward  = vec3<float>(0.0f, 0.0f, -1.0f);
-		vec3<float> right    = vec3<float>(1.0f, 0.0f, 0.0f);
+		const vec3<float> up      = vec3<float>(0.0f, 1.0f,  0.0f);
+		const vec3<float> forward = vec3<float>(0.0f, 0.0f, -1.0f);
+		const vec3<float> right   = vec3<float>(1.0f, 0.0f,  0.0f);
 
 		float fov;
 		float near_plane = 0.1f;

@@ -12,9 +12,6 @@ class Camera {
 		virtual glm::mat4 projection() const noexcept = 0;
 		// Calculate view matrix
 		virtual glm::mat4 view() const noexcept = 0;
-
-		void update_width(const float width) noexcept;
-		void update_height(const float height) noexcept;
 		// Updates width and height
 		void update_viewport(const float width, const float height) noexcept;
 

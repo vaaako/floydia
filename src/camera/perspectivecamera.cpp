@@ -11,6 +11,7 @@ glm::mat4 PerspectiveCamera::projection() const noexcept {
 			glm::radians(this->fov), (this->width / this->height),
 			this->near_plane, this->far_plane
 		);
+
 		this->dirty = false;
 	}
 	return this->proj;
