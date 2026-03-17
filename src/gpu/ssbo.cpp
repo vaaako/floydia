@@ -3,8 +3,9 @@
 
 namespace floyd {
 
-ShaderStorageBuffer::ShaderStorageBuffer(const uint32 binding, const size_t size) noexcept
-	: size(size) {
+ShaderStorageBuffer::ShaderStorageBuffer(const size_t size) noexcept : size(size) {}
+
+void ShaderStorageBuffer::init(const uint32 binding) noexcept {
 	glCreateBuffers(1, &this->ssbo);
 	glNamedBufferStorage(
 		this->ssbo,

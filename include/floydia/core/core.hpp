@@ -4,13 +4,12 @@
 
 namespace floyd {
 
-class Core final {
-	public:
-		Renderer renderer = Renderer();
-		static inline Core& get() noexcept {
-			static Core core = Core();
-			return core;
-		}
+struct Core final {
+	Renderer renderer = Renderer();
+	static inline Core& get() noexcept {
+		static Core core = Core();
+		return core;
+	}
 };
 
 } // namespace floyd

@@ -15,7 +15,8 @@ struct Window::impl {
 };
 
 Window::Window(const Settings& settings)
-	: pimpl(std::make_unique<impl>()),
+	: renderer(Core::get().renderer),
+	pimpl(std::make_unique<impl>()),
 	width(settings.width), height(settings.height), title(settings.title) {
 	// Initialize Window
 	pimpl->window = RGFW_createWindow(
@@ -42,6 +43,8 @@ Window::Window(const Settings& settings)
 		return;
 	}
 	TRACELOG(log::type::Trace, "OpenGL 4.5 initialized!");
+	// NOTE: Window should't actually initialize 'Renderer'. But I don't want user to initialize it manually
+	Core::get().renderer.init();
 
 	RGFW_window_swapInterval_OpenGL(pimpl->window, settings.vsync);
 

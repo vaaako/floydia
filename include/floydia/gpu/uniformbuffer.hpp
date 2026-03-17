@@ -7,10 +7,12 @@ namespace floyd {
 
 class UniformBuffer final {
 	public:
-		// - `binding` is the Uniform index inside the buffer.
-		// - `size` is the `sizeof(UBO struct)`. std140-aligned
-		UniformBuffer(const uint32 binding, const size_t size) noexcept;
+		// `size` is the `sizeof(UBO struct)`
+		UniformBuffer(const size_t size) noexcept;
 		~UniformBuffer() noexcept;
+		// Initialize Uniform Buffer.
+		// 'binding' is the Uniform index inside the buffer.
+		void init(const uint32 binding) noexcept;
 
 		void update(const void* data, const size_t size, const size_t offset = 0) const noexcept;
 

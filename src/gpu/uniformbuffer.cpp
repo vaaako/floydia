@@ -3,8 +3,9 @@
 
 namespace floyd {
 
-UniformBuffer::UniformBuffer(const uint32 binding, const size_t size) noexcept
-	: size(size) {
+UniformBuffer::UniformBuffer(const size_t size) noexcept : size(size) {}
+
+void UniformBuffer::init(const uint32 binding) noexcept {
 	glCreateBuffers(1, &this->ubo);
 	glNamedBufferStorage(
 		this->ubo,

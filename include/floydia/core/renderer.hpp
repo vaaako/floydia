@@ -17,6 +17,9 @@ class Renderer final {
 		Renderer() noexcept;
 		~Renderer() = default;
 
+		// Initialize OpenGL
+		void init() noexcept;
+
 		// Clear the screen
 		void clear() const noexcept;
 		// Changes the clear color

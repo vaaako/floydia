@@ -12,8 +12,9 @@ struct RGFW_window;
 namespace floyd {
 
 class Window final {
-	// public:
-	// 	Renderer& renderer;
+	public:
+		// Reference to 'Core::Renderer' for easy access
+		Renderer& renderer;
 
 	public:
 		struct Settings {
@@ -41,23 +42,6 @@ class Window final {
 		// Check if a given event has occurred in this frame
 		inline bool has_event(const Event event) const noexcept {
 			return this->events.find(event) != this->events.end();
-		}
-
-		// Returns Renderer object
-		inline Renderer& renderer() const noexcept {
-			return Core::get().renderer;
-		}
-		// Set camera for drawing
-		inline void begin_draw(const Camera& camera) noexcept {
-			Core::get().renderer.begin_draw(camera);
-		}
-		// Push an object to draw
-		inline void push(const Renderable& obj) noexcept {
-			Core::get().renderer.push(obj);
-		}
-		// Flush objects
-		inline void flush() noexcept {
-			Core::get().renderer.flush();
 		}
 
 	private:
