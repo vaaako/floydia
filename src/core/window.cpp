@@ -72,4 +72,46 @@ void Window::swap_buffers() const noexcept {
 	RGFW_window_swapBuffers_OpenGL(pimpl->window);
 }
 
+bool Window::keydown(const Keycode key) const noexcept {
+	return RGFW_isKeyDown(static_cast<uint8>(key));
+}
+
+bool Window::keypressed(const Keycode key) const noexcept {
+	return RGFW_isKeyPressed(static_cast<uint8>(key));
+}
+
+bool Window::keyup(const Keycode key) const noexcept {
+	return RGFW_isKeyReleased(static_cast<uint8>(key));
+}
+
+
+
+bool Window::mousedown(const MouseButton key) const noexcept {
+	return RGFW_isMouseDown(static_cast<uint8>(key));
+}
+
+bool Window::mousepressed(const MouseButton key) const noexcept {
+	return RGFW_isMousePressed(static_cast<uint8>(key));
+}
+
+bool Window::mouseup(const MouseButton key) const noexcept {
+	return RGFW_isMouseReleased(static_cast<uint8>(key));
+}
+
+void Window::mouse_scroll(float* x, float* y) const noexcept {
+	RGFW_getMouseScroll(x, y);
+}
+
+void Window::mouse_vector(float* x, float* y) const noexcept {
+	RGFW_getMouseVector(x, y);
+}
+
+// void Window::mouse_pos(int* x, int* y) const noexcept {
+// 	RGFW_window_getMouse(this->pimpl->window, x, y);
+// }
+//
+// void Window::mouse_pos_global(int* x, int* y) const noexcept {
+// 	RGFW_getGlobalMouse(x, y);
+// }
+
 } // namespace floyd
