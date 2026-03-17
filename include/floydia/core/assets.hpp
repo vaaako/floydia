@@ -18,7 +18,8 @@ class Assets final {
 			return program;
 		}
 
-		static std::shared_ptr<Mesh> cube_mesh();
+		static std::shared_ptr<Mesh> cube_mesh() noexcept;
+		static std::shared_ptr<Mesh> quad_mesh() noexcept;
 	//	std::shared_ptr<Texture> load_texture(const std::string& path) noexcept;
 	//private:
 	//	std::unordered_map<std::string, std::weak_ptr<Mesh>> meshes;

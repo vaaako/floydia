@@ -3,13 +3,14 @@
 
 namespace floyd {
 
-UniformBuffer::UniformBuffer(const size_t size) noexcept : size(size) {}
+UniformBuffer::UniformBuffer(const size_t capacity) noexcept
+	: capacity(capacity) {}
 
 void UniformBuffer::init(const uint32 binding) noexcept {
 	glCreateBuffers(1, &this->ubo);
 	glNamedBufferStorage(
 		this->ubo,
-		size,
+		this->capacity,
 		NULL,
 		GL_DYNAMIC_STORAGE_BIT
 	);
@@ -23,7 +24,7 @@ UniformBuffer::~UniformBuffer() noexcept {
 }
 
 void UniformBuffer::update(const void* data, const size_t size, const size_t offset) const noexcept {
-	if(offset + size > this->size) {
+	if(offset + size > this->capacity) {
 		TRACELOG(log::type::Error, "Uniform Buffer overflow. Aborting.");
 		return;
 	}

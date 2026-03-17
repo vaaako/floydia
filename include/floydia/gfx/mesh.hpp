@@ -3,6 +3,7 @@
 #include <floydia/types.hpp>
 #include <floydia/gpu/opengl.hpp>
 #include <floydia/gpu/vertexlayout.hpp>
+#include <floydia/utilities/log.hpp>
 #include <vector>
 
 
@@ -11,10 +12,12 @@ namespace floyd {
 // Geometry asset
 class Mesh final {
 	public:
+		// Vertices size. Used for dynamic Mesh update
+		const size_t capacity;
+		// Size of vertices type
+		const size_t vertex_type_size;
 		// Indicies amount
 		const size_t index_count;
-		// Size of vertices type
-		const uint32 vert_size;
 		// Indices Type
 		const GLenum index_type;
 
@@ -32,35 +35,49 @@ class Mesh final {
 		inline GLuint vboid() const noexcept { return this->vbo; }
 		inline GLuint eboid() const noexcept { return this->ebo; }
 
-
-		inline void upload_data(const void* data, const size_t capacity, const bool dynamic) const noexcept {
-			glNamedBufferData(
+		// Allocate data once.
+		// Sets fixed buffer size
+		inline void allocate(const void* data, const bool dynamic) const noexcept {
+			glNamedBufferStorage(
 				this->vbo,
-				this->vert_size * capacity,
+				this->vertex_type_size * this->capacity,
 				data,
-				(dynamic) ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW
+				(dynamic) ? GL_DYNAMIC_STORAGE_BIT : 0
 			);
 		}
+
+		// Update existing data. Only works if set as 'dynamic'
+		void update(const void* data, const size_t size) const noexcept;
 
 	private:
 		GLuint vao;
 		GLuint vbo;
 		GLuint ebo;
+		bool is_dynamic = false;
 };
 
 template <typename T, typename U>
 Mesh::Mesh(const std::vector<T>& vertices, const std::vector<U>& indices, const VertexLayout& layout, const bool dynamic)
-	: index_count(indices.size()), vert_size(sizeof(T)), index_type(openglhelper::to_glenum<U>()) {
+	: capacity(vertices.size()),
+	vertex_type_size(sizeof(T)),
+	index_count(indices.size()),
+	index_type(openglhelper::to_glenum<U>()),
+	is_dynamic(dynamic) {
 
 	static_assert(std::is_standard_layout_v<T>);
 	// static_assert(std::is_base_of_v<Vertex, T>, "T must derive from Vertex");
 	static_assert(std::is_unsigned_v<U>, "U must be an unsigned arithmetic");
 
+	if(vertices.empty() || indices.empty()) {
+		TRACELOG(log::type::Error, "Vertices and Indices cannot be empty. Aborting.");
+		return;
+	}
+
 	// -- VAO and VBO
 	glCreateVertexArrays(1, &this->vao);
 	glCreateBuffers(1, &this->vbo);
 	// Allocate data on VBO
-	this->upload_data(vertices.data(), vertices.size(), dynamic);
+	this->allocate(vertices.data(), dynamic);
 
 	// TODO: make indices optional later?
 
@@ -86,6 +103,8 @@ Mesh::Mesh(const std::vector<T>& vertices, const std::vector<U>& indices, const 
 
 	for(const VertexLayout::Attribute& attr : layout.get()) {
 		glEnableVertexArrayAttrib(this->vao, attr.index);
+		// Attach VBO to VAO
+		glVertexArrayAttribBinding(this->vao, attr.index, 0);
 		glVertexArrayAttribFormat(
 			this->vao,
 			attr.index,
@@ -94,8 +113,6 @@ Mesh::Mesh(const std::vector<T>& vertices, const std::vector<U>& indices, const 
 			attr.normalized,
 			attr.offset
 		);
-		// Attach VBO to VAO
-		glVertexArrayAttribBinding(this->vao, attr.index, 0);
 	}
 }
 

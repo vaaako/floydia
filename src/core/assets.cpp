@@ -4,7 +4,7 @@
 #include <floydia/geometry/vertex.hpp>
 
 namespace floyd {
-	std::shared_ptr<Mesh> Assets::cube_mesh() {
+	std::shared_ptr<Mesh> Assets::cube_mesh() noexcept {
 		static std::shared_ptr<Mesh> mesh = []() {
 			std::vector<Vertex> vertices = {
 				// positions                // normals               // texture coords
@@ -75,5 +75,30 @@ namespace floyd {
 		return mesh;
 	}
 
+/*
+std::shared_ptr<Mesh> Assets::quad_mesh() noexcept {
+	static std::shared_ptr<Mesh> mesh = []() {
+		// ???
+		std::vector<Vertex> vertices = {
+			// positions                // texture coords
+			{ { -0.5f, -0.5f,  0.5f },  { 0.0f, 0.0f } },
+			{ {  0.5f, -0.5f,  0.5f },  { 1.0f, 0.0f } },
+			{ {  0.5f,  0.5f,  0.5f },  { 1.0f, 1.0f } },
+			{ { -0.5f,  0.5f,  0.5f },  { 0.0f, 1.0f } },
+		};
+
+		std::vector<uint8> indices = {
+			0, 1, 2,
+			2, 3, 0,
+		};
+
+		VertexLayout layout;
+		layout.add<float>(3); // position
+		layout.add<float>(2); // texuv
+		return std::make_shared<Mesh>(vertices, indices, layout);
+	}();
+	return mesh;
+}
+*/
 
 } // namespace floyd

@@ -3,13 +3,14 @@
 
 namespace floyd {
 
-ShaderStorageBuffer::ShaderStorageBuffer(const size_t size) noexcept : size(size) {}
+ShaderStorageBuffer::ShaderStorageBuffer(const size_t capacity) noexcept
+	: capacity(capacity) {}
 
 void ShaderStorageBuffer::init(const uint32 binding) noexcept {
 	glCreateBuffers(1, &this->ssbo);
 	glNamedBufferStorage(
 		this->ssbo,
-		size,
+		this->capacity,
 		NULL,
 		GL_DYNAMIC_STORAGE_BIT
 	);
@@ -22,7 +23,7 @@ ShaderStorageBuffer::~ShaderStorageBuffer() noexcept {
 }
 
 void ShaderStorageBuffer::update(const void* data, const size_t size, const size_t offset) const noexcept {
-	if(offset + size > this->size) {
+	if(offset + size > this->capacity) {
 		TRACELOG(log::type::Error, "Shader Storage Buffer overflow. Aborting.");
 		return;
 	}
