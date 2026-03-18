@@ -16,17 +16,8 @@ class Model final {
 			std::shared_ptr<Mesh> mesh;
 			std::shared_ptr<Material> material;
 		};
-
-		inline void add_submesh(const std::shared_ptr<Mesh>& mesh, const std::shared_ptr<Material>& material) {
-			if(mesh == nullptr) {
-				throw std::invalid_argument("mesh can not be nullptr");
-			}
-			this->_submeshes.push_back({
-				mesh,
-				(material != nullptr) ? material : std::make_shared<Material>()
-			});
-		}
-
+		void add_submesh(const std::shared_ptr<Mesh>& mesh, const std::shared_ptr<Material>& material);
+		// Returns all meshes on Model
 		inline const std::vector<SubMesh>& meshes() const noexcept {
 			return this->_submeshes;
 		}

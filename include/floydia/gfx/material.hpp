@@ -11,7 +11,7 @@ namespace floyd {
 // Color, Texture and Shader
 class Material {
 	public:
-		Material() = default;
+		Material(const std::shared_ptr<ShaderProgram>& shader) noexcept;
 		~Material() = default;
 
 		// shared_ptr handles default
@@ -23,25 +23,12 @@ class Material {
 		Material& operator=(Material&&) = default;
 
 	public:
-		std::shared_ptr<ShaderProgram> shader = Assets::default_program();
+		std::shared_ptr<ShaderProgram> shader;
 		//std::vector<std::shared_ptr<Texture>>
-		//Color color
 
 		// Bind shader and textures.
 		// Send color uniform to shader
-		inline void bind() const noexcept {
-			this->shader->bind();
-			this->shader->set_uniform_vec4f("u_color", color);
-			// for-loop to bind textures
-		}
-
-		// Set a color in a 0-255 range
-		inline void set_color(const vec4<uint8> color) {
-			this->color = (vec4<float>)color / glm::vec4(255.0f);
-		}
-
-	private:
-		vec4<float> color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		void bind() const noexcept;
 };
 
 } // namespace floyd

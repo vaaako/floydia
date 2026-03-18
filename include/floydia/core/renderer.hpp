@@ -10,6 +10,8 @@
 
 #include <vector>
 
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+
 namespace floyd {
 
 class Renderer final {
@@ -33,11 +35,13 @@ class Renderer final {
 		void flush();
 
 	private:
-		// Not const so it can be sorted
-		struct DrawCommand {
+		struct DrawBatch {
 			Mesh* mesh;
 			Material* material;
-			glm::mat4 model;
+			// Number of instances for this mesh
+			uint32 instance_count;
+			// Start index in SSBO
+			uint32 instance_index;
 		};
 
 		struct alignas(16) CameraData {
@@ -47,17 +51,20 @@ class Renderer final {
 
 		struct alignas(16) InstanceData {
 			glm::mat4 model;
+			glm::vec4 color;
 		};
 
 	private:
 
-		std::vector<DrawCommand> draw_queue;
+		std::vector<DrawBatch> batches;
 		std::vector<InstanceData> instances;
 
 		UniformBuffer ubo_camera;
 		ShaderStorageBuffer ssbo_instance;
 
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
+
+		// TODO: add resize for SSBO
 		constexpr static uint32 INST_AMOUNT = 1000;
 };
 

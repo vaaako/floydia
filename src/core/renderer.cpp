@@ -36,7 +36,7 @@ void Renderer::set_clear_color(const vec4<uint8>& color) noexcept {
 
 void Renderer::begin_draw(const Camera& camera) noexcept {
 	// Clear previous frame
-	this->draw_queue.clear();
+	this->batches.clear();
 	this->instances.clear();
 	// Update Camera and Camera Uniform Buffer
 	CameraData cam = { camera.view(), camera.projection() };
@@ -45,63 +45,97 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 
 void Renderer::push(const Renderable& obj) noexcept {
 	const glm::mat4& mmatrix = obj.transform.model_matrix(); // cache
-	this->draw_queue.reserve(this->draw_queue.size() + obj.mesh_count());
+
+	this->instances.push_back({ mmatrix, obj.color_norm() });
+	// size() returns count, so -1 gives index of the last pushed element
+	uint32 instance_index = this->instances.size() - 1;
+	// Create draw commands with instance index
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
-		this->draw_queue.push_back({
+		this->batches.push_back({
 			sub.mesh.get(),
 			sub.material.get(),
-			mmatrix
+			1, // Count 1 for now
+			instance_index // Start at this instance index
 		});
 	}
-	this->instances.push_back({ mmatrix });
 }
 
-// TODO: sort instances
 void Renderer::flush() {
 	// Skip if queue is empty
-	if(this->draw_queue.empty()) {
+	if(this->batches.empty()) {
 		return;
 	}
 
-	// Group similar meshes
-	std::sort(this->draw_queue.begin(), this->draw_queue.end(),
-	[](const DrawCommand& a, const DrawCommand& b) {
+	// Sort by material then mesh
+	// Before: ABACBA
+	// After: AAABBC
+	std::sort(this->batches.begin(), this->batches.end(),
+	[](const DrawBatch& a, const DrawBatch& b) {
 		if(a.material != b.material) {
 			return a.material < b.material;
 		}
 		return a.mesh < b.mesh;
 	});
 
+	// Merge consecutive batches with same mesh/material
+	std::vector<DrawBatch> merged;
+	std::vector<InstanceData> new_instances; // reordered SSBO data
+	merged.reserve(this->batches.size());
+	new_instances.reserve(this->batches.size());
+	// Group draw calls and rearrange instance data so each group is contigous
+	// Before: AAABBC
+	// After merged: A(3), B(2), C(1)
+	for(const DrawBatch& batch : this->batches) {
+		if(!merged.empty()
+			&& merged.back().mesh == batch.mesh
+			&& merged.back().material == batch.material) {
+			// Same batch, extend instance count
+			// Increase how many instances this batch draws
+			merged.back().instance_count++;
+			// Append instance next to previous ones
+			new_instances.push_back(this->instances[batch.instance_index]);
+			continue;
+		}
+
+		// Start a new batch
+		DrawBatch new_batch = batch;
+		// Mark start offset of this batch in the reordered instance buffer
+		new_batch.instance_index = new_instances.size();
+		new_batch.instance_count = 1;
+
+		merged.push_back(new_batch);
+		// Append instance next to previous ones
+		new_instances.push_back(this->instances[batch.instance_index]);
+	}
+
 	// Update SSBO with all instance data
-	this->instances.resize(this->draw_queue.size());
+	this->instances.swap(new_instances);
 	this->ssbo_instance.update(this->instances.data(),
 			this->instances.size() * sizeof(InstanceData));
 
-	// TODO: cache shader, texture and vao
-
+	// Draw merged batches
 	Material* prev_material = nullptr;
 	Mesh* prev_mesh = nullptr;
-
-	// Draw in batches
-	const size_t amount = this->draw_queue.size();
-	for(const DrawCommand& cmd : this->draw_queue) {
-		if(cmd.material != prev_material) {
-			cmd.material->bind();
+	for(const DrawBatch& batch : merged) {
+		if(batch.material != prev_material) {
+			batch.material->bind();
 			// bind texture
-			prev_material = cmd.material;
+			prev_material = batch.material;
 		}
 
-		if(cmd.mesh != prev_mesh) {
-			glBindVertexArray(cmd.mesh->vaoid());
-			prev_mesh = cmd.mesh;
+		if(batch.mesh != prev_mesh) {
+			glBindVertexArray(batch.mesh->vaoid());
+			prev_mesh = batch.mesh;
 		}
 
-		glDrawElementsInstanced(
+		// Draw N instances starting from offset X in the instance buffer
+		glDrawElementsInstancedBaseInstance(
 			GL_TRIANGLES,
-			cmd.mesh->index_count,
-			cmd.mesh->index_type,
+			batch.mesh->index_count,
+			batch.mesh->index_type,
 			NULL, // indices
-			amount // instance count for this mesh
+			batch.instance_count,
+			batch.instance_index // Base instance for gl_InstanceID
 		);
 	}
 }

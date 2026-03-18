@@ -10,7 +10,8 @@ Cube::Cube() noexcept
 std::shared_ptr<Model> Cube::create_model() noexcept {
 	std::shared_ptr<Mesh> mesh = Assets::cube_mesh();
 	std::shared_ptr<Model> model = std::make_shared<Model>();
-	model->add_submesh(mesh, nullptr); // use default material
+	std::shared_ptr<Material> material = std::make_shared<Material>(Assets::default_program());
+	model->add_submesh(mesh, material); // use default material
 	return model;
 }
 
