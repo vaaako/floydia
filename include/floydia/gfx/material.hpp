@@ -1,7 +1,6 @@
 #pragma once
 
 #include <floydia/gpu/shaderprogram.hpp>
-#include <floydia/core/assets.hpp>
 
 namespace floyd {
 

@@ -1,12 +1,14 @@
 #pragma once
 
 #include <memory>
-#include <unordered_map>
 #include <floydia/gfx/mesh.hpp>
+#include <floydia/gfx/material.hpp>
 #include <floydia/gpu/shaders.hpp>
 #include <floydia/core/buffermanager.hpp>
 
 namespace floyd {
+
+// TODO: instead of static method: store in unordered_map
 
 class Assets final {
 	public:
@@ -24,6 +26,18 @@ class Assets final {
 				Shaders::DEFAULT_VERTEX_2D, Shaders::DEFAULT_FRAGMENT
 			);
 			return program;
+		}
+
+		// Default Material
+		static inline std::shared_ptr<Material> default_material() noexcept {
+			static std::shared_ptr<Material> material = std::make_shared<Material>(Assets::default_program());
+			return material;
+		}
+
+		// Default Material 2D
+		static inline std::shared_ptr<Material> default_material2d() noexcept {
+			static std::shared_ptr<Material> material = std::make_shared<Material>(Assets::default_program2d());
+			return material;
 		}
 
 		static std::shared_ptr<Mesh> cube_mesh() noexcept;
