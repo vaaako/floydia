@@ -15,9 +15,8 @@ glm::mat4 OrthoCamera::projection() const noexcept {
 }
 
 glm::mat4 OrthoCamera::view() const noexcept {
-	const vec3<float> position = this->transform.position(); // cache
 	glm::mat4 view = glm::translate(glm::mat4(1.0f),
-		glm::vec3(-position.x, -position.y, 0.0f));
+		glm::vec3(-this->position.x, -this->position.y, 0.0f));
 		// glm::vec3(-position.x, position.y, 0.0f));
 	// Return with zoom applied
 	return glm::scale(view, glm::vec3(this->zoom, this->zoom, 1.0f));

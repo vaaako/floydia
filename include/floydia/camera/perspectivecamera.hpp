@@ -2,34 +2,17 @@
 
 #include <floydia/camera/camera.hpp>
 
-/*
-void Camera::update_fps(const Input& input, float dt)
-{
-    // mouse look
-    transform.rotate_y(input.mouse_delta_x() * dt);
-    transform.rotate_x(input.mouse_delta_y() * dt);
-
-    // WASD movement
-    glm::vec3 forward = transform.forward();
-    glm::vec3 right   = transform.right();
-
-    if (input.key_down(KEY_W))
-        transform.translate(forward * dt * 5.0f);
-
-    if (input.key_down(KEY_S))
-        transform.translate(-forward * dt * 5.0f);
-
-    if (input.key_down(KEY_A))
-        transform.translate(-right * dt * 5.0f);
-
-    if (input.key_down(KEY_D))
-        transform.translate(right * dt * 5.0f);
-}
-*/
-
 namespace floyd {
 
 class PerspectiveCamera final : public Camera {
+	public:
+		// Horizontal
+		float yaw = -90.0f; // forward: -Z
+		// Vertical
+		float pitch = 0.0f;
+		// Camera sensitivity
+		float sensitivity = 0.1f;
+
 	public:
 		PerspectiveCamera(const float fov, const float width, const float height) noexcept;
 
@@ -37,9 +20,15 @@ class PerspectiveCamera final : public Camera {
 		glm::mat4 projection() const noexcept override;
 		// Calculate view matrix
 		inline glm::mat4 view() const noexcept override {
-			const vec3<float> position = this->transform.position(); // cache
-			return glm::lookAt(position, position + this->forward, this->up);
+			return glm::lookAt(this->position, this->position + this->forward, this->up);
 		}
+
+		// Takes a normalized vector and moves the camera
+		void move(const vec3<float>& dir, const float velocity) noexcept;
+		// Takes a delta vector and rotates the cameras
+		void rotate(const vec2<float>& delta) noexcept;
+		// Updates camera's vectors using yaw and pitch
+		void update_vectors() noexcept;
 
 		inline float get_fov() const noexcept {
 			return this->fov;
@@ -78,9 +67,9 @@ class PerspectiveCamera final : public Camera {
 		//}
 
 	private:
-		const vec3<float> up      = vec3<float>(0.0f, 1.0f,  0.0f);
-		const vec3<float> forward = vec3<float>(0.0f, 0.0f, -1.0f);
-		const vec3<float> right   = vec3<float>(1.0f, 0.0f,  0.0f);
+		vec3<float> up      = vec3<float>(0.0f, 1.0f,  0.0f);
+		vec3<float> forward = vec3<float>(0.0f, 0.0f, -1.0f);
+		vec3<float> right   = vec3<float>(1.0f, 0.0f,  0.0f);
 
 		float fov;
 		float near_plane = 0.1f;

@@ -16,8 +16,8 @@ class Camera {
 		void update_viewport(const float width, const float height) noexcept;
 
 	protected:
-		mutable glm::mat4 proj; // I think it makes sense this be mutable
-		Transform transform;
+		mutable glm::mat4 proj;
+		vec3<float> position = vec3<float>(0.0f);
 		float width;
 		float height;
 		mutable bool dirty = true;
