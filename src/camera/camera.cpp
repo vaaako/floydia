@@ -13,7 +13,7 @@ Camera::Camera(const float width, const float height) noexcept
 }
 
 // Updates width and height
-void Camera::update_viewport(const float width, const float height) noexcept {
+void Camera::viewport(const float width, const float height) noexcept {
 	this->width = width;
 	this->height = height;
 	this->dirty = true;

@@ -82,11 +82,13 @@ class Window final {
 		void set_min_size(const uint32 width, const uint32 height) noexcept;
 		// Sets the maximum size of the window
 		void set_max_size(const uint32 width, const uint32 height) noexcept;
-		// Resizes the window to the given dimensions
-		void resize(const uint32 width, const uint32 height) noexcept;
+		// Resizes the window viewport to the given dimensions
+		void viewport(const uint32 width, const uint32 height) noexcept;
 
 		// Returns true if mouse is grabbed
 		bool is_mouse_grabbed() const noexcept;
+		// Returns window current size
+		vec2<uint32> size() const noexcept;
 
 
 		// Returns true if the key is down

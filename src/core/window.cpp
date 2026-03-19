@@ -20,7 +20,10 @@ Window::Window(const Settings &settings)
 		// Initialize Window
 		pimpl->window = RGFW_createWindow(
 				settings.title.c_str(), 0, 0, settings.width, settings.height,
-				RGFW_windowCenter | RGFW_windowNoResize | RGFW_windowOpenGL);
+				RGFW_windowCenter | RGFW_windowOpenGL);
+		if(!settings.resizable) {
+			RGFW_window_setFlags(pimpl->window, RGFW_windowNoResize);
+		}
 		if(pimpl->window == NULL) {
 			std::cerr << "Failed to create window!" << std::endl;
 			return;
@@ -120,12 +123,22 @@ void Window::set_max_size(const uint32 width, const uint32 height) noexcept {
 	RGFW_window_setMaxSize(pimpl->window, static_cast<int>(width),
 			static_cast<int>(height));
 }
-void Window::resize(const uint32 width, const uint32 height) noexcept {
-	RGFW_window_resize(pimpl->window, static_cast<int>(width),
+void Window::viewport(const uint32 width, const uint32 height) noexcept {
+	this->width = width;
+	this->height = height;
+	RGFW_window_setAspectRatio(pimpl->window, static_cast<int>(width),
 			static_cast<int>(height));
+	glViewport(0, 0, width, height);
 }
 
 bool Window::is_mouse_grabbed() const noexcept { return RGFW_window_isHoldingMouse(pimpl->window); }
+
+
+vec2<uint32> Window::size() const noexcept {
+	vec2<int> output;
+	RGFW_window_getSize(pimpl->window, &output.x, &output.y);
+	return vec2<uint32>(output);
+}
 
 // -- KEYBOARD
 

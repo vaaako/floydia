@@ -13,7 +13,7 @@ class Camera {
 		// Calculate view matrix
 		virtual glm::mat4 view() const noexcept = 0;
 		// Updates width and height
-		void update_viewport(const float width, const float height) noexcept;
+		void viewport(const float width, const float height) noexcept;
 
 	protected:
 		mutable glm::mat4 proj;

@@ -9,7 +9,9 @@
 
 # advanced
 - frustum culling
-- texture bathcing
+- depth pre-pass
+- LOD
+- occlusion culling
 
 - Cada arquivo deve ter uma função
 - Cada classe deve ter uma função
