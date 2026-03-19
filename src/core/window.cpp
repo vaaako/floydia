@@ -126,8 +126,8 @@ void Window::set_max_size(const uint32 width, const uint32 height) noexcept {
 void Window::viewport(const uint32 width, const uint32 height) noexcept {
 	this->width = width;
 	this->height = height;
-	RGFW_window_setAspectRatio(pimpl->window, static_cast<int>(width),
-			static_cast<int>(height));
+	// RGFW_window_setAspectRatio(pimpl->window, static_cast<int>(width),
+	// 		static_cast<int>(height));
 	glViewport(0, 0, width, height);
 }
 

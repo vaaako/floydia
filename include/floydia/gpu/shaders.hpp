@@ -35,13 +35,13 @@ layout(std140, binding = 0) uniform CameraBlock {
 	mat4 proj;
 };
 
-struct Instance {
+struct InstanceData {
 	mat4 model;
 	vec4 color;
 };
 
 layout(std430, binding = 1) buffer InstanceBuffer {
-	Instance instances[];
+	InstanceData instances[];
 };
 
 layout(std430, binding = 2) buffer InstanceIndexBuffer {
@@ -51,13 +51,13 @@ layout(std430, binding = 2) buffer InstanceIndexBuffer {
 void main() {
 	// gl_BaseInstance: Start index
 	uint idx = instance_indices[gl_InstanceID + gl_BaseInstance];
-	Instance inst = instances[idx];
+	InstanceData data = instances[idx];
 
-	vec4 worldpos     = inst.model * vec4(aPos, 1.0);
+	vec4 worldpos     = data.model * vec4(aPos, 1.0);
 	gl_Position       = proj * view * worldpos;
 
 	texuv = aTex;
-	color = inst.color;
+	color = data.color;
 }
 )glsl";
 
@@ -75,13 +75,13 @@ layout(std140, binding = 0) uniform CameraBlock {
 	mat4 proj;
 };
 
-struct Instance {
+struct InstanceData {
 	mat4 model;
 	vec4 color;
 };
 
 layout(std430, binding = 1) buffer InstanceBuffer {
-	Instance instances[];
+	InstanceData instances[];
 };
 
 layout(std430, binding = 2) buffer InstanceIndexBuffer {
@@ -91,13 +91,13 @@ layout(std430, binding = 2) buffer InstanceIndexBuffer {
 void main() {
 	// gl_BaseInstance: Start index
 	uint idx = instance_indices[gl_InstanceID + gl_BaseInstance];
-	Instance inst = instances[idx];
+	InstanceData data = instances[idx];
 
-	vec4 worldpos     = inst.model * vec4(aPos, 1.0);
+	vec4 worldpos     = data.model * vec4(aPos, 1.0);
 	gl_Position       = proj * view * worldpos;
 
 	texuv = aTex;
-	color = inst.color;
+	color = data.color;
 }
 )glsl";
 

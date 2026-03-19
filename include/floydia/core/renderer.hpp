@@ -73,7 +73,8 @@ class Renderer final {
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 
 		// TODO: add resize for SSBO
-		constexpr static uint32 INST_AMOUNT = 9999;
+		// constexpr static uint32 INST_AMOUNT = 9999;
+		constexpr static uint32 INST_AMOUNT = 999999; // debug
 };
 
 } // namespace floyd

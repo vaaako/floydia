@@ -76,14 +76,14 @@ void Renderer::flush() {
 	// Sort by material then mesh
 	// Before: ABACBA
 	// After: AAABBC
-	std::sort(this->batches.begin(), this->batches.end(),
-	[](const DrawBatch& a, const DrawBatch& b) {
-		// NOTE: non-deterministic, have to change later
-		if(a.mesh != b.mesh) {
-			return a.mesh < b.mesh;
-		}
-		return a.material < b.material;
-	});
+	// std::sort(this->batches.begin(), this->batches.end(),
+	// [](const DrawBatch& a, const DrawBatch& b) {
+	// 	// NOTE: non-deterministic, have to change later
+	// 	if(a.mesh != b.mesh) {
+	// 		return a.mesh < b.mesh;
+	// 	}
+	// 	return a.material < b.material;
+	// });
 
 	// Merge consecutive batches with same mesh/material
 	std::vector<DrawBatch> merged;
