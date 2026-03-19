@@ -44,9 +44,15 @@ layout(std430, binding = 1) buffer InstanceBuffer {
 	Instance instances[];
 };
 
+layout(std430, binding = 2) buffer InstanceIndexBuffer {
+	uint instance_indices[];
+};
+
 void main() {
 	// gl_BaseInstance: Start index
-	Instance inst = instances[gl_InstanceID + gl_BaseInstance];
+	uint idx = instance_indices[gl_InstanceID + gl_BaseInstance];
+	Instance inst = instances[idx];
+
 	vec4 worldpos     = inst.model * vec4(aPos, 1.0);
 	gl_Position       = proj * view * worldpos;
 
@@ -78,9 +84,15 @@ layout(std430, binding = 1) buffer InstanceBuffer {
 	Instance instances[];
 };
 
+layout(std430, binding = 2) buffer InstanceIndexBuffer {
+	uint instance_indices[];
+};
+
 void main() {
 	// gl_BaseInstance: Start index
-	Instance inst = instances[gl_InstanceID + gl_BaseInstance];
+	uint idx = instance_indices[gl_InstanceID + gl_BaseInstance];
+	Instance inst = instances[idx];
+
 	vec4 worldpos     = inst.model * vec4(aPos, 1.0);
 	gl_Position       = proj * view * worldpos;
 

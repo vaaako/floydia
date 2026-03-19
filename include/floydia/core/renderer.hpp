@@ -58,14 +58,22 @@ class Renderer final {
 
 		std::vector<DrawBatch> batches;
 		std::vector<InstanceData> instances;
+		
+		// In order for batches to work, instances (SSBO data) must be accessed in batch order.
+		// Instead of duplicating InstanceData to make them contiguous,
+		// this vector stores an indirection buffer (instance_indices).
+		// This buffer maps each draw instance to its original instance in the SSBO.
+		// A second SSBO is used to send these indices to the shader
+		std::vector<uint32> instance_indices;
 
 		UniformBuffer ubo_camera;
 		ShaderStorageBuffer ssbo_instance;
+		ShaderStorageBuffer ssbo_instance_indices;
 
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 
 		// TODO: add resize for SSBO
-		constexpr static uint32 INST_AMOUNT = 1000;
+		constexpr static uint32 INST_AMOUNT = 9999;
 };
 
 } // namespace floyd
