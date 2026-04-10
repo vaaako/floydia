@@ -28,6 +28,7 @@ class Object {
 		// Color is here so that batch draw
 		// can continue working regardless of the object's color
 		vec4<float> color = vec4<float>(1.0f);
+
 };
 
 } // namespace floyd

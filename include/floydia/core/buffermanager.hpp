@@ -1,8 +1,11 @@
 #pragma once
 
+#include <memory>
 #include <unordered_map>
 #include <floydia/gpu/shader.hpp>
 #include <floydia/gpu/shaderprogram.hpp>
+#include <floydia/gpu/programpipeline.hpp>
+#include <utility>
 
 namespace floyd {
 
@@ -13,29 +16,44 @@ class BufferManager {
 			return bm;
 		}
 
-		// Checks for an existing Vertex Array.
-		// Returns an existing Vertex Array or uploads a newly created if it didn't
+		// TODO: add array of shaders on shader program too
 
-		// Checks if an existing Shader Program (same for the Shaders inside it).
-		// Returns an existing Shader Program or uploads a newly created if it didn't
+		// Returns an existing Shader Program or uploads a newly created and returns if it didn't.
+		// Returns 'nullptr' for error
 		std::shared_ptr<ShaderProgram> load_shaderprogram(const char* vertex, const char* fragment);
-		// Checks if an existing Shader.
-		// Returns an existing Shader or uploads a newly created if it didn't
-		std::shared_ptr<Shader> load_shader(const char* source, const Shader::Type type);
-
 		// Get an existing Shader Program using its hash.
 		// Returns 'nullptr' if not found
 		std::shared_ptr<ShaderProgram> get_shaderprogram(const size_t hash) noexcept;
-		// Get an existing Shader using its hash.
-		// Returns 'nullptr' if not found
-		std::shared_ptr<Shader> get_shader(const size_t hash) noexcept;
-
 
 		// void cleanup() noexcept;
 	private:
-		// std::unordered_map<size_t, std::weak_ptr<VertexArray>> vertexarray_cache;
+		// NOTE: VertexLayout object is stores on Assets
+		// NOTE: With Pipeline Program there is no need to store Shader object
 		std::unordered_map<size_t, std::weak_ptr<ShaderProgram>> shaderprogram_cache;
-		std::unordered_map<size_t, std::weak_ptr<Shader>> shader_cache;
+
+		// Helper to get obj from maps
+		template <typename T>
+		std::shared_ptr<T> get_obj(std::unordered_map<size_t, std::weak_ptr<T>>& map, const size_t hash) noexcept;
 };
+
+
+template <typename T>
+std::shared_ptr<T> BufferManager::get_obj(std::unordered_map<size_t, std::weak_ptr<T>>& map, const size_t hash) noexcept {
+	// Check if T is cached
+	auto it = map.find(hash);
+	if(it == map.end()) {
+		return nullptr;
+	}
+
+	// If cached and valid
+	if(std::shared_ptr<T> cache = it->second.lock()) {
+		return cache;
+	}
+
+	// weak_ptr expired
+	map.erase(it);
+	return nullptr;
+}
+
 
 } // namespace floyd

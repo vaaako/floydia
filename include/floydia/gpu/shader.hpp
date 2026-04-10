@@ -8,20 +8,22 @@ namespace floyd {
 // Represents a single shader inside a Shader Program
 class Shader {
 	public:
-		enum class Type {
+		enum Type {
 			None = 0,
-			Vertex = GL_VERTEX_SHADER,
+			Vertex   = GL_VERTEX_SHADER,
 			Fragment = GL_FRAGMENT_SHADER
 		};
 
-		inline GLuint get_id() const noexcept { return this->shader; }
-		inline Shader::Type get_type() const noexcept { return this->type; }
+		Shader::Type type = Shader::Type::None;
 
 		Shader(const char* source, const Shader::Type type);
 		~Shader() noexcept;
 
+		inline GLuint get_id() const noexcept { return this->shader; }
+		// Extracts Shader's Id and takes ownership
+		GLuint release() noexcept;
+
 	private:
-		Shader::Type type = Shader::Type::None;
 		GLuint shader = 0;
 };
 

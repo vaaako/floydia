@@ -1,23 +1,31 @@
 #include <floydia/core/renderer.hpp>
 
-#include <algorithm>
 #include <floydia/utilities/log.hpp>
+#include <floydia/gpu/programpipeline.hpp>
 
 // #define FLOYD_DEBUG_RENDERER
+
+// TODO:
+// - Resize SSBO
+// - Currently InstanceData is being duplicated
+//   + For batch and on 'instances'
+// - MultiDrawIndirect?
+// - Somehow cache Instances and only change when needed
+//
+// - SSBO map
+//   +  and Ring Buffer
+//
+// - After that. Make in vulkan
 
 namespace floyd {
 
 	// TODO: this is fixeed to 1000 instances
 	// add dynamic resizing later
 Renderer::Renderer() noexcept
-	: ubo_camera(sizeof(CameraData)),
-	ssbo_instance(sizeof(InstanceData) * Renderer::INST_AMOUNT), // 1000
-	ssbo_instance_indices(sizeof(uint32) * Renderer::INST_AMOUNT) {}
-
-void Renderer::init() noexcept {
-	ubo_camera.init(0);
-	ssbo_instance.init(1);
-	ssbo_instance_indices.init(2);
+	: ubo_camera(0, sizeof(CameraData)),
+	ssbo_instance(1, sizeof(InstanceData) * Renderer::INST_AMOUNT), // 1000
+	ppipeline(ProgramPipeline())
+	{
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -26,6 +34,8 @@ void Renderer::init() noexcept {
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	// glEnable(GL_CULL_FACE);
+
+	this->ppipeline.bind();
 }
 
 void Renderer::clear() const noexcept {
@@ -44,7 +54,7 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 	// Clear previous frame
 	this->batches.clear();
 	this->instances.clear();
-	this->instance_indices.clear();
+	this->total_instances = 0;
 	// Update Camera and Camera Uniform Buffer
 	CameraData cam = { camera.view(), camera.projection() };
 	this->ubo_camera.update(&cam, sizeof(CameraData));
@@ -53,17 +63,45 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 void Renderer::push(const Renderable& obj) noexcept {
 	const glm::mat4& mmatrix = obj.transform.model_matrix(); // cache
 
-	this->instances.push_back({ mmatrix, obj.color_norm() });
-	// size() returns count, so -1 gives index of the last pushed element
-	uint32 instance_index = this->instances.size() - 1;
+	InstanceData data = { mmatrix, obj.color_norm() };
+
 	// Create draw commands with instance index
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
-		this->batches.push_back({
-			sub.mesh.get(),
-			sub.material.get(),
-			1, // Count 1 for now
-			instance_index // Start at this instance index
-		});
+		// Try to find existing batch
+		BatchKey key = { sub.mesh.get(), sub.material.get() };
+		auto it = this->batches.find(key);
+
+		// Existing batch
+		if(it != this->batches.end()) {
+			++it->second.instance_count;
+			it->second.instances.push_back(data);
+
+		// Not found. Make new batch
+		} else {
+		#if defined(FLOYD_DEBUG_RENDERER)
+			TRACELOG(log::type::Debug, "Pushing NEW batch. Instance Index: %d", this->instances.size());
+		#endif
+
+			DrawBatch batch;
+			batch.mesh = key.mesh;
+			batch.material = key.material;
+			batch.instance_count = 1;
+			batch.instances.push_back(data);
+
+			this->batches.emplace(key, std::move(batch));
+		}
+		++total_instances;
+
+		// NOTE:
+		// If 'instance_indices' were appended here
+		// the layout would follow this order:
+		// - Mesh A: [A0]
+		// - Mesh B: [A0, B1]
+		// - Mesh A: [A0, B1, A2]
+		// The GPU requires per-batch contiguous ranges
+		// Pushing indices inside 'flush' becomes:
+		// - Batch A: [A0, A2]
+		// - Batch B: [B1]
 	}
 }
 
@@ -73,92 +111,57 @@ void Renderer::flush() {
 		return;
 	}
 
-	// Sort by material then mesh
-	// Before: ABACBA
-	// After: AAABBC
-	// std::sort(this->batches.begin(), this->batches.end(),
-	// [](const DrawBatch& a, const DrawBatch& b) {
-	// 	// NOTE: non-deterministic, have to change later
-	// 	if(a.mesh != b.mesh) {
-	// 		return a.mesh < b.mesh;
-	// 	}
-	// 	return a.material < b.material;
-	// });
-
-	// Merge consecutive batches with same mesh/material
-	std::vector<DrawBatch> merged;
-	merged.reserve(this->batches.size());
-	this->instance_indices.reserve(this->batches.size()); // index of instances in order
-
-	// Group draw calls and rearrange instance data so each group is contigous
-	// Before: AAABBC
-	// After merged: A(3), B(2), C(1)
-	for(const DrawBatch& batch : this->batches) {
-	#if defined(FLOYD_DEBUG_RENDERER)
-		TRACELOG(log::type::Debug, "------");
-		TRACELOG(log::type::Debug, "Mesh: %p, Material: %p", batch.mesh, batch.material);
-	#endif
-
-		// Same batch, extend instance count
-		if(!merged.empty()
-			&& merged.back().mesh == batch.mesh
-			&& merged.back().material == batch.material) {
-			// Increase how many instances this batch draws
-			merged.back().instance_count++;
-
-		#if defined(FLOYD_DEBUG_RENDERER)
-			TRACELOG(log::type::Debug, "SAME BATCH");
-		#endif
-
-		// Start a new batch
-		} else {
-			DrawBatch new_batch = batch;
-			// Mark start offset of this batch in the reordered instance buffer
-			new_batch.instance_index = this->instance_indices.size();
-			new_batch.instance_count = 1;
-
-			merged.push_back(new_batch);
-		#if defined(FLOYD_DEBUG_RENDERER)
-			TRACELOG(log::type::Debug, "NEW BATCH");
-		#endif
-		}
-	#if defined(FLOYD_DEBUG_RENDERER)
-		TRACELOG(log::type::Debug, "------");
-	#endif
-		// Append instance next to previous ones
-		this->instance_indices.push_back(batch.instance_index);
+	// Store intance index inside its batch
+	this->instances.reserve(this->total_instances);
+	for(auto& [_, batch] : this->batches) {
+		batch.instance_index = this->instances.size();
+		// Bulk copy. Insert all of batch's instances into 'instances'
+		this->instances.insert(
+			this->instances.end(),
+			batch.instances.begin(),
+			batch.instances.end()
+		);
 	}
 
 	// Update SSBO with all instance data
 	this->ssbo_instance.update(this->instances.data(),
-			this->instances.size() * sizeof(InstanceData));
-	this->ssbo_instance_indices.update(this->instance_indices.data(),
-			this->instance_indices.size() * sizeof(uint32));
+		this->instances.size() * sizeof(InstanceData));
 
 #if defined(FLOYD_DEBUG_RENDERER)
-	if(this->batches.size() > 1) {
-		float efficiency = 100.0f * (1.0f - (merged.size() - 1.0f) / (this->batches.size() - 1.0f));
-		TRACELOG(log::type::Debug, "Efficiency: %.2f%%", efficiency);
-	}
-	float avg_instances = (float)this->batches.size() / merged.size();
+	const float avg_instances = (float)this->instances.size() / this->batches.size();
 	TRACELOG(log::type::Debug, "Avg instances per batch: %.2f", avg_instances);
-	TRACELOG(log::type::Debug, "Draw calls: %zu -> %zu", this->batches.size(), merged.size());
+	TRACELOG(log::type::Debug, "Draw calls: %zu -> %zu", this->instances.size(), this->batches.size());
 #endif
 
 	// Draw merged batches
-	Material* prev_material = nullptr;
+	ShaderProgram* prev_vertex = nullptr;
+	ShaderProgram* prev_fragment = nullptr;
+	// Material* prev_material = nullptr;
 	Mesh* prev_mesh = nullptr;
-	for(const DrawBatch& batch : merged) {
-		if(batch.material != prev_material) {
-			batch.material->bind();
-			// bind texture
-			prev_material = batch.material;
+
+	for(const auto& [key, batch] : this->batches) {
+		// pipeline stage swaps
+		if(prev_vertex != batch.material->vertex.get()) {
+			this->ppipeline.attach(batch.material->vertex, Shader::Vertex);
+			prev_vertex = batch.material->vertex.get();
 		}
+		if(prev_fragment != batch.material->fragment.get()) {
+			this->ppipeline.attach(batch.material->fragment, Shader::Fragment);
+			prev_fragment = batch.material->fragment.get();
+		}
+
+		// surface data
+		// if(batch.material != prev_material) {
+		// 	// batch.material->bind();
+		// 	batch.material->vertex->bind();
+		// 	prev_material = batch.material;
+		// }
 
 		if(batch.mesh != prev_mesh) {
 			glBindVertexArray(batch.mesh->vaoid());
 			prev_mesh = batch.mesh;
 		}
+
 
 		// Draw N instances starting from offset X in the instance buffer
 		glDrawElementsInstancedBaseInstance(
@@ -167,7 +170,7 @@ void Renderer::flush() {
 			batch.mesh->index_type,
 			(void*)0, // indices
 			batch.instance_count,
-			batch.instance_index // Base instance for gl_InstanceID
+			batch.instance_index // gl_BaseInstance
 		);
 	}
 }

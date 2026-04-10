@@ -5,8 +5,6 @@
 #include <floydia/gfx/material.hpp>
 #include <floydia/gfx/mesh.hpp>
 
-#include <stdexcept>
-
 namespace floyd {
 
 // Stores all Meshes of a Model

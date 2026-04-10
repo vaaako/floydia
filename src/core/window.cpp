@@ -15,7 +15,7 @@ struct Window::impl {
 };
 
 Window::Window(const Settings &settings)
-	: renderer(Core::get().renderer), pimpl(std::make_unique<impl>()),
+	: pimpl(std::make_unique<impl>()),
 	title(settings.title), width(settings.width), height(settings.height) {
 		// Initialize Window
 		pimpl->window = RGFW_createWindow(
@@ -44,12 +44,12 @@ Window::Window(const Settings &settings)
 		TRACELOG(log::type::Info, "GLSL Version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
 		TRACELOG(log::type::Info, "Vendor: %s", glGetString(GL_VENDOR));
 		TRACELOG(log::type::Info, "Renderer: %s", glGetString(GL_RENDERER));
+
 		// NOTE: Window should't actually initialize 'Renderer'. But I don't want user
 		// to initialize it manually
-		Core::get().renderer.init();
+		this->renderer = &Core::get().renderer; // Initialize after OpenGL context is ready
 
 		RGFW_window_swapInterval_OpenGL(pimpl->window, RGFW_FALSE);
-
 		TRACELOG(log::type::Info, "Window initialized completely!");
 	}
 

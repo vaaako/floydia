@@ -7,6 +7,7 @@
 #include <floydia/gfx/material.hpp>
 #include <floydia/gpu/uniformbuffer.hpp>
 #include <floydia/gpu/ssbo.hpp>
+#include <floydia/utilities/hash.hpp>
 
 #include <vector>
 
@@ -18,9 +19,6 @@ class Renderer final {
 	public:
 		Renderer() noexcept;
 		~Renderer() = default;
-
-		// Initialize OpenGL
-		void init() noexcept;
 
 		// Clear the screen
 		void clear() const noexcept;
@@ -35,13 +33,16 @@ class Renderer final {
 		void flush();
 
 	private:
+		struct InstanceData; // (to keep data aligment)
+
 		struct DrawBatch {
 			Mesh* mesh;
 			Material* material;
+			std::vector<InstanceData> instances;
+			// Start index in SSBO
+			uint32 instance_index; // offset into final instance buffer
 			// Number of instances for this mesh
 			uint32 instance_count;
-			// Start index in SSBO
-			uint32 instance_index;
 		};
 
 		struct alignas(16) CameraData {
@@ -54,27 +55,39 @@ class Renderer final {
 			glm::vec4 color;
 		};
 
-	private:
+		struct BatchKey {
+			Mesh* mesh;
+			Material* material;
+			bool operator==(const BatchKey& other) const noexcept {
+				return mesh == other.mesh &&
+					material == other.material;
+			}
+		};
 
-		std::vector<DrawBatch> batches;
+		struct BatchKeyHash {
+			std::size_t operator()(const BatchKey& k) const noexcept {
+				size_t seed = 0;
+				hash::combine(seed, std::hash<Mesh*>()(k.mesh));
+				hash::combine(seed, std::hash<Material*>()(k.material));
+				return seed;
+			}
+		};
+
+	private:
+		// All batches on the scene
+		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> batches;
+		// Index of batch inside the 'ssbo_instance'
 		std::vector<InstanceData> instances;
-		
-		// In order for batches to work, instances (SSBO data) must be accessed in batch order.
-		// Instead of duplicating InstanceData to make them contiguous,
-		// this vector stores an indirection buffer (instance_indices).
-		// This buffer maps each draw instance to its original instance in the SSBO.
-		// A second SSBO is used to send these indices to the shader
-		std::vector<uint32> instance_indices;
 
 		UniformBuffer ubo_camera;
 		ShaderStorageBuffer ssbo_instance;
-		ShaderStorageBuffer ssbo_instance_indices;
-
+		ProgramPipeline ppipeline;
+		// ShaderStorageBuffer ssbo_instance_indices;
+		size_t total_instances = 0;
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 
 		// TODO: add resize for SSBO
-		// constexpr static uint32 INST_AMOUNT = 9999;
-		constexpr static uint32 INST_AMOUNT = 999999; // debug
+		constexpr static uint32 INST_AMOUNT = 800100; // debug. change later
 };
 
 } // namespace floyd

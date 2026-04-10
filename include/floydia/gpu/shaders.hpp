@@ -17,6 +17,7 @@ SSBO
 	Light lists
 */
 
+
 namespace floyd {
 namespace Shaders {
 
@@ -27,8 +28,8 @@ layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec3 aNor;
 layout(location = 2) in vec2 aTex;
 
-out vec2 texuv;
-out vec4 color;
+layout(location = 0) out vec2 texuv;
+layout(location = 1) out vec4 color;
 
 layout(std140, binding = 0) uniform CameraBlock {
 	mat4 view;
@@ -44,14 +45,9 @@ layout(std430, binding = 1) buffer InstanceBuffer {
 	InstanceData instances[];
 };
 
-layout(std430, binding = 2) buffer InstanceIndexBuffer {
-	uint instance_indices[];
-};
-
 void main() {
-	// gl_BaseInstance: Start index
-	uint idx = instance_indices[gl_InstanceID + gl_BaseInstance];
-	InstanceData data = instances[idx];
+	// gl_BaseInstance: Offset. Start of data
+	InstanceData data = instances[gl_InstanceID + gl_BaseInstance];
 
 	vec4 worldpos     = data.model * vec4(aPos, 1.0);
 	gl_Position       = proj * view * worldpos;
@@ -67,8 +63,8 @@ constexpr const char* DEFAULT_VERTEX_2D = R"glsl(
 layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec2 aTex;
 
-out vec2 texuv;
-out vec4 color;
+layout(location = 0) out vec2 texuv;
+layout(location = 1) out vec4 color;
 
 layout(std140, binding = 0) uniform CameraBlock {
 	mat4 view;
@@ -84,14 +80,9 @@ layout(std430, binding = 1) buffer InstanceBuffer {
 	InstanceData instances[];
 };
 
-layout(std430, binding = 2) buffer InstanceIndexBuffer {
-	uint instance_indices[];
-};
-
 void main() {
-	// gl_BaseInstance: Start index
-	uint idx = instance_indices[gl_InstanceID + gl_BaseInstance];
-	InstanceData data = instances[idx];
+	// gl_BaseInstance: Offset. Start of data
+	InstanceData data = instances[gl_InstanceID + gl_BaseInstance];
 
 	vec4 worldpos     = data.model * vec4(aPos, 1.0);
 	gl_Position       = proj * view * worldpos;
@@ -102,10 +93,11 @@ void main() {
 )glsl";
 
 constexpr const char* DEFAULT_FRAGMENT = R"glsl(
-#version 450 core
+#version 460 core
 
-in vec2 texuv;
-in vec4 color;
+layout(location = 0) in vec2 texuv;
+layout(location = 1) in vec4 color;
+
 out vec4 fragcolor;
 
 // uniform sampler2D tex2d;

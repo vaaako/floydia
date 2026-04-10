@@ -2,12 +2,13 @@
 
 namespace floyd {
 
-Material::Material(const std::shared_ptr<ShaderProgram>& shader) noexcept
-	: shader(shader) {}
+Material::Material(const std::shared_ptr<ShaderProgram>& vertex, const std::shared_ptr<ShaderProgram>& fragment) noexcept
+	: vertex(vertex), fragment(fragment) {}
 
 void Material::bind() const noexcept {
-	this->shader->bind();
+	// textures
 	// for-loop to bind textures
+	// uniforms (color, roughness, metallic, etc.)
 }
 
 } // namespace floyd

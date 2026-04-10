@@ -18,7 +18,7 @@ namespace floyd {
 class Window final {
 	public:
 		// Reference to 'Core::Renderer' for easy access
-		Renderer &renderer;
+		Renderer* renderer = nullptr;
 
 	public:
 		struct Settings {

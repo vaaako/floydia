@@ -11,12 +11,10 @@ class ShaderStorageBuffer final {
 		const size_t capacity;
 
 	public:
-		// 'capacity' is the 'sizeof(SSBO struct)'
-		ShaderStorageBuffer(const size_t capacity) noexcept;
-		~ShaderStorageBuffer() noexcept;
-		// Initialize Shader Storage Buffer.
+		// 'capacity' is the 'sizeof(SSBO struct)'.
 		// 'binding' is the Uniform index inside the buffer
-		void init(const uint32 binding) noexcept;
+		ShaderStorageBuffer(const uint32 binding, const size_t capacity) noexcept;
+		~ShaderStorageBuffer() noexcept;
 
 		// Updates the Shader Storage Buffer data
 		void update(const void* data, const size_t capacity, const size_t offset = 0) const noexcept;

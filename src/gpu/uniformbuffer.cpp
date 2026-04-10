@@ -3,10 +3,9 @@
 
 namespace floyd {
 
-UniformBuffer::UniformBuffer(const size_t capacity) noexcept
-	: capacity(capacity) {}
+UniformBuffer::UniformBuffer(const uint32 binding, const size_t capacity) noexcept
+	: capacity(capacity) {
 
-void UniformBuffer::init(const uint32 binding) noexcept {
 	glCreateBuffers(1, &this->ubo);
 	glNamedBufferStorage(
 		this->ubo,
@@ -17,6 +16,7 @@ void UniformBuffer::init(const uint32 binding) noexcept {
 	// Flags: GL_DYNAMIC_STORAGE_BIT, GL_MAP_WRITE_BIT, GL_MAP_READ_BIT, GL_MAP_PERSISTENT_BIT
 	glBindBufferBase(GL_UNIFORM_BUFFER, binding, this->ubo);
 }
+
 
 UniformBuffer::~UniformBuffer() noexcept {
 	// glUnmapNamedBuffer(this->ubo);

@@ -1,6 +1,7 @@
 #pragma once
 
-#include <floydia/gpu/shaderprogram.hpp>
+#include <floydia/gpu/programpipeline.hpp>
+#include <memory>
 
 namespace floyd {
 
@@ -10,7 +11,11 @@ namespace floyd {
 // Color, Texture and Shader
 class Material {
 	public:
-		Material(const std::shared_ptr<ShaderProgram>& shader) noexcept;
+		std::shared_ptr<ShaderProgram> vertex;
+		std::shared_ptr<ShaderProgram> fragment;
+
+	public:
+		Material(const std::shared_ptr<ShaderProgram>& vertex, const std::shared_ptr<ShaderProgram>& fragment) noexcept;
 		~Material() = default;
 
 		// shared_ptr handles default
@@ -22,7 +27,6 @@ class Material {
 		Material& operator=(Material&&) = default;
 
 	public:
-		std::shared_ptr<ShaderProgram> shader;
 		//std::vector<std::shared_ptr<Texture>>
 
 		// Bind shader and textures.
