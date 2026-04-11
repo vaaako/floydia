@@ -53,7 +53,8 @@ void Renderer::set_clear_color(const vec4<uint8>& color) noexcept {
 }
 
 void Renderer::begin_draw(const Camera& camera) noexcept {
-	// Clear previous frame
+	// Clear previous frame.
+	// clear keeps capacity
 	this->batches.clear();
 	this->instances.clear();
 	this->total_instances = 0;

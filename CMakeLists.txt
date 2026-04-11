@@ -39,6 +39,6 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 		/Od /Zi /MDd     # No optimization, Debug info, Debug Runtime
 	>
 	$<$<CONFIG:Release>:
-		/O2 /DNDEBUG /MD # Max optimization, Release Runtime
+	/O2 /DNDEBUG /MD /LTCG # Max optimization, Release Runtime
 	>
 )

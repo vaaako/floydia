@@ -67,7 +67,7 @@ debug: all
 # Release build
 # -march=native -> Optimize for current CPU (may not work on all CPUs)
 # -flto -> Program analysis at link time
-release: CXXFLAGS += -O3 -march=native -ffast-math -DNDEBUG
+release: CXXFLAGS += -O3 -march=native -ffast-math -DNDEBUG -funroll-loops
 release: LDFLAGS += -flto
 release: all
 

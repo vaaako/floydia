@@ -82,6 +82,7 @@ void ShaderProgram::link() {
 
 
 GLint ShaderProgram::get_uniform_loc(const std::string& name) noexcept {
+	// auto [it, inserted] = this->uniforms_cache.try_emplace(name, -1);
 	if(this->uniforms_cache.find(name) != this->uniforms_cache.end()) {
 		return this->uniforms_cache[name];
 	}
