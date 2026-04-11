@@ -1,0 +1,2 @@
+- When making `WindowObject` and `Window` distinction, put related window files here
+- Keep core with only `Core` struct related objects

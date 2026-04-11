@@ -5,7 +5,31 @@
 
 namespace floyd {
 
-std::shared_ptr<Mesh> Assets::cube_mesh() noexcept {
+Assets::Assets(BufferManager& bm) noexcept {
+	this->cube_mesh = this->make_cube_mesh();
+	this->quad_mesh = this->make_quad_mesh();
+
+	this->program = bm.load_shaderprogram(
+		Shaders::DEFAULT_VERTEX, Shaders::DEFAULT_FRAGMENT
+	);
+	this->program2d = bm.load_shaderprogram(
+		Shaders::DEFAULT_VERTEX_2D, Shaders::DEFAULT_FRAGMENT
+	);
+	this->program_vertex = bm.load_shaderprogram(Shaders::DEFAULT_VERTEX, nullptr);
+	this->program_vertex2d = bm.load_shaderprogram(Shaders::DEFAULT_VERTEX_2D, nullptr);
+	this->program_fragment = bm.load_shaderprogram(nullptr, Shaders::DEFAULT_FRAGMENT);
+
+	this->default_material = std::make_shared<Material>(
+		this->program_vertex,
+		this->program_fragment
+	);
+	this->default_material2d = std::make_shared<Material>(
+		this->program_vertex2d,
+		this->program_fragment
+	);
+}
+
+std::shared_ptr<Mesh> Assets::make_cube_mesh() noexcept {
 	static std::shared_ptr<Mesh> mesh = []() {
 		std::vector<Vertex> vertices = {
 			// positions                // normals               // texture coords
@@ -76,7 +100,7 @@ std::shared_ptr<Mesh> Assets::cube_mesh() noexcept {
 	return mesh;
 }
 
-std::shared_ptr<Mesh> Assets::quad_mesh() noexcept {
+std::shared_ptr<Mesh> Assets::make_quad_mesh() noexcept {
 	static std::shared_ptr<Mesh> mesh = []() {
 		std::vector<Vertex2D> vertices = {
 			// positions                // texture coords

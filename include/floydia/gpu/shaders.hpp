@@ -31,6 +31,10 @@ layout(location = 2) in vec2 aTex;
 layout(location = 0) out vec2 texuv;
 layout(location = 1) out vec4 color;
 
+out gl_PerVertex {
+	vec4 gl_Position;
+};
+
 layout(std140, binding = 0) uniform CameraBlock {
 	mat4 view;
 	mat4 proj;
@@ -65,6 +69,12 @@ layout(location = 1) in vec2 aTex;
 
 layout(location = 0) out vec2 texuv;
 layout(location = 1) out vec4 color;
+
+// Which built-ins this stage uses
+// Required for Program Pipeline
+out gl_PerVertex {
+	vec4 gl_Position;
+};
 
 layout(std140, binding = 0) uniform CameraBlock {
 	mat4 view;

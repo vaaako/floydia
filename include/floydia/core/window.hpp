@@ -17,8 +17,8 @@ namespace floyd {
 
 class Window final {
 	public:
-		// Reference to 'Core::Renderer' for easy access
-		Renderer* renderer = nullptr;
+		// Reference to 'Core' for easy access
+		Core* core = nullptr;
 
 	public:
 		struct Settings {
@@ -32,6 +32,11 @@ class Window final {
 
 		Window(const Settings &settings);
 		~Window();
+
+		Window(const Window&) = delete;
+		Window& operator=(const Window&) = delete;
+		Window(Window&&) = default;
+		Window& operator=(Window&&) = default;
 
 		// Check if the window is open
 		bool is_open() const noexcept;

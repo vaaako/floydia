@@ -9,73 +9,36 @@
 
 namespace floyd {
 
-// TODO: instead of static method: store in unordered_map
+// TODO: instead of members: store in unordered_map
 
 class Assets final {
 	public:
+		// Cube mesh
+		std::shared_ptr<Mesh> cube_mesh;
+		// Quad mesh
+		std::shared_ptr<Mesh> quad_mesh;
 		// Default Shader Program used by almost all models
-		static inline std::shared_ptr<ShaderProgram> default_program() noexcept {
-			static std::shared_ptr<ShaderProgram> program = BufferManager::get().load_shaderprogram(
-				Shaders::DEFAULT_VERTEX, Shaders::DEFAULT_FRAGMENT
-			);
-			return program;
-		}
-
+		std::shared_ptr<ShaderProgram> program;
 		// Default Shader Program using vertex shader 2D
-		static inline std::shared_ptr<ShaderProgram> default_program2d() noexcept {
-			static std::shared_ptr<ShaderProgram> program = BufferManager::get().load_shaderprogram(
-				Shaders::DEFAULT_VERTEX_2D, Shaders::DEFAULT_FRAGMENT
-			);
-			return program;
-		}
+		std::shared_ptr<ShaderProgram> program2d;
+		// Shader Program with DEFAULT_VERTEX only
+		std::shared_ptr<ShaderProgram> program_vertex;
+		// Shader Program with DEFAULT_VERTEX_2D only
+		std::shared_ptr<ShaderProgram> program_vertex2d;
+		// Shader Program with DEFAULT_FRAGMENT only
+		std::shared_ptr<ShaderProgram> program_fragment;
+		// Material containing 'program_vertex' and 'program_fragment'
+		std::shared_ptr<Material> default_material;
+		// Material containing 'program_vertex2d' and 'program_fragment'
+		std::shared_ptr<Material> default_material2d;
 
-		// Default Shader Program with DEFAULT_VERTEX
-		static inline std::shared_ptr<ShaderProgram> default_program_vertex() noexcept {
-			static std::shared_ptr<ShaderProgram> program = BufferManager::get().load_shaderprogram(
-				Shaders::DEFAULT_VERTEX, nullptr
-			);
-			return program;
-		}
+	public:
+		Assets(BufferManager& bm) noexcept;
+		~Assets() = default;
 
-		// Default Shader Program with DEFAULT_VERTEX_2D
-		static inline std::shared_ptr<ShaderProgram> default_program_vertex2d() noexcept {
-			static std::shared_ptr<ShaderProgram> program = BufferManager::get().load_shaderprogram(
-				Shaders::DEFAULT_VERTEX_2D, nullptr
-			);
-			return program;
-		}
-
-		// Default Shader Program with DEFAULT_FRAGMENT
-		static inline std::shared_ptr<ShaderProgram> default_program_fragment() noexcept {
-			static std::shared_ptr<ShaderProgram> program = BufferManager::get().load_shaderprogram(
-				nullptr, Shaders::DEFAULT_FRAGMENT
-			);
-			return program;
-		}
-
-		// Default Material
-		static inline std::shared_ptr<Material> default_material() noexcept {
-			static std::shared_ptr<Material> material = std::make_shared<Material>(
-				Assets::default_program_vertex(),
-				Assets::default_program_fragment()
-			);
-			return material;
-		}
-
-		// Default Material 2D
-		static inline std::shared_ptr<Material> default_material2d() noexcept {
-			static std::shared_ptr<Material> material = std::make_shared<Material>(
-				Assets::default_program_vertex2d(),
-				Assets::default_program_fragment()
-			);
-			return material;
-		}
-
-		static std::shared_ptr<Mesh> cube_mesh() noexcept;
-		static std::shared_ptr<Mesh> quad_mesh() noexcept;
-	//	std::shared_ptr<Texture> load_texture(const std::string& path) noexcept;
-	//private:
-	//	std::unordered_map<std::string, std::weak_ptr<Texture>> textures;
+	private:
+		std::shared_ptr<Mesh> make_cube_mesh() noexcept;
+		std::shared_ptr<Mesh> make_quad_mesh() noexcept;
 };
 
 } // namespace floyd

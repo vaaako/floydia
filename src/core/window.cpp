@@ -2,6 +2,8 @@
 
 #define RGFW_IMPLEMENTATION
 #define RGFW_OPENGL
+// #define RGFW_DEBUG
+#define RGFW_PRINT_ERRORS
 #include <RGFW.h>
 
 #include <floydia/gpu/opengl.hpp>
@@ -17,45 +19,63 @@ struct Window::impl {
 Window::Window(const Settings &settings)
 	: pimpl(std::make_unique<impl>()),
 	title(settings.title), width(settings.width), height(settings.height) {
+		// Set OpenGL hints
+		RGFW_glHints *hints = RGFW_getGlobalHints_OpenGL();
+		hints->major = 4;
+		hints->minor = 6;
+		RGFW_setGlobalHints_OpenGL(hints);
+
 		// Initialize Window
 		pimpl->window = RGFW_createWindow(
 				settings.title.c_str(), 0, 0, settings.width, settings.height,
 				RGFW_windowCenter | RGFW_windowOpenGL);
-		if(!settings.resizable) {
-			RGFW_window_setFlags(pimpl->window, RGFW_windowNoResize);
-		}
+
 		if(pimpl->window == NULL) {
 			std::cerr << "Failed to create window!" << std::endl;
 			return;
 		}
 
+		if(!settings.resizable) {
+			RGFW_window_setFlags(pimpl->window, RGFW_windowNoResize);
+		}
+
 		// Initialize OpenGL
-		RGFW_glHints *hints = RGFW_getGlobalHints_OpenGL();
-		hints->major = 4;
-		hints->minor = 6;
-		RGFW_setGlobalHints_OpenGL(hints);
 		RGFW_window_makeCurrentContext_OpenGL(pimpl->window);
 		if(!gladLoadGLLoader((GLADloadproc)RGFW_getProcAddress_OpenGL)) {
 			std::cerr << "Failed to create window!" << std::endl;
 			return;
 		}
+
 		TRACELOG(log::type::Info, "OpenGL initialized!");
 		TRACELOG(log::type::Info, "GL Version: %s", glGetString(GL_VERSION));
 		TRACELOG(log::type::Info, "GLSL Version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
 		TRACELOG(log::type::Info, "Vendor: %s", glGetString(GL_VENDOR));
 		TRACELOG(log::type::Info, "Renderer: %s", glGetString(GL_RENDERER));
 
-		// NOTE: Window should't actually initialize 'Renderer'. But I don't want user
+		// NOTE: Window should't actually own 'Core'. But I don't want user
 		// to initialize it manually
-		this->renderer = &Core::get().renderer; // Initialize after OpenGL context is ready
+		// NOTE: I will have to change this when supporting multiple windows
+		this->core = new Core();
 
 		RGFW_window_swapInterval_OpenGL(pimpl->window, RGFW_FALSE);
 		TRACELOG(log::type::Info, "Window initialized completely!");
 	}
 
 Window::~Window() {
+	if(this->core != nullptr) {
+		delete this->core;
+		this->core = nullptr;
+
+		TRACELOG(log::type::Info, "Core objectl deleted");
+	}
+
 	if(pimpl->window != nullptr) {
-		RGFW_window_close(pimpl->window);
+		TRACELOG(log::type::Info, "Closing window: %p", (void*)pimpl->window);
+		TRACELOG(log::type::Info, "Closing OpenGL context");
+
+		RGFW_window_close(pimpl->window); // Automatically calls RGFW_window_deleteContext_OpenGL
+		// This gives a double free at RGFW_deinit(), i dont know why
+		pimpl->window = nullptr;
 	}
 }
 

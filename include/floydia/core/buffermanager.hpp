@@ -5,16 +5,13 @@
 #include <floydia/gpu/shader.hpp>
 #include <floydia/gpu/shaderprogram.hpp>
 #include <floydia/gpu/programpipeline.hpp>
-#include <utility>
 
 namespace floyd {
 
 class BufferManager {
 	public:
-		static inline BufferManager& get() {
-			static BufferManager bm;
-			return bm;
-		}
+		BufferManager() = default;
+		~BufferManager() = default;
 
 		// TODO: add array of shaders on shader program too
 
@@ -30,7 +27,6 @@ class BufferManager {
 		// NOTE: VertexLayout object is stores on Assets
 		// NOTE: With Pipeline Program there is no need to store Shader object
 		std::unordered_map<size_t, std::weak_ptr<ShaderProgram>> shaderprogram_cache;
-
 		// Helper to get obj from maps
 		template <typename T>
 		std::shared_ptr<T> get_obj(std::unordered_map<size_t, std::weak_ptr<T>>& map, const size_t hash) noexcept;

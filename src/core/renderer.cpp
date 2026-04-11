@@ -23,7 +23,8 @@ namespace floyd {
 
 	// TODO: this is fixeed to 1000 instances
 	// add dynamic resizing later
-Renderer::Renderer() noexcept : ubo_camera(0, sizeof(CameraData)),
+Renderer::Renderer() noexcept :
+	ubo_camera(0, sizeof(CameraData)),
 	ssbo_instance(1, sizeof(InstanceData) * Renderer::INST_AMOUNT), // 1000
 	ppipeline(ProgramPipeline())
 	{
