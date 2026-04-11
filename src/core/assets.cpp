@@ -22,10 +22,14 @@ Assets::Assets(BufferManager& bm) noexcept {
 	this->default_material = std::make_shared<Material>(
 		this->program_vertex,
 		this->program_fragment
+		// this->program,
+		// nullptr
 	);
 	this->default_material2d = std::make_shared<Material>(
 		this->program_vertex2d,
 		this->program_fragment
+		// this->program2d,
+		// nullptr
 	);
 }
 

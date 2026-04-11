@@ -135,6 +135,15 @@ void Renderer::flush() {
 	TRACELOG(log::type::Debug, "Draw calls: %zu -> %zu", this->instances.size(), this->batches.size());
 #endif
 
+	/*
+		- 5000 Cubes
+		- 5000 Planes
+		- No culling face
+		- Around 30s test for each
+		Shader Program: ~224-285 fps
+		Program Pipeline: ~257-303 fps
+	*/
+
 	// Draw merged batches
 	ShaderProgram* prev_vertex = nullptr;
 	ShaderProgram* prev_fragment = nullptr;
