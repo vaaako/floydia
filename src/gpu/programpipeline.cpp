@@ -17,7 +17,7 @@ ProgramPipeline::~ProgramPipeline() noexcept {
 
 void ProgramPipeline::attach(const std::shared_ptr<ShaderProgram>& program, const Shader::Type type) const {
 	glUseProgramStages(this->pipeline,
-		(type == Shader::Type::Vertex) ? GL_VERTEX_SHADER_BIT : GL_FRAGMENT_SHADER_BIT,
+		(type == Shader::Vertex) ? GL_VERTEX_SHADER_BIT : GL_FRAGMENT_SHADER_BIT,
 		program->get_id()
 	);
 }

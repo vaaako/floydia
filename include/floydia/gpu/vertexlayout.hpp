@@ -9,16 +9,16 @@ namespace floyd {
 class VertexLayout final {
 	public:
 		struct Attribute {
+			// The offset of this attribute within a vertex
+			size_t offset;
 			// The index of the vertex attribute in the shader
 			uint32 index;
 			// The number of components per attribute (e.g., 3 for a vec3)
 			uint32 count;
 			// Type of the indices
 			GLenum type;
-			// The offset of this attribute within a vertex
-			size_t offset;
 			// Wheter to normalize the data
-			bool   normalized = false;
+			bool normalized = false;
 		};
 
 		// Automatically deals with offset and other values when adding a new attribute
@@ -44,11 +44,11 @@ void VertexLayout::add(const uint32 count, const bool normalized) noexcept {
 	static_assert(std::is_arithmetic_v<T>, "Type must be arithmetic");
 
 	this->attributes.push_back({
-		this->index++,
-		count,
-		openglhelper::to_glenum<T>(),
-		this->stride,
-		normalized
+		.offset = this->stride,
+		.index = this->index++,
+		.count = count,
+		.type = openglhelper::to_glenum<T>(),
+		.normalized = normalized
 	});
 	this->stride += count * sizeof(T);
 }

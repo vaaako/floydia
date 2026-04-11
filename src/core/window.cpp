@@ -63,6 +63,10 @@ bool Window::is_open() const noexcept {
 	return RGFW_window_shouldClose(pimpl->window) == RGFW_FALSE;
 }
 
+void Window::close() const noexcept {
+	RGFW_window_setShouldClose(pimpl->window, true);
+}
+
 void Window::poll_events() noexcept {
 	// Clear previous events
 	this->events.clear();

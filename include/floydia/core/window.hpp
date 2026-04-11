@@ -35,6 +35,8 @@ class Window final {
 
 		// Check if the window is open
 		bool is_open() const noexcept;
+		// Mark window as "should close"
+		void close() const noexcept;
 		// Poll all events in this frame.
 		// Call this at the beginning of each frame
 		void poll_events() noexcept;

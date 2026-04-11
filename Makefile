@@ -43,11 +43,11 @@ $(SHARED_LIB): $(OBJECTS)
 # compile source files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
-	gcc -fPIC -Iinclude/external -c $< -o $@
+	gcc -fPIC -Iinclude/external -MMD -MP -c $< -o $@
 
 
 # ----------
@@ -75,3 +75,8 @@ vars:
 	@echo "SOURCES: $(SOURCES)"
 	@echo "OBJECTS: $(OBJECTS)"
 	@echo "TARGET: $(LIB_NAME)"
+
+DEPS := $(OBJECTS:.o=.d)
+# No error if .d files dont exist yet
+# After first build dependencies are tracked
+-include $(DEPS)
