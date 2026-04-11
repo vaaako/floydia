@@ -1,5 +1,5 @@
 #include <floydia/gpu/programpipeline.hpp>
-#include <floydia/utilities/log.hpp>
+#include <floydia/helpers/log.hpp>
 #include <stdexcept>
 
 namespace floyd {

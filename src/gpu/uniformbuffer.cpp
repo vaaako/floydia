@@ -1,5 +1,5 @@
 #include <floydia/gpu/uniformbuffer.hpp>
-#include <floydia/utilities/log.hpp>
+#include <floydia/helpers/log.hpp>
 
 namespace floyd {
 

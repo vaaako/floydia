@@ -34,7 +34,7 @@ dirs:
 
 # Static library
 $(STATIC_LIB): $(OBJECTS)
-	ar rcs $@ $^
+	gcc-ar rcs $@ $^
 
 # Shared library
 $(SHARED_LIB): $(OBJECTS)
@@ -67,7 +67,8 @@ debug: all
 # Release build
 # -march=native -> Optimize for current CPU (may not work on all CPUs)
 # -flto -> Program analysis at link time
-release: CXXFLAGS += -O3 -march=native -ffast-math -DNDEBUG -flto
+release: CXXFLAGS += -O3 -march=native -ffast-math -DNDEBUG
+release: LDFLAGS += -flto
 release: all
 
 vars:

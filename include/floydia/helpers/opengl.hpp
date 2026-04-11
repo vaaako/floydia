@@ -4,11 +4,11 @@
 #include <floydia/gpu/opengl.hpp>
 
 
-#define GL_CHECK_ERROR() floyd::openglhelper::check_gl_error(__FILE__, __LINE__)
+#define GL_CHECK_ERROR() floyd::opengl::check_gl_error(__FILE__, __LINE__)
 #define GL_CHECK(x) x; { GLenum e = glGetError(); if(e) printf(#x " -> 0x%x\n", e); }
 
 namespace floyd {
-namespace openglhelper {
+namespace opengl {
 	// Returns GLenum from a type
 	template <typename T>
 	constexpr GLenum to_glenum();

@@ -3,7 +3,7 @@
 #include <floydia/types.hpp>
 #include <floydia/gpu/opengl.hpp>
 #include <floydia/gpu/vertexlayout.hpp>
-#include <floydia/utilities/log.hpp>
+#include <floydia/helpers/log.hpp>
 #include <vector>
 
 
@@ -61,7 +61,7 @@ Mesh::Mesh(const std::vector<T>& vertices, const std::vector<U>& indices, const 
 	: capacity(vertices.size()),
 	vertex_type_size(sizeof(T)),
 	index_count(indices.size()),
-	index_type(openglhelper::to_glenum<U>()),
+	index_type(opengl::to_glenum<U>()),
 	is_dynamic(dynamic) {
 
 	// C-like memory layout (no C++ bloat like virtual)

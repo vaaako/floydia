@@ -1,8 +1,8 @@
 #include <floydia/gpu/shaderprogram.hpp>
 
 #include <stdexcept>
-#include <floydia/utilities/string.hpp>
-#include <floydia/utilities/log.hpp>
+#include <floydia/helpers/string.hpp>
+#include <floydia/helpers/log.hpp>
 
 namespace floyd {
 

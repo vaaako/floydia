@@ -2,7 +2,7 @@
 
 #include <floydia/types.hpp>
 
-#include <floydia/utilities/hash.hpp>
+#include <floydia/helpers/hash.hpp>
 
 namespace floyd {
 

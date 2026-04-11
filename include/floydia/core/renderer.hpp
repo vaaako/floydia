@@ -7,7 +7,7 @@
 #include <floydia/gfx/material.hpp>
 #include <floydia/gpu/uniformbuffer.hpp>
 #include <floydia/gpu/ssbo.hpp>
-#include <floydia/utilities/hash.hpp>
+#include <floydia/helpers/hash.hpp>
 
 #include <vector>
 

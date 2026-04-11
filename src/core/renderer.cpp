@@ -1,9 +1,9 @@
 #include <floydia/core/renderer.hpp>
 
-#include <floydia/utilities/log.hpp>
 #include <floydia/gpu/programpipeline.hpp>
 
-#include <floydia/utilities/openglhelper.hpp>
+#include <floydia/helpers/opengl.hpp>
+#include <floydia/helpers/log.hpp>
 
 // #define FLOYD_DEBUG_RENDERER
 

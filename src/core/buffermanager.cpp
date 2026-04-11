@@ -1,8 +1,8 @@
 #include <floydia/core/buffermanager.hpp>
 
 #include <stdexcept>
-#include <floydia/utilities/hash.hpp>
-#include <floydia/utilities/log.hpp>
+#include <floydia/helpers/hash.hpp>
+#include <floydia/helpers/log.hpp>
 
 namespace floyd {
 

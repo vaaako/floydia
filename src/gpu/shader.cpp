@@ -1,7 +1,7 @@
 #include <floydia/gpu/shader.hpp>
 
 #include <stdexcept>
-#include <floydia/utilities/string.hpp>
+#include <floydia/helpers/string.hpp>
 
 namespace floyd {
 

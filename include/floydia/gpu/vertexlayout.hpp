@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <floydia/types.hpp>
-#include <floydia/utilities/openglhelper.hpp>
+#include <floydia/helpers/opengl.hpp>
 
 namespace floyd {
 
@@ -47,7 +47,7 @@ void VertexLayout::add(const uint32 count, const bool normalized) noexcept {
 		.offset = this->stride,
 		.index = this->index++,
 		.count = count,
-		.type = openglhelper::to_glenum<T>(),
+		.type = opengl::to_glenum<T>(),
 		.normalized = normalized
 	});
 	this->stride += count * sizeof(T);

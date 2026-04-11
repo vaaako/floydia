@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <cstdint>
-#include <floydia/utilities/string.hpp>
+#include <floydia/helpers/string.hpp>
 
 #define TRACELOG(level, ...)     floyd::log::TraceLog(level, __VA_ARGS__)
 #define TRACELOG_LOC(level, ...) floyd::log::TraceLogLoc(level, __func__, __VA_ARGS__)

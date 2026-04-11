@@ -1,6 +1,6 @@
 #include <floydia/gfx/renderable.hpp>
 
-#include <floydia/utilities/log.hpp>
+#include <floydia/helpers/log.hpp>
 
 namespace floyd {
 
