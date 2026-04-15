@@ -1,7 +1,8 @@
 #pragma once
 
 #include <floydia/types.hpp>
-#include <floydia/gpu/opengl.hpp>
+
+#include <glad/gl.h>
 
 
 #define GL_CHECK_ERROR() floyd::opengl::check_gl_error(__FILE__, __LINE__)

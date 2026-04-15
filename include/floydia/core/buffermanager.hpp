@@ -11,7 +11,6 @@ namespace floyd {
 class BufferManager {
 	public:
 		BufferManager() = default;
-		~BufferManager() = default;
 
 		// TODO: add array of shaders on shader program too
 

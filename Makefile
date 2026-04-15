@@ -12,7 +12,7 @@ OBJ_DIR = $(BUILD_DIR)/obj
 
 LIB_NAME := floydia
 
-SOURCES = $(wildcard $(SRC_DIR)/*/*.cpp) $(SRC_DIR)/glad.c
+SOURCES = $(wildcard $(SRC_DIR)/*/*.cpp) $(SRC_DIR)/libsimpl.c $(SRC_DIR)/glad.c
 # Generate object file names from source files
 OBJECTS = $(patsubst $(SRC_DIR)/%, $(OBJ_DIR)/%, $(SOURCES))
 OBJECTS := $(OBJECTS:.cpp=.o)
@@ -47,7 +47,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
-	gcc -fPIC -Iinclude/external -MMD -MP -c $< -o $@
+	gcc -fPIC -Iinclude/ -Iinclude/external -MMD -MP -c $< -o $@
 
 
 # ----------

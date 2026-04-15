@@ -53,8 +53,7 @@ void Renderer::set_clear_color(const vec4<uint8>& color) noexcept {
 }
 
 void Renderer::begin_draw(const Camera& camera) noexcept {
-	// Clear previous frame.
-	// clear keeps capacity
+	// Clear previous frame
 	this->batches.clear();
 	this->instances.clear();
 	this->total_instances = 0;
@@ -108,7 +107,7 @@ void Renderer::push(const Renderable& obj) noexcept {
 	}
 }
 
-void Renderer::flush() {
+void Renderer::flush() noexcept {
 	// Skip if queue is empty
 	if(this->batches.empty()) {
 		return;

@@ -5,11 +5,11 @@
 #include <floydia/gfx/material.hpp>
 #include <floydia/gpu/shaders.hpp>
 #include <floydia/core/buffermanager.hpp>
-
+#include <unordered_map>
 
 namespace floyd {
 
-// TODO: instead of members: store in unordered_map
+// TODO: store in unordered_map
 
 class Assets final {
 	public:
@@ -39,6 +39,10 @@ class Assets final {
 	private:
 		std::shared_ptr<Mesh> make_cube_mesh() noexcept;
 		std::shared_ptr<Mesh> make_quad_mesh() noexcept;
+
+		// std::unordered_map<std::string, std::shared_ptr<Mesh>> meshes;
+		// std::unordered_map<std::string, std::shared_ptr<ShaderProgram>> programs;
+		// std::unordered_map<std::string, std::shared_ptr<Material>> materials;
 };
 
 } // namespace floyd

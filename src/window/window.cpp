@@ -1,80 +1,83 @@
-#include <floydia/core/window.hpp>
+#include <floydia/window/window.hpp>
 
-#define RGFW_IMPLEMENTATION
-#define RGFW_OPENGL
-// #define RGFW_DEBUG
-#define RGFW_PRINT_ERRORS
-#include <RGFW.h>
+#include <floydia/core/core.hpp>
 
-#include <floydia/gpu/opengl.hpp>
-#include <floydia/helpers/log.hpp>
-#include <iostream> // std::cerr
+#include <floydia/libsimpl.hpp>
+#include <mutex>
 
 namespace floyd {
 
+// Shared between Windows
+namespace {
+	std::mutex wmutex;
+	RGFW_glContext* shared_context = nullptr;
+	uint32 wincount = 0;
+}
+
 struct Window::impl {
-	RGFW_window *window;
+	RGFW_window* window;
 };
 
-Window::Window(const Settings &settings)
+Window::Window(const Settings& settings)
 	: pimpl(std::make_unique<impl>()),
 	title(settings.title), width(settings.width), height(settings.height) {
-		// Set OpenGL hints
-		RGFW_glHints *hints = RGFW_getGlobalHints_OpenGL();
-		hints->major = 4;
-		hints->minor = 6;
+
+	std::lock_guard<std::mutex> lock(wmutex);
+	const bool isfirst = (wincount == 0);
+
+	// Not first window. Share context from first window
+	if(!isfirst) {
+		RGFW_glHints* hints = RGFW_getGlobalHints_OpenGL();
+		hints->share = shared_context;
 		RGFW_setGlobalHints_OpenGL(hints);
-
-		// Initialize Window
-		pimpl->window = RGFW_createWindow(
-				settings.title.c_str(), 0, 0, settings.width, settings.height,
-				RGFW_windowCenter | RGFW_windowOpenGL);
-
-		if(pimpl->window == NULL) {
-			std::cerr << "Failed to create window!" << std::endl;
-			return;
-		}
-
-		if(!settings.resizable) {
-			RGFW_window_setFlags(pimpl->window, RGFW_windowNoResize);
-		}
-
-		// Initialize OpenGL
-		RGFW_window_makeCurrentContext_OpenGL(pimpl->window);
-		if(!gladLoadGLLoader((GLADloadproc)RGFW_getProcAddress_OpenGL)) {
-			std::cerr << "Failed to create window!" << std::endl;
-			return;
-		}
-
-		TRACELOG(log::type::Info, "OpenGL initialized!");
-		TRACELOG(log::type::Info, "GL Version: %s", glGetString(GL_VERSION));
-		TRACELOG(log::type::Info, "GLSL Version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
-		TRACELOG(log::type::Info, "Vendor: %s", glGetString(GL_VENDOR));
-		TRACELOG(log::type::Info, "Renderer: %s", glGetString(GL_RENDERER));
-
-		// NOTE: Window should't actually own 'Core'. But I don't want user
-		// to initialize it manually
-		// NOTE: I will have to change this when supporting multiple windows
-		this->core = new Core();
-
-		RGFW_window_swapInterval_OpenGL(pimpl->window, RGFW_FALSE);
-		TRACELOG(log::type::Info, "Window initialized completely!");
 	}
+
+	// Initialize Window
+	pimpl->window = RGFW_createWindow(
+			settings.title.c_str(), 0, 0, settings.width, settings.height,
+			RGFW_windowCenter | RGFW_windowOpenGL);
+
+	if(pimpl->window == NULL) {
+		std::cerr << "Failed to create window!" << std::endl;
+		return;
+	}
+
+	if(!settings.resizable) {
+		RGFW_window_setFlags(pimpl->window, RGFW_windowNoResize);
+	}
+
+	// First window
+	if(isfirst) {
+		// Store shared context
+		shared_context = RGFW_window_getContext_OpenGL(pimpl->window);
+		// Initialize GLAD + Core
+		this->enable_ctx();
+		Core::get().initialize();
+	}
+
+	TRACELOG(log::type::Info, "Window initialized! (%d total)", ++wincount);
+
+	// Release context (if not first window). User must manually set current context
+	if(wincount > 1) this->disable_ctx();
+	this->renderer = Core::get().renderer.get();
+
+	// Disable VSync
+	RGFW_window_swapInterval_OpenGL(pimpl->window, RGFW_FALSE);
+}
 
 Window::~Window() {
-	if(this->core != nullptr) {
-		delete this->core;
-		this->core = nullptr;
-
-		TRACELOG(log::type::Info, "Core objectl deleted");
-	}
+	std::lock_guard<std::mutex> lock(wmutex);
 
 	if(pimpl->window != nullptr) {
-		TRACELOG(log::type::Info, "Closing window: %p", (void*)pimpl->window);
-		TRACELOG(log::type::Info, "Closing OpenGL context");
-
+		TRACELOG(log::type::Info, "Closing window: %p (%d remaining)", (void*)pimpl->window, --wincount);
+		if(wincount == 0) {
+			TRACELOG(log::type::Info, "Closing OpenGL context");
+			this->enable_ctx();
+			// Core::get().shutdown(); // No need right now
+			this->disable_ctx();
+			shared_context = nullptr;
+		}
 		RGFW_window_close(pimpl->window); // Automatically calls RGFW_window_deleteContext_OpenGL
-		// This gives a double free at RGFW_deinit(), i dont know why
 		pimpl->window = nullptr;
 	}
 }
@@ -107,18 +110,10 @@ void Window::poll_events() noexcept {
 	}
 }
 
-void Window::swap_buffers() const noexcept {
-	RGFW_window_swapBuffers_OpenGL(pimpl->window);
-}
+void Window::swap_buffers() const noexcept { RGFW_window_swapBuffers_OpenGL(pimpl->window); }
 
 // -- SETTINGS
 
-void Window::set_title(const std::string &title) noexcept {
-	RGFW_window_setName(pimpl->window, title.c_str());
-}
-void Window::set_vsync(const bool state) noexcept {
-	RGFW_window_swapInterval_OpenGL(pimpl->window, state);
-}
 void Window::set_grab_mouse(const bool state) noexcept {
 	if(state) {
 		RGFW_window_holdMouse(pimpl->window);
@@ -126,18 +121,12 @@ void Window::set_grab_mouse(const bool state) noexcept {
 		RGFW_window_unholdMouse(pimpl->window);
 	}
 }
-void Window::set_hide_mouse(const bool state) noexcept {
-	RGFW_window_showMouse(pimpl->window, !state);
-}
-void Window::set_fullscreen(const bool state) noexcept {
-	RGFW_window_setFullscreen(pimpl->window, state);
-}
-void Window::set_border(const bool state) noexcept {
-	RGFW_window_setBorder(pimpl->window, state);
-}
-void Window::set_opacity(const uint8 opacity) noexcept {
-	RGFW_window_setOpacity(pimpl->window, opacity);
-}
+void Window::set_title(const std::string &title) noexcept { RGFW_window_setName(pimpl->window, title.c_str()); }
+void Window::set_vsync(const bool state) noexcept { RGFW_window_swapInterval_OpenGL(pimpl->window, state); }
+void Window::set_hide_mouse(const bool state) noexcept { RGFW_window_showMouse(pimpl->window, !state); }
+void Window::set_fullscreen(const bool state) noexcept { RGFW_window_setFullscreen(pimpl->window, state); }
+void Window::set_border(const bool state) noexcept { RGFW_window_setBorder(pimpl->window, state); }
+void Window::set_opacity(const uint8 opacity) noexcept { RGFW_window_setOpacity(pimpl->window, opacity); }
 
 void Window::set_min_size(const uint32 width, const uint32 height) noexcept {
 	RGFW_window_setMinSize(pimpl->window, static_cast<int>(width),
@@ -209,6 +198,9 @@ vec2<int> Window::mouse_pos() const noexcept {
 	RGFW_window_getMouse(pimpl->window, &output.x, &output.y);
 	return output;
 }
+
+void Window::enable_ctx() const noexcept { RGFW_window_makeCurrentContext_OpenGL(pimpl->window); }
+void Window::disable_ctx() const noexcept { RGFW_window_makeCurrentContext_OpenGL(nullptr); }
 
 // void Window::mouse_pos_global(int* x, int* y) const noexcept {
 // 	RGFW_getGlobalMouse(x, y);

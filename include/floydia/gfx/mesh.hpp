@@ -1,11 +1,11 @@
 #pragma once
 
 #include <floydia/types.hpp>
-#include <floydia/gpu/opengl.hpp>
 #include <floydia/gpu/vertexlayout.hpp>
 #include <floydia/helpers/log.hpp>
 #include <vector>
 
+#include <glad/gl.h>
 
 namespace floyd {
 

@@ -2,10 +2,10 @@
 
 #include <string>
 #include <unordered_map>
-#include <floydia/gpu/opengl.hpp>
 #include <floydia/gpu/shaders.hpp>
 #include <floydia/gpu/shader.hpp>
 
+#include <glad/gl.h>
 #include <glm/ext.hpp> // glm::value_ptr
 
 class BufferManager;

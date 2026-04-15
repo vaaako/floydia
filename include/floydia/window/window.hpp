@@ -1,25 +1,22 @@
 #pragma once
+
 #include <functional>
 #include <memory>
 #include <string>
 #include <unordered_set>
 
-#include <floydia/core/core.hpp>
-#include <floydia/core/event.hpp>
-#include <floydia/core/keycode.hpp>
-#include <floydia/core/mousebutton.hpp>
 #include <floydia/time/clock.hpp>
-#include <floydia/types.hpp>
+#include <floydia/window/event.hpp>
+#include <floydia/window/keycode.hpp>
+#include <floydia/window/mousebutton.hpp>
 
-struct RGFW_window;
+#include <floydia/camera/camera.hpp>
+#include <floydia/gfx/renderable.hpp>
+#include <floydia/core/core.hpp>
 
 namespace floyd {
 
 class Window final {
-	public:
-		// Reference to 'Core' for easy access
-		Core* core = nullptr;
-
 	public:
 		struct Settings {
 			uint32 width;
@@ -30,13 +27,8 @@ class Window final {
 			bool resizable = true;
 		};
 
-		Window(const Settings &settings);
+		Window(const Settings& settings);
 		~Window();
-
-		Window(const Window&) = delete;
-		Window& operator=(const Window&) = delete;
-		Window(Window&&) = default;
-		Window& operator=(Window&&) = default;
 
 		// Check if the window is open
 		bool is_open() const noexcept;
@@ -97,6 +89,14 @@ class Window final {
 		// Returns window current size
 		vec2<uint32> size() const noexcept;
 
+		// Starts renderer
+		inline void begin_draw(const Camera& camera) const noexcept { renderer->begin_draw(camera); }
+		// Submit object to the renderer
+		inline void push(const Renderable& object) const noexcept { renderer->push(object); }
+		// Render all objects
+		inline void flush() const { renderer->flush(); }
+		// Clears screen
+		inline void clear() const { renderer->clear(); }
 
 		// Returns true if the key is down
 		bool keydown(const Keycode key) const noexcept;
@@ -118,13 +118,19 @@ class Window final {
 		// Outputs the current x, y position of the mouse inside the window
 		vec2<int> mouse_pos() const noexcept;
 
+		// Make this window renderable
+		void enable_ctx() const noexcept;
+		// Make this window not renderable
+		void disable_ctx() const noexcept;
+
 	private:
+		Renderer* renderer; // Renderer cached to avoid repeated lookup
+
 		struct impl; // hide external libraries from header
 		std::unique_ptr<impl> pimpl;
 
 		// Registered callbacks for events
 		std::unordered_map<Event, const std::function<void()>> events_callbacks;
-
 		// Used to count DT and FPS
 		Clock clock = Clock();
 

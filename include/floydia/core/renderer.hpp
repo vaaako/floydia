@@ -30,7 +30,7 @@ class Renderer final {
 		// Submit object to the queue
 		void push(const Renderable& object) noexcept;
 		// End frame
-		void flush();
+		void flush() noexcept;
 
 	private:
 		struct InstanceData; // (to keep data aligment)
@@ -79,9 +79,11 @@ class Renderer final {
 		// Index of batch inside the 'ssbo_instance'
 		std::vector<InstanceData> instances;
 
+		// These are pointers so I can initialize when OpenGL is ready
 		UniformBuffer ubo_camera;
 		ShaderStorageBuffer ssbo_instance;
 		ProgramPipeline ppipeline;
+
 		// ShaderStorageBuffer ssbo_instance_indices;
 		size_t total_instances = 0;
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };

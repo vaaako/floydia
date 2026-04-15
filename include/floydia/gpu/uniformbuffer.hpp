@@ -1,7 +1,8 @@
 #pragma once
 
 #include <floydia/types.hpp>
-#include <floydia/gpu/opengl.hpp>
+
+#include <glad/gl.h>
 
 namespace floyd {
 
