@@ -12,6 +12,8 @@ class Renderer;
 class Object {
 	public:
 		Transform transform;
+
+	public:
 		Object() = default;
 		virtual ~Object() = default;
 

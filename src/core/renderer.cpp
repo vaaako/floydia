@@ -1,9 +1,21 @@
+#include "floydia/gpu/shader.hpp"
 #include <floydia/core/renderer.hpp>
 
 #include <floydia/gpu/programpipeline.hpp>
 
 #include <floydia/helpers/opengl.hpp>
 #include <floydia/helpers/log.hpp>
+
+
+
+/*
+- 5000 Cubes
+- 5000 Planes
+- No culling face
+- Around 30s test for each
+Shader Program: ~224-285 fps
+Program Pipeline: ~257-303 fps
+*/
 
 // #define FLOYD_DEBUG_RENDERER
 
@@ -21,11 +33,9 @@
 
 namespace floyd {
 
-	// TODO: this is fixeed to 1000 instances
-	// add dynamic resizing later
 Renderer::Renderer() noexcept :
 	ubo_camera(0, sizeof(CameraData)),
-	ssbo_instance(1, sizeof(InstanceData) * Renderer::INST_AMOUNT), // 1000
+	ssbo_instance(1, sizeof(InstanceData) * 100),
 	ppipeline(ProgramPipeline())
 	{
 
@@ -53,13 +63,18 @@ void Renderer::set_clear_color(const vec4<uint8>& color) noexcept {
 }
 
 void Renderer::begin_draw(const Camera& camera) noexcept {
+	// Advance frame
+	this->frameindex = (this->frameindex + 1) % PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Cap to ring buffer size
+
 	// Clear previous frame
 	this->batches.clear();
 	this->instances.clear();
 	this->total_instances = 0;
 	// Update Camera and Camera Uniform Buffer
 	CameraData cam = { camera.view(), camera.projection() };
-	this->ubo_camera.update(&cam, sizeof(CameraData));
+	const size_t offset = this->ubo_camera.frame_offset(frameindex);
+	this->ubo_camera.update(&cam, sizeof(CameraData), offset);
+	this->ubo_camera.flush(offset, sizeof(CameraData)); // Bind for shader use
 }
 
 void Renderer::push(const Renderable& obj) noexcept {
@@ -112,6 +127,8 @@ void Renderer::flush() noexcept {
 	if(this->batches.empty()) {
 		return;
 	}
+	// Resize if necessary. Grow with margin
+	this->ssbo_instance.resize((this->total_instances * sizeof(InstanceData)) * 2);
 
 	// Store intance index inside its batch
 	this->instances.reserve(this->total_instances);
@@ -126,23 +143,16 @@ void Renderer::flush() noexcept {
 	}
 
 	// Update SSBO with all instance data
-	this->ssbo_instance.update(this->instances.data(),
-		this->instances.size() * sizeof(InstanceData));
+	const size_t size = this->instances.size() * sizeof(InstanceData);
+	const size_t offset = this->ssbo_instance.frame_offset(frameindex);
+	this->ssbo_instance.update(this->instances.data(), size, offset);
+	this->ssbo_instance.flush(offset, size);
 
 #if defined(FLOYD_DEBUG_RENDERER)
 	const float avg_instances = (float)this->instances.size() / this->batches.size();
 	TRACELOG(log::type::Debug, "Avg instances per batch: %.2f", avg_instances);
 	TRACELOG(log::type::Debug, "Draw calls: %zu -> %zu", this->instances.size(), this->batches.size());
 #endif
-
-	/*
-		- 5000 Cubes
-		- 5000 Planes
-		- No culling face
-		- Around 30s test for each
-		Shader Program: ~224-285 fps
-		Program Pipeline: ~257-303 fps
-	*/
 
 	// Draw merged batches
 	ShaderProgram* prev_vertex = nullptr;

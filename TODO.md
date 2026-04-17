@@ -5,7 +5,7 @@
 - mesa (libgl1-mesa-dev on debian)
 
 # improvements
-- UniformBuffer and SSBO use mapping
+- [x] UniformBuffer and SSBO use mapping
 - The raycast to change object property
 - Map storage
 - Entity Scene system

@@ -50,8 +50,8 @@ Window::Window(const Settings& settings)
 	if(isfirst) {
 		// Store shared context
 		shared_context = RGFW_window_getContext_OpenGL(pimpl->window);
+		this->enable_ctx(); // Enable context for this window
 		// Initialize GLAD + Core
-		this->enable_ctx();
 		Core::get().initialize();
 	}
 

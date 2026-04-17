@@ -21,9 +21,9 @@ struct Core final {
 	// Shader Program manager
 	BufferManager buffermanager;
 	// Renderer object
-	std::unique_ptr<Renderer> renderer;
+	std::unique_ptr<Renderer> renderer = nullptr;
 	// Shader Program, Material, Texture and Mesh agregator
-	std::unique_ptr<Assets> assets;
+	std::unique_ptr<Assets> assets = nullptr;
 
 	Core() noexcept;
 	// After initialized. Core is accessible with Core::instance
