@@ -4,7 +4,7 @@
 #include <floydia/gpu/programpipeline.hpp>
 
 #include <floydia/helpers/opengl.hpp>
-#include <floydia/helpers/log.hpp>
+#include <floydia/helpers/logger.hpp>
 
 
 
@@ -96,7 +96,7 @@ void Renderer::push(const Renderable& obj) noexcept {
 		// Not found. Make new batch
 		} else {
 		#if defined(FLOYD_DEBUG_RENDERER)
-			TRACELOG(log::type::Debug, "Pushing NEW batch. Instance Index: %d", this->instances.size());
+			TRACELOG(logger::Debug, "Pushing NEW batch. Instance Index: %d", this->instances.size());
 		#endif
 
 			DrawBatch batch;
@@ -150,8 +150,8 @@ void Renderer::flush() noexcept {
 
 #if defined(FLOYD_DEBUG_RENDERER)
 	const float avg_instances = (float)this->instances.size() / this->batches.size();
-	TRACELOG(log::type::Debug, "Avg instances per batch: %.2f", avg_instances);
-	TRACELOG(log::type::Debug, "Draw calls: %zu -> %zu", this->instances.size(), this->batches.size());
+	TRACELOG(logger::Debug, "Avg instances per batch: %.2f", avg_instances);
+	TRACELOG(logger::Debug, "Draw calls: %zu -> %zu", this->instances.size(), this->batches.size());
 #endif
 
 	// Draw merged batches

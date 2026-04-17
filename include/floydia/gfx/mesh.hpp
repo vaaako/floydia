@@ -2,7 +2,7 @@
 
 #include <floydia/types.hpp>
 #include <floydia/gpu/vertexlayout.hpp>
-#include <floydia/helpers/log.hpp>
+#include <floydia/helpers/logger.hpp>
 #include <vector>
 
 #include <glad/gl.h>
@@ -71,7 +71,7 @@ Mesh::Mesh(const std::vector<T>& vertices, const std::vector<U>& indices, const 
 	static_assert(std::is_unsigned_v<U>, "U must be an unsigned arithmetic");
 
 	if(vertices.empty() || indices.empty()) {
-		TRACELOG(log::type::Error, "Vertices and Indices cannot be empty. Aborting.");
+		TRACELOG(logger::Error, "Vertices and Indices cannot be empty. Aborting.");
 		return;
 	}
 

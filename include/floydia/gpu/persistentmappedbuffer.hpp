@@ -2,7 +2,7 @@
 
 #include <cstring>
 #include <floydia/types.hpp>
-#include <floydia/helpers/log.hpp>
+#include <floydia/helpers/logger.hpp>
 #include <glad/gl.h>
 
 // Ring buffer is a fixed size memory region where the CPU writes data
@@ -38,7 +38,7 @@ class PersistentMappedBuffer {
 		inline void update(const void* data, const size_t size, const size_t offset) const noexcept {
 			if(offset + size > this->capacity) {
 				TRACELOG(
-					log::type::Error,
+					logger::Error,
 					"%s overflow. size=%zu, offset=%zu, capacity=%zu",
 					this->enum_to_str(this->btype).c_str(),
 					size, offset, this->capacity
@@ -61,7 +61,7 @@ class PersistentMappedBuffer {
 		// Ensures each frame writes to a separate memory slice (avoids CPU/GPU overlap)
 		inline size_t frame_offset(const uint32 frameindex) const noexcept {
 			if(frameindex > FRAMES_IN_FLIGHT) {
-				TRACELOG(log::type::Error,
+				TRACELOG(logger::Error,
 					"'frameindex' (%zu) out of ring buffer range (%d)",
 					frameindex, FRAMES_IN_FLIGHT);
 				return 0;

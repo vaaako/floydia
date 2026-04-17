@@ -1,3 +1,4 @@
+#include "floydia/helpers/logger.hpp"
 #include <floydia/window/window.hpp>
 
 #include <floydia/core/core.hpp>
@@ -38,7 +39,7 @@ Window::Window(const Settings& settings)
 			RGFW_windowCenter | RGFW_windowOpenGL);
 
 	if(pimpl->window == NULL) {
-		std::cerr << "Failed to create window!" << std::endl;
+		TRACELOG(logger::Error, "Failed to create window!");
 		return;
 	}
 
@@ -55,7 +56,7 @@ Window::Window(const Settings& settings)
 		Core::get().initialize();
 	}
 
-	TRACELOG(log::type::Info, "Window initialized! (%d total)", ++wincount);
+	TRACELOG(logger::Info, "Window initialized! (%d total)", ++wincount);
 
 	// Release context (if not first window). User must manually set current context
 	if(wincount > 1) this->disable_ctx();
@@ -69,9 +70,9 @@ Window::~Window() {
 	std::lock_guard<std::mutex> lock(wmutex);
 
 	if(pimpl->window != nullptr) {
-		TRACELOG(log::type::Info, "Closing window: %p (%d remaining)", (void*)pimpl->window, --wincount);
+		TRACELOG(logger::Info, "Closing window: %p (%d remaining)", (void*)pimpl->window, --wincount);
 		if(wincount == 0) {
-			TRACELOG(log::type::Info, "Closing OpenGL context");
+			TRACELOG(logger::Info, "Closing OpenGL context");
 			this->enable_ctx();
 			// Core::get().shutdown(); // No need right now
 			this->disable_ctx();

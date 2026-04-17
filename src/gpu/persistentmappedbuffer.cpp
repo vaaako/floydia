@@ -28,7 +28,7 @@ PersistentMappedBuffer::~PersistentMappedBuffer() noexcept {
 
 void PersistentMappedBuffer::resize(const size_t new_perframesize) noexcept {
 	if(new_perframesize <= this->perframesize) return;
-	TRACELOG(log::type::Info, "Resizing %s. %zu -> %zu",
+	TRACELOG(logger::Info, "Resizing %s. %zu -> %zu",
 			this->enum_to_str(this->btype).c_str(), this->perframesize, new_perframesize);
 	this->make_buffer(new_perframesize);
 }
@@ -61,7 +61,7 @@ void PersistentMappedBuffer::make_buffer(const size_t perframesize) noexcept {
 	);
 
 	if(mapped == nullptr) {
-		TRACELOG(log::type::Error, "Failed to map/remap %s", this->enum_to_str(this->btype).c_str());
+		TRACELOG(logger::Error, "Failed to map/remap %s", this->enum_to_str(this->btype).c_str());
 		glDeleteBuffers(1, &buffer); // Delete new buffer
 		return;
 	}

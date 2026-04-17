@@ -1,5 +1,5 @@
 #include <floydia/gpu/programpipeline.hpp>
-#include <floydia/helpers/log.hpp>
+#include <floydia/helpers/logger.hpp>
 #include <stdexcept>
 
 namespace floyd {
@@ -30,7 +30,7 @@ void ProgramPipeline::validate() const {
 	if(!valid) {
 		char log[1024];
 		glGetProgramPipelineInfoLog(this->pipeline, sizeof(log), NULL, log);
-		TRACELOG(log::type::Error, "Pipeline validation error:\n%s\n", log);
+		TRACELOG(logger::Error, "Pipeline validation error:\n%s\n", log);
 	}
 }
 

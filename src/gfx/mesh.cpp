@@ -10,12 +10,12 @@ Mesh::~Mesh() noexcept {
 
 void Mesh::update(const void* data, const size_t size) const noexcept {
 	if(!this->is_dynamic) {
-		TRACELOG(log::type::Error, "Buffer is not dynamic. Aborting.");
+		TRACELOG(logger::Error, "Buffer is not dynamic. Aborting.");
 		return;
 	}
 
 	if(size > this->capacity) {
-		TRACELOG(log::type::Error, "Buffer overflow. Aborting.");
+		TRACELOG(logger::Error, "Buffer overflow. Aborting.");
 		return;
 	}
 

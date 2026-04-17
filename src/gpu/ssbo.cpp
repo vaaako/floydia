@@ -1,6 +1,6 @@
 #include <cstring>
 #include <floydia/gpu/ssbo.hpp>
-#include <floydia/helpers/log.hpp>
+#include <floydia/helpers/logger.hpp>
 
 namespace floyd {
 

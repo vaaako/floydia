@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 #include <floydia/helpers/string.hpp>
-#include <floydia/helpers/log.hpp>
+#include <floydia/helpers/logger.hpp>
 
 namespace floyd {
 
@@ -18,14 +18,14 @@ ShaderProgram::~ShaderProgram() noexcept {
 
 void ShaderProgram::attach(Shader& shader) {
 	if(this->linked) {
-		TRACELOG(log::type::Error, "Cannot attach shader after linking");
+		TRACELOG(logger::Error, "Cannot attach shader after linking");
 		return;
 	}
 
 	// Validate shader
 	GLuint id = shader.release();
 	if(id == 0) {
-		TRACELOG(log::type::Error, "Invalid or already-released Shader");
+		TRACELOG(logger::Error, "Invalid or already-released Shader");
 		return;
 	}
 
@@ -40,7 +40,7 @@ void ShaderProgram::attach(Shader& shader) {
 
 void ShaderProgram::set_separable(const bool value) noexcept {
 	if(this->linked) {
-		TRACELOG(log::type::Error, "Program already linked");
+		TRACELOG(logger::Error, "Program already linked");
 		return;
 	}
 	glProgramParameteri(this->program, GL_PROGRAM_SEPARABLE, value);
@@ -49,7 +49,7 @@ void ShaderProgram::set_separable(const bool value) noexcept {
 
 void ShaderProgram::link() {
 	if(this->linked) {
-		TRACELOG(log::type::Error, "Program already linked");
+		TRACELOG(logger::Error, "Program already linked");
 		return;
 	}
 

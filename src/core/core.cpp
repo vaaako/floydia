@@ -1,5 +1,5 @@
 #include <floydia/core/core.hpp>
-#include <floydia/helpers/log.hpp>
+#include <floydia/helpers/logger.hpp>
 
 #include <floydia/libsimpl.hpp>
 #include <glad/gl.h>
@@ -21,7 +21,7 @@ void Core::initialize() noexcept {
 
 	// Initialize GLAD
 	if (!gladLoadGLLoader((GLADloadproc)RGFW_getProcAddress_OpenGL)) {
-		std::cerr << "Failed to create window!" << std::endl;
+		TRACELOG(logger::Error, "Failed to initialize GLAD!");
 		return;
 	}
 
@@ -30,11 +30,11 @@ void Core::initialize() noexcept {
 	this->renderer = std::make_unique<Renderer>();
 	this->initialized = true;
 
-	TRACELOG(log::type::Info, "OpenGL initialized!");
-	TRACELOG(log::type::Info, "GL Version: %s", glGetString(GL_VERSION));
-	TRACELOG(log::type::Info, "GLSL Version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
-	TRACELOG(log::type::Info, "Vendor: %s", glGetString(GL_VENDOR));
-	TRACELOG(log::type::Info, "Renderer: %s", glGetString(GL_RENDERER));
+	TRACELOG(logger::Info, "OpenGL initialized!");
+	TRACELOG(logger::Info, "GL Version: %s", glGetString(GL_VERSION));
+	TRACELOG(logger::Info, "GLSL Version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+	TRACELOG(logger::Info, "Vendor: %s", glGetString(GL_VENDOR));
+	TRACELOG(logger::Info, "Renderer: %s", glGetString(GL_RENDERER));
 }
 
 }
