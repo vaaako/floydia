@@ -61,7 +61,7 @@ clean:
 # Debug build
 # -Wpadded
 # debug: CXXFLAGS += -O0 -fsanitize=address -g -Wall -Wextra -Wuninitialized -Wunreachable-code
-debug: CXXFLAGS += -O0 -g -Wall -Wextra -Wuninitialized -Wunreachable-code -Wpadded
+debug: CXXFLAGS += -O0 -DFLOYD_DEBUG_MAPPED_BUFFER -g -Wall -Wextra -Wuninitialized -Wunreachable-code -Wpadded
 debug: all
 
 # Release build

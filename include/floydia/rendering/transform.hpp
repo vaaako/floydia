@@ -14,9 +14,10 @@ class Transform {
 
 		// -- const access
 
-		inline const vec3<float>& position() const noexcept { return _position; }
-		inline const vec3<float>& scale() const noexcept { return _scale; }
-		inline const glm::quat& rotation() const noexcept { return _rotation; }
+		inline const vec3<float>& position() const noexcept { return this->_position; }
+		inline const vec3<float>& scale() const noexcept { return this->_scale; }
+		inline const glm::quat& rotation() const noexcept { return this->_rotation; }
+		inline bool isdirty() const noexcept { return this->dirty; }
 		// Retrives model matrix
 		const glm::mat4& model_matrix() const noexcept;
 	private:

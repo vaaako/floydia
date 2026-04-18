@@ -1,5 +1,6 @@
 #pragma once
 
+#include <floydia/physics/AABB.hpp>
 #include <floydia/types.hpp>
 #include <floydia/gpu/vertexlayout.hpp>
 #include <floydia/helpers/logger.hpp>
@@ -12,6 +13,7 @@ namespace floyd {
 // Geometry asset
 class Mesh final {
 	public:
+		AABB aabb;
 		// Vertices size. Used for dynamic Mesh update
 		const size_t capacity;
 		// Size of vertices type
@@ -116,6 +118,9 @@ Mesh::Mesh(const std::vector<T>& vertices, const std::vector<U>& indices, const 
 			attr.offset
 		);
 	}
+
+	// Compute AABB
+	if constexpr (std::is_same_v<T, Vertex>) this->aabb.compute_local_aabb(vertices);
 }
 
 } // namespace floyd

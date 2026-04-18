@@ -1,6 +1,7 @@
 #include "floydia/gpu/shader.hpp"
 #include <floydia/gpu/persistentmappedbuffer.hpp>
 
+
 namespace floyd {
 
 PersistentMappedBuffer::PersistentMappedBuffer(const BufferType type, const uint32 binding, const size_t perframesize) noexcept
@@ -28,8 +29,10 @@ PersistentMappedBuffer::~PersistentMappedBuffer() noexcept {
 
 void PersistentMappedBuffer::resize(const size_t new_perframesize) noexcept {
 	if(new_perframesize <= this->perframesize) return;
+#if defined(FLOYD_DEBUG_MAPPED_BUFFER)
 	TRACELOG(logger::Info, "Resizing %s. %zu -> %zu",
-			this->enum_to_str(this->btype).c_str(), this->perframesize, new_perframesize);
+		this->enum_to_str(this->btype).c_str(), this->perframesize, new_perframesize);
+#endif
 	this->make_buffer(new_perframesize);
 }
 

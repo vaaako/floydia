@@ -6,8 +6,6 @@
 #include <floydia/helpers/opengl.hpp>
 #include <floydia/helpers/logger.hpp>
 
-
-
 /*
 - 5000 Cubes
 - 5000 Planes
@@ -20,16 +18,10 @@ Program Pipeline: ~257-303 fps
 // #define FLOYD_DEBUG_RENDERER
 
 // TODO:
-// - Resize SSBO
 // - Currently InstanceData is being duplicated
 //   + For batch and on 'instances'
 // - MultiDrawIndirect?
 // - Somehow cache Instances and only change when needed
-//
-// - SSBO map
-//   +  and Ring Buffer
-//
-// - After that. Make in vulkan
 
 namespace floyd {
 
@@ -65,25 +57,35 @@ void Renderer::set_clear_color(const vec4<uint8>& color) noexcept {
 void Renderer::begin_draw(const Camera& camera) noexcept {
 	// Advance frame
 	this->frameindex = (this->frameindex + 1) % PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Cap to ring buffer size
-
 	// Clear previous frame
 	this->batches.clear();
 	this->instances.clear();
 	this->total_instances = 0;
 	// Update Camera and Camera Uniform Buffer
-	CameraData cam = { camera.view(), camera.projection() };
+	const glm::mat4 view = camera.view();
+	const glm::mat4 proj = camera.projection();
+	CameraData cam = { view, proj };
 	const size_t offset = this->ubo_camera.frame_offset(frameindex);
 	this->ubo_camera.update(&cam, sizeof(CameraData), offset);
 	this->ubo_camera.flush(offset, sizeof(CameraData)); // Bind for shader use
+	// Update frustum once per frame
+	this->frustum.update(proj * view);
 }
 
-void Renderer::push(const Renderable& obj) noexcept {
-	const glm::mat4& mmatrix = obj.transform.model_matrix(); // cache
+void Renderer::push(Renderable& obj) noexcept {
+	// Needed for Frustum Culling
+	if(obj.transform.isdirty()) {
+		obj.rebuild_world_aabb();
+	}
+	if(!this->frustum.test(obj.world_aabb)) return;
 
+	const glm::mat4& mmatrix = obj.transform.model_matrix(); // this updates model matrix
 	InstanceData data = { mmatrix, obj.color_norm() };
-
 	// Create draw commands with instance index
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
+		// Cull entire object against Model AABB
+		// if(!this->frustum.test(sub.mesh->aabb, mmatrix)) continue;
+
 		// Try to find existing batch
 		BatchKey key = { sub.mesh.get(), sub.material.get() };
 		auto it = this->batches.find(key);
@@ -107,7 +109,6 @@ void Renderer::push(const Renderable& obj) noexcept {
 
 			this->batches.emplace(key, std::move(batch));
 		}
-		++total_instances;
 
 		// NOTE:
 		// If 'instance_indices' were appended here
@@ -119,6 +120,7 @@ void Renderer::push(const Renderable& obj) noexcept {
 		// Pushing indices inside 'flush' becomes:
 		// - Batch A: [A0, A2]
 		// - Batch B: [B1]
+		++total_instances;
 	}
 }
 
@@ -127,8 +129,6 @@ void Renderer::flush() noexcept {
 	if(this->batches.empty()) {
 		return;
 	}
-	// Resize if necessary. Grow with margin
-	this->ssbo_instance.resize((this->total_instances * sizeof(InstanceData)) * 2);
 
 	// Store intance index inside its batch
 	this->instances.reserve(this->total_instances);
@@ -143,6 +143,8 @@ void Renderer::flush() noexcept {
 	}
 
 	// Update SSBO with all instance data
+	// Resize if necessary. Grow with margin
+	this->ssbo_instance.resize(this->total_instances * sizeof(InstanceData));
 	const size_t size = this->instances.size() * sizeof(InstanceData);
 	const size_t offset = this->ssbo_instance.frame_offset(frameindex);
 	this->ssbo_instance.update(this->instances.data(), size, offset);
@@ -182,7 +184,6 @@ void Renderer::flush() noexcept {
 			glBindVertexArray(batch.mesh->vaoid());
 			prev_mesh = batch.mesh;
 		}
-
 
 		// Draw N instances starting from offset X in the instance buffer
 		glDrawElementsInstancedBaseInstance(

@@ -10,6 +10,8 @@ namespace floyd {
 // Stores all Meshes of a Model
 class Model final {
 	public:
+		AABB aabb;
+		
 		struct SubMesh {
 			std::shared_ptr<Mesh> mesh;
 			std::shared_ptr<Material> material;
@@ -20,6 +22,8 @@ class Model final {
 			return this->_submeshes;
 		}
 
+		// Method: Combine all submeshes AABB
+	
 	private:
 		std::vector<SubMesh> _submeshes;
 };

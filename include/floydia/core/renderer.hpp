@@ -1,5 +1,6 @@
 #pragma once
 
+#include "floydia/camera/frustum.hpp"
 #include <floydia/types.hpp>
 #include <floydia/camera/camera.hpp>
 #include <floydia/rendering/renderable.hpp>
@@ -28,7 +29,7 @@ class Renderer final {
 		// Clear queue and update Uniform Buffer
 		void begin_draw(const Camera& camera) noexcept;
 		// Submit object to the queue
-		void push(const Renderable& object) noexcept;
+		void push(Renderable& object) noexcept;
 		// End frame
 		void flush() noexcept;
 
@@ -78,6 +79,8 @@ class Renderer final {
 		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> batches;
 		// Index of batch inside the 'ssbo_instance'
 		std::vector<InstanceData> instances;
+
+		Frustum frustum;
 
 		// These are pointers so I can initialize when OpenGL is ready
 		UniformBuffer ubo_camera;

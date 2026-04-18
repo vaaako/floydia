@@ -7,6 +7,7 @@ void Model::add_submesh(const std::shared_ptr<Mesh>& mesh, const std::shared_ptr
 		throw std::invalid_argument("mesh or material cannot be nullptr");
 	}
 	this->_submeshes.push_back({ mesh, material });
+	this->aabb.merge(mesh->aabb);
 }
 
 } // namespace floyd

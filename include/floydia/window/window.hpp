@@ -92,7 +92,7 @@ class Window final {
 		// Starts renderer
 		inline void begin_draw(const Camera& camera) const noexcept { renderer->begin_draw(camera); }
 		// Submit object to the renderer
-		inline void push(const Renderable& object) const noexcept { renderer->push(object); }
+		inline void push(Renderable& object) const noexcept { renderer->push(object); }
 		// Render all objects
 		inline void flush() const { renderer->flush(); }
 		// Clears screen

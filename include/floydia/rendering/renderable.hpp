@@ -11,6 +11,8 @@ namespace floyd {
 // Renderable object
 class Renderable : public Object {
 	public:
+		AABB world_aabb; // Cache, rebuilt on transform change
+	public:
 		Renderable(const std::shared_ptr<Model>& model) noexcept;
 		virtual ~Renderable() = default;
 
@@ -18,7 +20,8 @@ class Renderable : public Object {
 		inline Model* model() noexcept { return this->_model.get(); }
 		// Returns Model class
 		inline const Model* model() const noexcept { return this->_model.get(); }
-
+		// Rebuild World AABB
+		inline void rebuild_world_aabb() noexcept { this->world_aabb = this->_model->aabb.to_world(this->transform.model_matrix()); }
 		// How many meshes are inside the model
 		inline size_t mesh_count() const { return this->_model->meshes().size(); }
 
