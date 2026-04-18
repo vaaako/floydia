@@ -2,9 +2,9 @@
 
 #include <floydia/types.hpp>
 #include <floydia/camera/camera.hpp>
-#include <floydia/gfx/renderable.hpp>
-#include <floydia/gfx/mesh.hpp>
-#include <floydia/gfx/material.hpp>
+#include <floydia/rendering/renderable.hpp>
+#include <floydia/rendering/mesh.hpp>
+#include <floydia/rendering/material.hpp>
 #include <floydia/gpu/uniformbuffer.hpp>
 #include <floydia/gpu/ssbo.hpp>
 #include <floydia/helpers/hash.hpp>

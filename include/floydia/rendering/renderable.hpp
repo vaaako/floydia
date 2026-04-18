@@ -1,8 +1,8 @@
 #pragma once
 
-#include <floydia/gfx/model.hpp>
-#include <floydia/gfx/material.hpp>
-#include <floydia/gfx/object.hpp>
+#include <floydia/rendering/model.hpp>
+#include <floydia/rendering/material.hpp>
+#include <floydia/rendering/object.hpp>
 
 #include <memory>
 

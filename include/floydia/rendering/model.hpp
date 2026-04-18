@@ -2,8 +2,8 @@
 
 #include <memory>
 #include <vector>
-#include <floydia/gfx/material.hpp>
-#include <floydia/gfx/mesh.hpp>
+#include <floydia/rendering/material.hpp>
+#include <floydia/rendering/mesh.hpp>
 
 namespace floyd {
 

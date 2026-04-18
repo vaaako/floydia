@@ -1,4 +1,4 @@
-#include <floydia/gfx/renderable.hpp>
+#include <floydia/rendering/renderable.hpp>
 
 #include <floydia/helpers/logger.hpp>
 

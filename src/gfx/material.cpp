@@ -1,4 +1,4 @@
-#include <floydia/gfx/material.hpp>
+#include <floydia/rendering/material.hpp>
 
 namespace floyd {
 

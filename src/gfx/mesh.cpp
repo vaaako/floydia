@@ -1,4 +1,4 @@
-#include <floydia/gfx/mesh.hpp>
+#include <floydia/rendering/mesh.hpp>
 
 namespace floyd {
 

@@ -1,4 +1,4 @@
-#include <floydia/gfx/model.hpp>
+#include <floydia/rendering/model.hpp>
 
 namespace floyd {
 

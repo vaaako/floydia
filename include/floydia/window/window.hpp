@@ -11,7 +11,7 @@
 #include <floydia/window/mousebutton.hpp>
 
 #include <floydia/camera/camera.hpp>
-#include <floydia/gfx/renderable.hpp>
+#include <floydia/rendering/renderable.hpp>
 #include <floydia/core/core.hpp>
 
 namespace floyd {

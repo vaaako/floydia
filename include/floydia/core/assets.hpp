@@ -1,8 +1,8 @@
 #pragma once
 
 #include <memory>
-#include <floydia/gfx/mesh.hpp>
-#include <floydia/gfx/material.hpp>
+#include <floydia/rendering/mesh.hpp>
+#include <floydia/rendering/material.hpp>
 #include <floydia/gpu/shaders.hpp>
 #include <floydia/core/buffermanager.hpp>
 #include <unordered_map>
