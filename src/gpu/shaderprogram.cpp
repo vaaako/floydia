@@ -16,14 +16,14 @@ ShaderProgram::~ShaderProgram() noexcept {
 	glDeleteProgram(this->program);
 }
 
-void ShaderProgram::attach(Shader& shader) {
+void ShaderProgram::attach(Shader& shader) noexcept {
 	if(this->linked) {
 		TRACELOG(logger::Error, "Cannot attach shader after linking");
 		return;
 	}
 
 	// Validate shader
-	GLuint id = shader.release();
+	GLuint id = shader.release(); // Take ownership
 	if(id == 0) {
 		TRACELOG(logger::Error, "Invalid or already-released Shader");
 		return;
@@ -69,11 +69,15 @@ void ShaderProgram::link() {
 
 	// Delete used shaders
 	if(this->v_shader != 0) {
+		glDetachShader(this->program, this->v_shader);
 		glDeleteShader(this->v_shader);
+		this->v_shader = 0;
 	}
 
 	if(this->f_shader != 0) {
+		glDetachShader(this->program, this->f_shader);
 		glDeleteShader(this->f_shader);
+		this->f_shader = 0;
 	}
 
 	this->linked = true;

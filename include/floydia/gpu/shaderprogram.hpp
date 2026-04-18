@@ -35,7 +35,7 @@ class ShaderProgram {
 
 		// Takes shader ownership and attach to program.
 		// Does nothing if program already has a shader attached
-		void attach(Shader& shader);
+		void attach(Shader& shader) noexcept;
 		// Set as true to use this program with Pipeline Program.
 		// Set this before attaching shaders. Will have no effect if shader is already linked
 		void set_separable(const bool value) noexcept;

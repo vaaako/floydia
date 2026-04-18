@@ -27,8 +27,7 @@ Shader::Shader(const char* source, const Shader::Type type) {
 		this->shader = 0; // prevent double delete
 		throw std::runtime_error(
 			string::format("Error creating %s shader:\n---\n%s\n---\n",
-				(type == Shader::Type::Vertex) ? "VERTEX" : "FRAGMENT",
-				log
+				(type == Shader::Type::Vertex) ? "VERTEX" : "FRAGMENT", log
 			)
 		);
 	}
