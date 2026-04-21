@@ -4,6 +4,10 @@
 - libxi
 - mesa (libgl1-mesa-dev on debian)
 
+- Improve current renderer, then add persistent object renderer
+	+ `register` to push obj to scene once. `unregister` remove from scene
+	+ `push` would still exist
+
 # improvements
 - [x] UniformBuffer and SSBO use mapping
 - The raycast to change object property
@@ -30,7 +34,7 @@ class DoorScript : public Script {
 ```
 
 # advanced
-- frustum culling
+- [x] frustum culling
 - depth pre-pass
 - LOD
 - occlusion culling
@@ -39,9 +43,9 @@ class DoorScript : public Script {
 - Cada classe deve ter uma função
 - Não misturar OpenGL com API da library
 
-- SSBO Map
+- [x] SSBO Map
 	+ Ring Buffer
-- Shader Pipeline
+- [x] Shader Pipeline
 
 - Make `Assets` store members into a unordered map instead
 

@@ -69,15 +69,20 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 	this->ubo_camera.update(&cam, sizeof(CameraData), offset);
 	this->ubo_camera.flush(offset, sizeof(CameraData)); // Bind for shader use
 	// Update frustum once per frame
-	this->frustum.update(proj * view);
+	glm::mat4 vp = proj * view;
+	this->frustum.update(vp);
+	this->camera_dirty = this->camera_moved(vp);
 }
 
 void Renderer::push(Renderable& obj) noexcept {
-	// Needed for Frustum Culling
+	// Only cull if obj changed or camera moved
 	if(obj.transform.isdirty()) {
 		obj.rebuild_world_aabb();
+		obj.visible = this->frustum.test(obj.world_aabb);
+	} else if(this->camera_dirty) {
+		obj.visible = this->frustum.test(obj.world_aabb);
 	}
-	if(!this->frustum.test(obj.world_aabb)) return;
+	if(!obj.visible) return;
 
 	const glm::mat4& mmatrix = obj.transform.model_matrix(); // this updates model matrix
 	InstanceData data = { mmatrix, obj.color_norm() };
@@ -144,11 +149,13 @@ void Renderer::flush() noexcept {
 
 	// Update SSBO with all instance data
 	// Resize if necessary. Grow with margin
-	this->ssbo_instance.resize(this->total_instances * sizeof(InstanceData));
-	const size_t size = this->instances.size() * sizeof(InstanceData);
-	const size_t offset = this->ssbo_instance.frame_offset(frameindex);
-	this->ssbo_instance.update(this->instances.data(), size, offset);
-	this->ssbo_instance.flush(offset, size);
+	if(camera_dirty) {
+		this->ssbo_instance.resize(this->total_instances * sizeof(InstanceData));
+		const size_t size = this->instances.size() * sizeof(InstanceData);
+		const size_t offset = this->ssbo_instance.frame_offset(frameindex);
+		this->ssbo_instance.update(this->instances.data(), size, offset);
+		this->ssbo_instance.flush(offset, size);
+	}
 
 #if defined(FLOYD_DEBUG_RENDERER)
 	const float avg_instances = (float)this->instances.size() / this->batches.size();

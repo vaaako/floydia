@@ -80,6 +80,7 @@ class Renderer final {
 		// Index of batch inside the 'ssbo_instance'
 		std::vector<InstanceData> instances;
 
+		glm::mat4 last_vp;
 		Frustum frustum;
 
 		// These are pointers so I can initialize when OpenGL is ready
@@ -92,6 +93,15 @@ class Renderer final {
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 
 		uint32 frameindex = 0;
+		bool camera_dirty = true; // Check if camera moved
+		// Called internally, user never sees this
+		inline bool camera_moved(const glm::mat4& vp) noexcept {
+			if(vp != this->last_vp) {
+				this->last_vp = vp;
+				return true;
+			}
+			return false;
+		}
 };
 
 } // namespace floyd

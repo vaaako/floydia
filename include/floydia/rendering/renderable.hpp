@@ -12,6 +12,7 @@ namespace floyd {
 class Renderable : public Object {
 	public:
 		AABB world_aabb; // Cache, rebuilt on transform change
+		bool visible = true; // Assume true until frustum
 	public:
 		Renderable(const std::shared_ptr<Model>& model) noexcept;
 		virtual ~Renderable() = default;
