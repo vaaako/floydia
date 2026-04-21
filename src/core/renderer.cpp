@@ -20,8 +20,7 @@ Program Pipeline: ~257-303 fps
 // TODO:
 // - Currently InstanceData is being duplicated
 //   + For batch and on 'instances'
-// - MultiDrawIndirect?
-// - Somehow cache Instances and only change when needed
+// - MultiDrawIndirect
 
 namespace floyd {
 
@@ -57,6 +56,9 @@ void Renderer::set_clear_color(const vec4<uint8>& color) noexcept {
 void Renderer::begin_draw(const Camera& camera) noexcept {
 	// Advance frame
 	this->frameindex = (this->frameindex + 1) % PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Cap to ring buffer size
+	// Block CPU until GPU is done reading this frame's buffer slots.
+	this->ubo_camera.wait(this->frameindex); // Correct but overkill
+	this->ssbo_instance.wait(this->frameindex);
 	// Clear previous frame
 	this->batches.clear();
 	this->instances.clear();
@@ -129,6 +131,11 @@ void Renderer::push(Renderable& obj) noexcept {
 	}
 }
 
+
+size_t Renderer::add(Renderable& obj) noexcept {
+
+}
+
 void Renderer::flush() noexcept {
 	// Skip if queue is empty
 	if(this->batches.empty()) {
@@ -150,7 +157,8 @@ void Renderer::flush() noexcept {
 	// Update SSBO with all instance data
 	// Resize if necessary. Grow with margin
 	if(camera_dirty) {
-		this->ssbo_instance.resize(this->total_instances * sizeof(InstanceData));
+		const size_t required = this->total_instances * sizeof(InstanceData);
+		if(required > this->ssbo_instance.get_perframesize()) this->ssbo_instance.resize(required);
 		const size_t size = this->instances.size() * sizeof(InstanceData);
 		const size_t offset = this->ssbo_instance.frame_offset(frameindex);
 		this->ssbo_instance.update(this->instances.data(), size, offset);
@@ -201,7 +209,12 @@ void Renderer::flush() noexcept {
 			batch.instance_count,
 			batch.instance_index // gl_BaseInstance
 		);
+
 	}
+
+	// Signal GPU fence, marks this frame's buffer slots as in-flight
+	this->ubo_camera.lock(this->frameindex);
+	this->ssbo_instance.lock(this->frameindex);
 }
 
 } // namespace floyd

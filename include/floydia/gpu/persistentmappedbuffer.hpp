@@ -10,6 +10,12 @@
 // the beginning.
 // Slots are reused only after the GPU has finished consuming their previous contents
 
+// Fences are GPU synchronization primitives that enforce this guarantee.
+// After issuing draw calls, a fence is placed to mark that slot as in-flight.
+// Before writing to a slot, the CPU waits on its fence until the GPU signals completion.
+// Without fences, the ring buffer is a convention with no enforcement
+// nothing stops the CPU from overwriting a slot the GPU is still reading.
+
 namespace floyd {
 
 // Base class for Persistent Mapped Buffers.
@@ -57,6 +63,24 @@ class PersistentMappedBuffer {
 		// - UBO: Requires only range binding
 		virtual inline void flush(const size_t offset, const size_t size) const noexcept = 0;
 
+		// Block the CPU until the GPU has finished reading this frame's buffer slot.
+		// Must be called before writing to the slot to avoid overwriting data still in use
+		void wait(const uint32 frameindex) noexcept {
+			GLsync& fence = this->fences[frameindex];
+			if(!fence) return;
+			glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
+			glDeleteSync(fence);
+			fence = nullptr;
+		}
+
+		// Insert a fence after draw calls are issued for this frame.
+		// Signals to future wait() calls when it is safe to reuse this buffer slot
+		void lock(const uint32 frameindex) noexcept {
+			if(this->fences[frameindex]) glDeleteSync(this->fences[frameindex]);
+			this->fences[frameindex] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+		}
+
+
 		// Returns byte offset for the given frame's region.
 		// Ensures each frame writes to a separate memory slice (avoids CPU/GPU overlap)
 		inline size_t frame_offset(const uint32 frameindex) const noexcept {
@@ -70,6 +94,7 @@ class PersistentMappedBuffer {
 		}
 
 	protected:
+		GLsync fences[FRAMES_IN_FLIGHT] = {};
 		void* mapped = nullptr;
 		size_t perframesize = 0; // Sizze of one frame region
 		size_t capacity = 0; // Total buffer size
@@ -80,8 +105,8 @@ class PersistentMappedBuffer {
 
 	private:
 		inline std::string enum_to_str(const BufferType type) const noexcept { return (type == SHADER_STORAGE_BUFFER) ? "Shader Storage Buffer" : "Uniform Buffer"; }
-
 		void make_buffer(const size_t perframesize) noexcept;
+		void delete_fences() noexcept;
 };
 
 }

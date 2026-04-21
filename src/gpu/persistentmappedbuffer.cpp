@@ -19,6 +19,7 @@ PersistentMappedBuffer::PersistentMappedBuffer(const BufferType type, const uint
 
 // Unmap and delete
 PersistentMappedBuffer::~PersistentMappedBuffer() noexcept {
+	this->delete_fences();
 	if(this->buffer != 0) {
 		glUnmapNamedBuffer(this->buffer);
 		this->mapped = nullptr;
@@ -28,7 +29,6 @@ PersistentMappedBuffer::~PersistentMappedBuffer() noexcept {
 }
 
 void PersistentMappedBuffer::resize(const size_t new_perframesize) noexcept {
-	if(new_perframesize <= this->perframesize) return;
 #if defined(FLOYD_DEBUG_MAPPED_BUFFER)
 	TRACELOG(logger::Info, "Resizing %s. %zu -> %zu",
 		this->enum_to_str(this->btype).c_str(), this->perframesize, new_perframesize);
@@ -71,11 +71,8 @@ void PersistentMappedBuffer::make_buffer(const size_t perframesize) noexcept {
 
 	// If has a buffer. Replace
 	if(this->buffer != 0) {
-		// Wait for GPU to finish reading buffer, before deleting
-		GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-		glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
-		glDeleteSync(fence);
-
+		// Wait on ALL fences before deleting old buffer
+		this->delete_fences();	
 		glDeleteBuffers(1, &this->buffer); // Delete old buffer
 		this->mapped = nullptr;
 	}
@@ -85,6 +82,19 @@ void PersistentMappedBuffer::make_buffer(const size_t perframesize) noexcept {
 	this->mapped = mapped;
 	this->perframesize = perframe;
 	this->capacity = capacity;
+}
+
+
+void PersistentMappedBuffer::delete_fences() noexcept {
+	// Wait and delete all pending fences first
+	for(uint32 i = 0; i < FRAMES_IN_FLIGHT; i++) {
+		if(this->fences[i]) {
+			GLsync& fence = this->fences[i];
+			glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
+			glDeleteSync(fence);
+			fence = nullptr;
+		}
+	}
 }
 
 } // namespace floyd

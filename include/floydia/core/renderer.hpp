@@ -29,7 +29,8 @@ class Renderer final {
 		// Clear queue and update Uniform Buffer
 		void begin_draw(const Camera& camera) noexcept;
 		// Submit object to the queue
-		void push(Renderable& object) noexcept;
+		void push(Renderable& obj) noexcept;
+		size_t add(Renderable& obj) noexcept;
 		// End frame
 		void flush() noexcept;
 
@@ -44,6 +45,7 @@ class Renderer final {
 			uint32 instance_index; // offset into final instance buffer
 			// Number of instances for this mesh
 			uint32 instance_count;
+			// bool is_managed;
 		};
 
 		struct alignas(16) CameraData {
