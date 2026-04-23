@@ -1,4 +1,4 @@
-#include "floydia/gpu/shader.hpp"
+#include <floydia/gpu/shader.hpp>
 #include <floydia/gpu/persistentmappedbuffer.hpp>
 
 

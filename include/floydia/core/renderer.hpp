@@ -25,27 +25,28 @@ class Renderer final {
 		void clear() const noexcept;
 		// Changes the clear color
 		void set_clear_color(const vec4<uint8>& color) noexcept;
-
-		// Clear queue and update Uniform Buffer
+		// Advances the frame index, syncs GPU fences, updates camera UBO,
+		// updates the frustum, and rebuilds persistent batches if dirty
 		void begin_draw(const Camera& camera) noexcept;
-		// Submit object to the queue
+		// Submit a dynamic object for this frame. Frustum culled
 		void push(Renderable& obj) noexcept;
+		// Submit a persistent object. Batched once and reused every frame.
+		// Skips per-frame frustum culling
 		size_t add(Renderable& obj) noexcept;
-		// End frame
+		// Upload instance data to SSBo and issue draw calls
 		void flush() noexcept;
 
 	private:
-		struct InstanceData; // (to keep data aligment)
+		struct InstanceData; // forward declared to keep alignment visible at top
 
 		struct DrawBatch {
 			Mesh* mesh;
 			Material* material;
 			std::vector<InstanceData> instances;
 			// Start index in SSBO
-			uint32 instance_index; // offset into final instance buffer
+			uint32 instance_index; // start offset into the instance buffer
 			// Number of instances for this mesh
 			uint32 instance_count;
-			// bool is_managed;
 		};
 
 		struct alignas(16) CameraData {
@@ -77,26 +78,32 @@ class Renderer final {
 		};
 
 	private:
-		// All batches on the scene
+		// Dynamic batches, rebuilt every frame
 		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> batches;
-		// Index of batch inside the 'ssbo_instance'
+		// Pre-built batches from persistent objects, rebuilt only when dirty
+		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> persistent_batches;
+		// All instance data, uploaded to the SSBO each frame
 		std::vector<InstanceData> instances;
+		// Persistent object pointers, stored by pointer to avoid copies
+		std::vector<Renderable*> persistent_objs;
 
 		glm::mat4 last_vp;
 		Frustum frustum;
-
-		// These are pointers so I can initialize when OpenGL is ready
 		UniformBuffer ubo_camera;
 		ShaderStorageBuffer ssbo_instance;
 		ProgramPipeline ppipeline;
-
-		// ShaderStorageBuffer ssbo_instance_indices;
-		size_t total_instances = 0;
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 
+		size_t total_instances = 0; // Only used to resize 'instances'
+
 		uint32 frameindex = 0;
+		// Counts down from FRAMES_IN_FLIGHT to ensure persistent data
+		// is uploaded to every buffer slot after a change
+		uint32 persistent_ssbo_dirty;
 		bool camera_dirty = true; // Check if camera moved
-		// Called internally, user never sees this
+		bool persistent_dirty = true; // Track if persistent batch cache is dirty
+
+	private:
 		inline bool camera_moved(const glm::mat4& vp) noexcept {
 			if(vp != this->last_vp) {
 				this->last_vp = vp;
@@ -104,6 +111,9 @@ class Renderer final {
 			}
 			return false;
 		}
+		void rebuild_persistent_batches() noexcept;
+		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
+		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept;
 };
 
 } // namespace floyd

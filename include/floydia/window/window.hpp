@@ -89,11 +89,15 @@ class Window final {
 		// Returns window current size
 		vec2<uint32> size() const noexcept;
 
-		// Starts renderer
+		// Advances the frame index, syncs GPU fences, updates camera UBO,
+		// updates the frustum, and rebuilds persistent batches if dirty
 		inline void begin_draw(const Camera& camera) const noexcept { renderer->begin_draw(camera); }
-		// Submit object to the renderer
-		inline void push(Renderable& object) const noexcept { renderer->push(object); }
-		// Render all objects
+		// Submit a dynamic object for this frame. Frustum culled
+		inline void push(Renderable& obj) const noexcept { renderer->push(obj); }
+		// Submit a persistent object. Batched once and reused every frame.
+		// Skips per-frame frustum culling
+		inline void add(Renderable& obj) const noexcept { renderer->add(obj); }
+		// Upload instance data to SSBo and issue draw calls
 		inline void flush() const { renderer->flush(); }
 		// Clears screen
 		inline void clear() const { renderer->clear(); }

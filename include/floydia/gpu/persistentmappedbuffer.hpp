@@ -96,7 +96,7 @@ class PersistentMappedBuffer {
 	protected:
 		GLsync fences[FRAMES_IN_FLIGHT] = {};
 		void* mapped = nullptr;
-		size_t perframesize = 0; // Sizze of one frame region
+		size_t perframesize = 0; // Size of one frame region
 		size_t capacity = 0; // Total buffer size
 		const uint32 binding;
 		GLuint buffer = 0;
