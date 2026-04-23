@@ -1,17 +1,125 @@
-# Requirements
-- libxcursor
-- libxrandr
-- libxi
-- mesa (libgl1-mesa-dev on debian)
+# Note
+I wrote most of the things here very tired, sorry for any english mistake
 
-- Improve current renderer, then add persistent object renderer
-	+ `register` to push obj to scene once. `unregister` remove from scene
-	+ `push` would still exist
+# Content
+## PImpl
+"'Pointer to implementation' or 'pImpl' is a C++ programming technique that removes implementation details of a class from its object representation by placing them in a separate class"
+- [https://en.cppreference.com/w/cpp/language/pimpl.html]
 
-# improvements
+# TODO library
+- [x] Use my vectores instead of glm
+	- matrix still glm ones tho
+- [x] Change library name
+	+ Beetle relatable
+	+ Coleoptera
+	+ Scarablib?
+	+ Staglib
+- [x] Add required libraries `shared libraries` files on `libs/` folder
+	+ [x] Try again to merge all static libraries
+	+ [x] Edit Makefile to use the libraries of `libs/` and header of `include/`
+- [x] **[DISCARTED]** Assets path relative to file instead of executable
+- [x] Use noexcept keyword
+- [x] Better color struct
+
+- [x] All graphics logic possible to glsl *(GPU)*
+- [x] Replace `enum class` to `enum` in some cases where there are multiple conversions
+- [x] Mouse "GRABBED" enum (or similar)
+- [x] Shader in billboard and circle will make a new one for each instance, make static
+- [x] Optimize scene different shader bind by changing the local shader when different then changing back
+
+- [x] Move `Scene3D::add_to_scene` to interface IScene
+- [x] Shader from Scene3D and Scene2D use shader manager
+
+- [x] Having problems with shaders, when compiling to executable
+	+ not happy with the solution, since it stores shaders forever in memory
+- [x] Use bitwise flags when fits
+	+ Textures
+	+ Billboard
+	+ Window?
+- [x] Use `string_view` instead of `string` when possible (when string manipulation isnt necessary)
+- [x] Class members that dont need any treatment or additional code in a setter method, should be public (when this is the case a setter method for this member is not necessary)
+- [x] Change methods description to use "\`\`" for parameters
+- [x] Fix forward declarations
+- [x] REMOVE (almost) ALL INLINES
+
+- [x] Better Material Component and texture handling
+- [x] TextureHandle accept temporary texture object. For this to work change ref to shared_ptr
+
+- [x] Unify `VAOManager` and `ShaderManager` to `ResourceManager`
+- [x] Vertex store `VertexArray` only
+	+ put `indices_length`, `hash` etc in it
+	+ builder methods are only useful when making a new vao, not need to it
+- [x] Rethink Managers
+	+ Manager: Makes "Objects" and keep one object pointer on map
+	+ `VertexArray` can be built without the attributes
+	+ i can move attributes to `VertexArray`, the method that adds can on the VBO right way, only need to store the stride and increment it inside the method
+	+ `ShaderProgram` will have a member that stores id of vertex and fragment shader
+	+ `Shader Manager` checks if any of the shaders already exist, if so, then use it to make the new program
+	+ i cant think in any way to check if the combination of these already exist, to not re-compile the same Shader Program
+	+ even checking for the shaders is not perfect, because the hash will be different event if a single character is mismatch
+	+ i could user Shader Pipeline
+- [x] New OpenGL 4.3+ VAO method
+	+ VAO stores the Vertex struct data, not the whole mesh
+	+ This makes more sense
+	+ Lower CPU overhead, faster state switching, simpler driver optimization, reduced GPU memory churn
+	+ https://patrick-is.cool/posts/2025/on-vaos/
+	+ this is agame changing
+	+ Vertex Pulling may be even more efficent, look at this
+	+ both?
+- [x] [Modern OpenGL](https://juandiegomontoya.github.io/modern_opengl.html) and [Modern functions](https://github.com/fendevel/Guide-to-Modern-OpenGL-Functions)
+- [x] Make a repository for the networking library
+- [x] Be able to build VertexArray step by step
+- [x] In Window::rotate i didnt have to clear the rotation before, why do i need it now? ([last commit]( https://github.com/vaaako/scarablib/commit/d2a5717958a1f73fde39dafbd6640e2c19dab076))
+- [x] Rename `MaterialComponent` to just `Material` for user friendly
+- [x] Instanced rendering
+	+ Group identical meshes together
+	+ Store per-instance data (e.g., model matrices, billboard position) in a SSBO
+	+ Call `glDrawElementsInstanced` or `glDrawArraysInstanced` once per group
+	+ [x] SSBO
+- [x] Rendererer > Main Object > Make Scene and `RenderPipeline` inside of it
+	+ Default Cameras if user does not want to set it
+	+ User can add different Scenes but it is optional
+		* `Renderer::set_scene(Scene*)`
+		* I have to review this later
+	+ What `Renderer::draw()` does:
+		* `begin_frame`: Update frame count, clear screen, etc
+		* `buildqueues`: One for-loop for 3D and 2D. Organize Draw commands
+		* `render3d`: set camera, enable depthtest, enable cullface, for-loop to draw all meshes
+			* `bind_material`: Check current material and changes if needed (Shader, Texture, Texture Array and Color)
+			* `bind_vertexarray`
+			* `update_model_matrix()`: May be moved to `Mesh::peprare_draw`
+			* `drawmesh(Mesh& mesh)`
+		* `render2d`: set camera, disable depthtest, disablecullface
+			* basically the same as `render3d`
+	+ Review:
+		* a single map for all meshes
+		* a single loop for queue
+- [x] RendererPipeline
+	+ Unify Scene2D and Scene3D
+		* Scene
+		+ Scene is passed to Renderer
+	+ A map for Sprites and a map for Models
+	+ When adding meshes to it, identify if is a Model or Sprite
+	+ Keep Uniform Buffers inside `ResourcesManager` (i think it fits better)
+		+ Or not
+	+ One for-loop for 3D Shapes and 2D Shapes
+		* On 2D shapes loop change camera and disable cull face
+- [x] Make `ResourcesManager` more user friendly
+	+ Make `ShaderProgram` accept only two shaders (vertex and fragment)
+	+ Use a struct maybe
 - [x] UniformBuffer and SSBO use mapping
-- The raycast to change object property
-- Map storage
+	+ Ring Buffer and Fences
+- [x] Improve current renderer, then add persistent object renderer
+	+ `register` to push obj to scene once. `unregister` remove from scene
+	+ `push` will still exist
+
+- [ ] Discord RPC support?
+- [ ] Default texture on Asset Manager
+	+ Only used when a texture is not found or an error occurs
+	+ Pre-build like the White texture
+- [ ] Click on shape makes a raycast to change object
+	- [ ] Scene storage
+
 - Entity Scene system
 	+ Objects in scene may have triggers inject to it
 	+ Make class "Script" to be a base to other scripts
@@ -33,44 +141,208 @@ class DoorScript : public Script {
 };
 ```
 
-# advanced
-- [x] frustum culling
-- depth pre-pass
-- LOD
-- occlusion culling
 
-- Cada arquivo deve ter uma função
-- Cada classe deve ter uma função
-- Não misturar OpenGL com API da library
-
-- [x] SSBO Map
-	+ Ring Buffer
+# TODO Shaders
+- [x] Revise ShaderManager
+	+ I dont know if its fully optimized and working properly
+- [x] Rename `Shader` to `ShaderProgram`
+- [x] Put shader inside `MaterialComponent`
+- [x] Fix circle shader
+- [x] More dynamic Shader class
+	+ `make_shader` and `compile_shader` methods
+- [x] `ShaderManager` also manages Shader objects and `ShaderProgrram`
+- [x] Custom shaders
+	+ Shader injection
+	+ Copy `VertexBufferComponent` to `ShaderComponent`
+	+ `ShaderComponent` (uses `ShaderManager`) -> Returns `ShaderProgram`
+	+ `ShaderManager` stores `ShaderProgram`
+	+ Like `VertexArray`, `ShaderProgram` should only take the IDs as input. `ShaderComponent` should build all
+- [x] Separate Shader Objects (`GL_ARB_separate_shader_objects`)
+	+ `ShaderProgram->bind_vertex()` and `ShaderProgram->bind_fragment()`?
+	+ Not necessary right now
+- [x] UBO
+	+ Handle with `ResourcesManager`
+	+ Modify shaders to handle UBO
+	+ Matrix Multiplication to GPU
 - [x] Shader Pipeline
+	+ Do not replace program, make it optional
+- [ ] make transparency work without `if(tex.a == 0.0)`?
 
-- Make `Assets` store members into a unordered map instead
 
-```c++
-struct Window {
-	WindowObject window; // creates GL context
-	Core core; // initialized after, declaration order guarantees it
-};
-```
+# TODO Quick Fixes
+- [x] Better texture constructor
+	+ Use bitwise paramters
+	+ Paramter to choose between RGB and RGBA manually (check inside if image is really RGBA)
+	+ Organize constructors
+	+ Feature: change texture alpha
+- [x] Simplify Keyboard and Mouse input and put all that in Window class
+- [x] Unify bundle and VAOManger somehow idk get rid of bundle
+- [ ] Make `Assets` store members into a unordered map instead
 
-Multi window example
+# TODO Bug
+- [x] Memory leak somewhere (i don't know if is in my code or in some library, but is not dangerous)
+	+ It appears to be related to SDL2 and its dependencies (X11, PulseAudio, etc.) 
+- [X] Fix FPS drop when movement is enabled
+- [x] TextureArray when setting a layer it increments even if texture in that layer exist already
+- [x] Circle alpha may not be working
+
+# TODO Window
+- [x] Window Events
+	+ [X] Custom event enums
+	+ [X] Multiple events support
+	+ [x] Resizing support (Is added but need to change viewport)
+	+ [x] Mouse handle clicks and motion like keyboard
+- [x] Custom keyboard enums
+
+# TODO Features
+- [ ] More texture options
+	+ [x] Texture overlay
+	+ [ ] Texture atlas support
+		* For reference: [anim8](https://github.com/kikito/anim8)
+	+ [ ] Opacity
+	+ [x] Texture Array (not really used by anything currently)
+- [x] Batch rendering
+- [x] Use the same font object for different texts
+- [x] frustum culling
+
+# TODO Shapes
+- [x] Make a Model Factory instead of static `get vao` and a struct for each model
+- [x] Custom shapes support (kinda, i think)
+- [x] Use one shader for 2D and 3D shapes
+- [ ] Color matrix support
+- [x] Batch rendering for textures too
+	+ Would have to make another map, its worth it?
+- [x] Better Shader support for 2D and 3D shapes
+	+ for 3d, yeah
+- [x] Remove `ModelConf`
+	+ kinda?
+- [x] CCW vertices
+- [x] TextureArray
+	+ Support for texture array and common texture to the same model
+	+ make member of "current texture array index" and use it in the shader when drawing a model that uses a texture_array
+- [x] Make a new static struct called `ModelFields` that returns `Vertex`'s fields to `ModelFactory` (and the user can use that for easy manipulation)
+	+ Like in vakraft, make a helper method for easy change faces values
+- [x] Be able to change `texid` and `shading` fields in `ModelFactory` for each face
+- [x] Bounding box was not tested
+	+ World calculation might not be working correctly (debug drawing not drawing when dynamic transform is enabled)
+	+ Not work fully as i want
+	+ Not tested
+	+ Should also work for 2D shapes and be built in Mesh constructor that uses vertices only
+	+ Skipping this because i have more important stuff to do
+- [x] make sure single draw call is working
+
+# TODO 2D
+- [x] Unify shader and `shader_texture` somehow
+	+ Use a blank texture as default (texture made in code)
+	+ Add to vertex attrib 2 on shape VBO and check if is to use on shape instance
+	+ This could be done by making a custom shape (e.g. `new Cube(custom_color)`), then all variants of this shape with custom color would have this color
+- [x] Change obsolete VAO and VBO management
+- [x] Better draw
+- [x] Better custom shape support
+- [x] Review old shapes
+- [ ] New shapes: Triangle (for real)
+- [ ] Animation support
+	+ For reference: [raycast](https://github.com/vaaako/Raycast/blob/main/src/sprite.lua#L46)
+- [ ] Collider class
+	+ Like [Windfield](https://github.com/a327ex/windfield). Show collider and easy setting
+	+ Rigid body
+- [x] If possible, use mesh.hpp for 2D shapes
+- [x] Remove `SCARAB_2D_AND_3D`
+- [x] Make it work with CULL_FACE
+- [x] Use `vec2<float>` for Sprites
+- [x] Finish font
+- [x] Fix texuv
+- [ ] Take font size inside `draw_text`: `font_size / user_size`
+- [ ] Convert a small image to a scenario
+	+ like raylib does
+- [ ] Tiled support
+
+# TODO 3D
+- [ ] Camera
+	+ [X] **[DISCARTED]** [Camera Movement](https://github.com/vaaako/Vakraft/blob/main/src/main/java/com/magenta/main/Game.java#L121)
+	+ [X] Best mouse movement
+	+ [X] Custom position for shapes
+	+ [X] Rotation of 3D shape not working
+	+ [X] Shapes custom scale
+	+ [x] Review [camera movement](https://github.com/swr06/Minecraft/blob/master/Source/Core/Camera.cpp)
+	+ [x] Ortographic camera
+	+ [ ] Third person, Front view and top down
+- [x] Merge `set_angle` and `set_axis` somehow
+- [ ] Sphere
+- [ ] Pyramid
+- [x] Skybox
+- [ ] Normals / Shading value (both?)
+- [x] Model and Mesh
+- [x] Better solution to AABB
+- [x] Camera optimized movement
+- [x] Model size is box size
+- [x] Camera movement not working properly with VSync disabled
+- [x] Make a billboard model
+	+ Rotate logic to shader
+	+ It will have to be a overrided draw method and other shader
+	+ Update model matrix in a method (like 2D shapes)
+	+ In scene3d check if model has a shader, if have, use it just for that model
+- [x] Don't store vertices, this makes the memory usage huge for each model
+	+ fixed, but is much more of a hack than a actual solution
+- [x] Billboarding logic to GPU (shaders)
+- [x] Billboard: Another approach for changing directional textures? How doom does it? How would a moving billboard work? Changing orientation?
+	+ Doom checks for the billboard direction and changes based in it (kinda)
+- [x] Billboard: Method to invert rotation
+	+ isnt really necessary
+- [x] Currently bounding box is always created, make it optional
+	+ now needs to calll a method to create it, also the draw is now correct
+
+- [x] Better BoundingBox, not happy with the current state, dont know what to do
+- [x] Show bounding box
+- [x] Billboard: Texture array
+- [x] Model loading to Model class
+	+ Put on a namespace under `utils`
+- [x] Multiple textures handling
+- [ ] Different texture for each face (the other method that is not cubemap)
+
+- [x] Be able to stand on loaded terrain
+	+ Also implement collision with walls
+	+ Ray + Grid method?
+- [ ] UniformGrid is not fully implemented
+	+ Planes are not being detected
+	+ Corners are not being detected
+	+ Ceilings are not being detected
+- [ ] Convert a small image to a scenario
+	+ like raylib does
+- [ ] Fix texuv for 2D shapes
+
+- [ ] Class to load Map from trenchbroom
+	+ takes `.obj` and `.map`
+	+ `.map` automatically adds AABB to entities, so iteraction can be made
+		* May have exceptions
+	+ player can iterate over `.map` to set entities
+
+Example:
 ```cpp
-Window win1(...);
-Window win2(...);
+LoadOBJ("map.obj"); // Used to render map only
 
-void renderLoop(Window& win) {
-	win.enable_ctx();
-	while(win.is_open()) {
-		win.poll_events();
-		win.begin_draw(camera); // enable context
-		// ...
-		win.flush();
-		win.swap_buffers(); // disable context
-		win.clear();
+Map map = LoadMAP("map.map"); // Map logic
+
+for (auto& ent : map.entities) {
+
+	Entity e;
+	e.addComponent<Transform>(ent.origin);
+
+	if (ent.hasBrushes()) {
+		AABB box = ComputeBounds(ent.brushes);
+		e.addComponent<BoxCollider>(box);
 	}
-	win.disable_ctx();
+
+	if (ent.classname == "func_door") {
+		e.addComponent<Interactable>();
+		e.addComponent<DoorLogic>(ent.properties); // Player custom logic
+	}
+
+	if (ent.classname == "trigger_once") {
+		e.get<BoxCollider>().setTrigger(true);
+		e.addComponent<TriggerLogic>();
+	}
 }
 ```
+
+
