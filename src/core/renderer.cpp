@@ -15,6 +15,9 @@ Shader Program: ~224-285 fps
 Program Pipeline: ~257-303 fps
 */
 
+// NOTE: Using persistent draw is only efficient when ALL objects
+// in scene are static
+
 // #define FLOYD_DEBUG_RENDERER
 
 // TODO:
@@ -74,9 +77,34 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 	glm::mat4 vp = proj * view;
 	this->frustum.update(vp);
 	this->camera_dirty = this->camera_moved(vp);
+
+	// Rebuild persistent batch cache only when dirty
+	if(this->persistent_dirty) {
+		this->rebuild_persistent_batches();
+	}
 }
 
 void Renderer::push(Renderable& obj) noexcept {
+	this->add_batch(obj, this->batches);
+}
+
+size_t Renderer::add(Renderable& obj) noexcept {
+	this->persistent_objs.push_back(&obj);
+	this->persistent_dirty = true;
+	this->persistent_ssbo_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
+	return this->persistent_objs.size() - 1;
+}
+
+void Renderer::rebuild_persistent_batches() noexcept {
+	this->persistent_batches.clear();
+	for(Renderable* obj : this->persistent_objs) {
+		if(!obj) continue;
+		this->add_batch(*obj, this->persistent_batches);
+	}
+	this->persistent_dirty = false;
+}
+
+void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept {
 	// Only cull if obj changed or camera moved
 	if(obj.transform.isdirty()) {
 		obj.rebuild_world_aabb();
@@ -95,10 +123,10 @@ void Renderer::push(Renderable& obj) noexcept {
 
 		// Try to find existing batch
 		BatchKey key = { sub.mesh.get(), sub.material.get() };
-		auto it = this->batches.find(key);
+		auto it = target.find(key);
 
 		// Existing batch
-		if(it != this->batches.end()) {
+		if(it != target.end()) {
 			++it->second.instance_count;
 			it->second.instances.push_back(data);
 
@@ -114,8 +142,9 @@ void Renderer::push(Renderable& obj) noexcept {
 			batch.instance_count = 1;
 			batch.instances.push_back(data);
 
-			this->batches.emplace(key, std::move(batch));
+			target.emplace(key, std::move(batch));
 		}
+		++total_instances;
 
 		// NOTE:
 		// If 'instance_indices' were appended here
@@ -127,24 +156,18 @@ void Renderer::push(Renderable& obj) noexcept {
 		// Pushing indices inside 'flush' becomes:
 		// - Batch A: [A0, A2]
 		// - Batch B: [B1]
-		++total_instances;
 	}
-}
-
-
-size_t Renderer::add(Renderable& obj) noexcept {
-
 }
 
 void Renderer::flush() noexcept {
 	// Skip if queue is empty
-	if(this->batches.empty()) {
-		return;
-	}
+	if(this->batches.empty() && this->persistent_batches.empty()) return;
 
 	// Store intance index inside its batch
 	this->instances.reserve(this->total_instances);
-	for(auto& [_, batch] : this->batches) {
+
+	// Persistent first
+	for(auto& [_, batch] : this->persistent_batches) {
 		batch.instance_index = this->instances.size();
 		// Bulk copy. Insert all of batch's instances into 'instances'
 		this->instances.insert(
@@ -154,30 +177,53 @@ void Renderer::flush() noexcept {
 		);
 	}
 
+	for(auto& [_, batch] : this->batches) {
+		batch.instance_index = this->instances.size();
+		this->instances.insert(
+			this->instances.end(),
+			batch.instances.begin(),
+			batch.instances.end()
+		);
+	}
+
 	// Update SSBO with all instance data
 	// Resize if necessary. Grow with margin
-	if(camera_dirty) {
-		const size_t required = this->total_instances * sizeof(InstanceData);
+	if(this->camera_dirty || this->persistent_ssbo_dirty > 0) {
+		const size_t required = this->instances.size() * sizeof(InstanceData);
 		if(required > this->ssbo_instance.get_perframesize()) this->ssbo_instance.resize(required);
 		const size_t size = this->instances.size() * sizeof(InstanceData);
 		const size_t offset = this->ssbo_instance.frame_offset(frameindex);
 		this->ssbo_instance.update(this->instances.data(), size, offset);
 		this->ssbo_instance.flush(offset, size);
+		// Persistent objects are added once, so it is needed to manually
+		// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
+		if(this->persistent_ssbo_dirty > 0) --this->persistent_ssbo_dirty;
 	}
 
 #if defined(FLOYD_DEBUG_RENDERER)
 	const float avg_instances = (float)this->instances.size() / this->batches.size();
 	TRACELOG(logger::Debug, "Avg instances per batch: %.2f", avg_instances);
-	TRACELOG(logger::Debug, "Draw calls: %zu -> %zu", this->instances.size(), this->batches.size());
+	TRACELOG(logger::Debug, "Draw calls: %zu -> %zu", this->instances.size(), this->batches.size(
+	));
 #endif
 
-	// Draw merged batches
+	// Render all objects
+	this->draw_map(this->persistent_batches);
+	this->draw_map(this->batches);
+
+	// Signal GPU fence, marks this frame's buffer slots as in-flight
+	this->ubo_camera.lock(this->frameindex);
+	this->ssbo_instance.lock(this->frameindex);
+}
+
+void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept {
 	ShaderProgram* prev_vertex = nullptr;
 	ShaderProgram* prev_fragment = nullptr;
-	// Material* prev_material = nullptr;
 	Mesh* prev_mesh = nullptr;
+	// Material* prev_material = nullptr;
 
-	for(const auto& [key, batch] : this->batches) {
+	// for(const auto& [key, batch] : this->batches) {
+	for(const auto& [_, batch] : batchmap) {
 		// pipeline stage swaps
 		if(prev_vertex != batch.material->vertex.get()) {
 			this->ppipeline.attach(batch.material->vertex, Shader::Vertex);
@@ -209,12 +255,7 @@ void Renderer::flush() noexcept {
 			batch.instance_count,
 			batch.instance_index // gl_BaseInstance
 		);
-
 	}
-
-	// Signal GPU fence, marks this frame's buffer slots as in-flight
-	this->ubo_camera.lock(this->frameindex);
-	this->ssbo_instance.lock(this->frameindex);
 }
 
 } // namespace floyd
