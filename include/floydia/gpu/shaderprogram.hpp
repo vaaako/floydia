@@ -30,8 +30,6 @@ class ShaderProgram {
 		}
 
 		inline GLuint get_id() const noexcept { return this->program; };
-		// Returns '0' if this class was not created by BufferManager
-		inline size_t get_hash() const noexcept { return this->hash; };
 
 		// Takes shader ownership and attach to program.
 		// Does nothing if program already has a shader attached
@@ -56,8 +54,6 @@ class ShaderProgram {
 
 	private:
 		std::unordered_map<std::string, GLint> uniforms_cache;
-		size_t hash = 0; // Set by BufferManager
-		// NOTE: Storing as 'shared_ptr<Shader>' so the weak pointer does not get expired
 		GLuint program;
 		// TODO: currently supporting only these shaders.
 		// Add geometry and compute later

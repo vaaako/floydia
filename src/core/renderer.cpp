@@ -188,7 +188,7 @@ void Renderer::flush() noexcept {
 
 	// Update SSBO with all instance data
 	// Resize if necessary. Grow with margin
-	if(this->camera_dirty || this->persistent_ssbo_dirty > 0) {
+	// if(this->camera_dirty || this->persistent_ssbo_dirty > 0) {
 		const size_t required = this->instances.size() * sizeof(InstanceData);
 		if(required > this->ssbo_instance.get_perframesize()) this->ssbo_instance.resize(required);
 		const size_t size = this->instances.size() * sizeof(InstanceData);
@@ -198,7 +198,7 @@ void Renderer::flush() noexcept {
 		// Persistent objects are added once, so it is needed to manually
 		// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
 		if(this->persistent_ssbo_dirty > 0) --this->persistent_ssbo_dirty;
-	}
+	// }
 
 #if defined(FLOYD_DEBUG_RENDERER)
 	const float avg_instances = (float)this->instances.size() / this->batches.size();

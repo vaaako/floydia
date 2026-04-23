@@ -6,6 +6,9 @@
 #include <floydia/libsimpl.hpp>
 #include <mutex>
 
+
+// https://github.com/ColleagueRiley/RGFW/blob/main/examples/multi-window/multi-window.c
+
 namespace floyd {
 
 // Shared between Windows
