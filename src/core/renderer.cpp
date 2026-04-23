@@ -85,6 +85,14 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 }
 
 void Renderer::push(Renderable& obj) noexcept {
+	// Only cull if obj changed or camera moved
+	if(obj.transform.isdirty()) {
+		obj.rebuild_world_aabb();
+		obj.visible = this->frustum.test(obj.world_aabb);
+	} else if(this->camera_dirty) {
+		obj.visible = this->frustum.test(obj.world_aabb);
+	}
+	if(!obj.visible) return;
 	this->add_batch(obj, this->batches);
 }
 
@@ -105,15 +113,9 @@ void Renderer::rebuild_persistent_batches() noexcept {
 }
 
 void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept {
-	// Only cull if obj changed or camera moved
-	if(obj.transform.isdirty()) {
-		obj.rebuild_world_aabb();
-		obj.visible = this->frustum.test(obj.world_aabb);
-	} else if(this->camera_dirty) {
-		obj.visible = this->frustum.test(obj.world_aabb);
-	}
-	if(!obj.visible) return;
-
+	// NOTE: Culling for both types of objects may cause problems.
+	// If Persistent Object was added not visible, it is likely to never be visible
+	// (excepts a new object is added when it is visible)
 	const glm::mat4& mmatrix = obj.transform.model_matrix(); // this updates model matrix
 	InstanceData data = { mmatrix, obj.color_norm() };
 	// Create draw commands with instance index
@@ -188,7 +190,7 @@ void Renderer::flush() noexcept {
 
 	// Update SSBO with all instance data
 	// Resize if necessary. Grow with margin
-	if(this->camera_dirty || this->persistent_ssbo_dirty > 0) {
+	// if(this->camera_dirty || this->persistent_ssbo_dirty > 0) {
 		const size_t required = this->instances.size() * sizeof(InstanceData);
 		if(required > this->ssbo_instance.get_perframesize()) this->ssbo_instance.resize(required);
 		const size_t size = this->instances.size() * sizeof(InstanceData);
@@ -198,7 +200,7 @@ void Renderer::flush() noexcept {
 		// Persistent objects are added once, so it is needed to manually
 		// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
 		if(this->persistent_ssbo_dirty > 0) --this->persistent_ssbo_dirty;
-	}
+	// }
 
 #if defined(FLOYD_DEBUG_RENDERER)
 	const float avg_instances = (float)this->instances.size() / this->batches.size();

@@ -1,4 +1,5 @@
 #include <floydia/core/core.hpp>
+#include <floydia/core/assets.hpp>
 #include <floydia/helpers/logger.hpp>
 
 #include <floydia/libsimpl.hpp>
@@ -15,20 +16,18 @@ Core::Core() noexcept {
 }
 
 void Core::initialize() noexcept {
-	if(this->initialized) {
-		return; // was initialized already
-	}
+	// was initialized already
+	if(this->assets != nullptr && this->renderer != nullptr) return;
 
 	// Initialize GLAD
-	if (!gladLoadGLLoader((GLADloadproc)RGFW_getProcAddress_OpenGL)) {
+	if(!gladLoadGLLoader((GLADloadproc)RGFW_getProcAddress_OpenGL)) {
 		TRACELOG(logger::Error, "Failed to initialize GLAD!");
 		return;
 	}
 
 	// Initialize OpenGL dependend objects
-	this->assets = std::make_unique<Assets>(this->buffermanager);
+	this->assets = std::make_unique<Assets>();
 	this->renderer = std::make_unique<Renderer>();
-	this->initialized = true;
 
 	TRACELOG(logger::Info, "OpenGL initialized!");
 	TRACELOG(logger::Info, "GL Version: %s", glGetString(GL_VERSION));

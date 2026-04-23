@@ -117,5 +117,21 @@ void main() {
 }
 )glsl";
 
+constexpr const char* TEXT_FRAGMENT = R"glsl(
+#version 460 core
+
+layout(location = 0) in vec2 texuv;
+layout(location = 1) in vec4 color;
+
+out vec4 fragcolor;
+uniform sampler2D u_atlas;
+
+void main() {
+	float alpha = texture(u_atlas, texuv).r; // atlas is single channel
+	fragcolor = vec4(color.rgb, color.a * alpha);
+}
+
+)glsl";
+
 } // namespace Shaders
 } // namespace floyd

@@ -5,32 +5,53 @@
 
 namespace floyd {
 
-Assets::Assets(BufferManager& bm) noexcept {
-	this->cube_mesh = this->make_cube_mesh();
-	this->quad_mesh = this->make_quad_mesh();
+Assets::Assets() noexcept {
+	// Shader Programs
+	this->emplace_program("default", Shaders::DEFAULT_VERTEX, Shaders::DEFAULT_FRAGMENT);
+	this->emplace_program("default2d", Shaders::DEFAULT_VERTEX_2D, Shaders::DEFAULT_FRAGMENT);
+	// Material
+	this->materials["default"] = std::make_shared<Material>(
+		this->emplace_program("default_vertex", Shaders::DEFAULT_VERTEX, nullptr),
+		this->emplace_program("default_fragment", nullptr, Shaders::DEFAULT_FRAGMENT)
+	);
+	this->materials["default2d"] = std::make_shared<Material>(
+		this->emplace_program("default_vertex_2d", Shaders::DEFAULT_VERTEX_2D, nullptr),
+		this->get_program("default_fragment")
+	);
+	// Meshes
+	this->meshes["cube"] = this->make_cube_mesh();
+	this->meshes["quad"] = this->make_quad_mesh();
+}
 
-	this->program = bm.load_shaderprogram(
-		Shaders::DEFAULT_VERTEX, Shaders::DEFAULT_FRAGMENT
-	);
-	this->program2d = bm.load_shaderprogram(
-		Shaders::DEFAULT_VERTEX_2D, Shaders::DEFAULT_FRAGMENT
-	);
-	this->program_vertex = bm.load_shaderprogram(Shaders::DEFAULT_VERTEX, nullptr);
-	this->program_vertex2d = bm.load_shaderprogram(Shaders::DEFAULT_VERTEX_2D, nullptr);
-	this->program_fragment = bm.load_shaderprogram(nullptr, Shaders::DEFAULT_FRAGMENT);
+std::shared_ptr<ShaderProgram> Assets::emplace_program(const std::string& key, const char* vertex, const char* fragment) {
+	// TODO: format shader if custom goes here
 
-	this->default_material = std::make_shared<Material>(
-		this->program_vertex,
-		this->program_fragment
-		// this->program,
-		// nullptr
-	);
-	this->default_material2d = std::make_shared<Material>(
-		this->program_vertex2d,
-		this->program_fragment
-		// this->program2d,
-		// nullptr
-	);
+	// size_t program_hash = 0;
+	// if(vertex != nullptr) {
+	// 	hash::combine(program_hash, hash::make(std::string_view(vertex)));
+	// }
+	// if(fragment != nullptr){
+	// 	hash::combine(program_hash, hash::make(std::string_view(fragment)));
+	// }
+
+	// Check if program is cached
+	std::shared_ptr<ShaderProgram> program = this->get_program(key);
+	if(program != nullptr) return program;
+
+	// Create program
+	program = std::make_shared<ShaderProgram>();
+	program->set_separable(true); // Pipeline by default
+	if(vertex != nullptr) {
+		Shader vs = Shader(vertex, Shader::Vertex);
+		program->attach(vs);
+	}
+	if(fragment != nullptr) {
+		Shader fs = Shader(fragment, Shader::Fragment);
+		program->attach(fs);
+	}
+	program->link();
+	this->programs[key] = program;
+	return program;
 }
 
 std::shared_ptr<Mesh> Assets::make_cube_mesh() noexcept {

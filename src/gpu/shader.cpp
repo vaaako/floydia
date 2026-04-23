@@ -7,7 +7,9 @@ namespace floyd {
 
 Shader::Shader(const char* source, const Shader::Type type) {
 	if(source == nullptr) {
-		throw std::invalid_argument("Shader source is null");
+		throw std::invalid_argument(
+			string::format("%s shader source is null", (type == Shader::Type::Vertex) ? "VERTEX" : "FRAGMENT")
+		);
 	}
 
 	// Compiler shader
