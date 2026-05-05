@@ -14,8 +14,6 @@ namespace floyd {
 
 // Shader Program Object
 class ShaderProgram {
-	friend class BufferManager;
-
 	public:
 		ShaderProgram();
 		~ShaderProgram() noexcept;

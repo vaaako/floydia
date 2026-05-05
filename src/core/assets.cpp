@@ -18,6 +18,10 @@ Assets::Assets() noexcept {
 		this->emplace_program("default_vertex_2d", Shaders::DEFAULT_VERTEX_2D, nullptr),
 		this->get_program("default_fragment")
 	);
+	this->materials["font_material"] = std::make_shared<Material>(
+		this->emplace_program("default_vertex_2d", Shaders::DEFAULT_VERTEX_2D, nullptr),
+		this->emplace_program("text_fragment", nullptr, Shaders::TEXT_FRAGMENT)
+	);
 	// Meshes
 	this->meshes["cube"] = this->make_cube_mesh();
 	this->meshes["quad"] = this->make_quad_mesh();
@@ -25,22 +29,16 @@ Assets::Assets() noexcept {
 
 std::shared_ptr<ShaderProgram> Assets::emplace_program(const std::string& key, const char* vertex, const char* fragment) {
 	// TODO: format shader if custom goes here
-
-	// size_t program_hash = 0;
-	// if(vertex != nullptr) {
-	// 	hash::combine(program_hash, hash::make(std::string_view(vertex)));
-	// }
-	// if(fragment != nullptr){
-	// 	hash::combine(program_hash, hash::make(std::string_view(fragment)));
-	// }
+	if(vertex == nullptr && fragment == nullptr) throw std::invalid_argument("Vertex and Fragment Shader source are null");
 
 	// Check if program is cached
 	std::shared_ptr<ShaderProgram> program = this->get_program(key);
 	if(program != nullptr) return program;
 
 	// Create program
+	const bool separable = ((vertex != nullptr) ^ (fragment != nullptr)); // Decide if must be built to Program Pipeline
 	program = std::make_shared<ShaderProgram>();
-	program->set_separable(true); // Pipeline by default
+	program->set_separable(separable);
 	if(vertex != nullptr) {
 		Shader vs = Shader(vertex, Shader::Vertex);
 		program->attach(vs);

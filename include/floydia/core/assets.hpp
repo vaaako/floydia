@@ -22,8 +22,8 @@ class Assets final {
 		inline std::shared_ptr<ShaderProgram> get_program(const std::string& key) const noexcept { return this->get_asset(key, this->programs); }
 		// Try to return a stored Material. Returns nullptr if not found
 		inline std::shared_ptr<Material> get_material(const std::string& key) const noexcept { return this->get_asset(key, this->materials); }
-
 		// Builds a new Shader Program or pushes an existing and return it.
+		// If Vertex or Fragment shaders is null, the Shader Program will be separable
 		std::shared_ptr<ShaderProgram> emplace_program(const std::string& key, const char* vertex, const char* fragment);
 
 	private:
