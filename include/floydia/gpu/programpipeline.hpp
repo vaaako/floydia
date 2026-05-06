@@ -15,7 +15,7 @@ class ProgramPipeline final {
 			glBindProgramPipeline(this->pipeline);
 		}
 
-		inline GLuint get_id() const noexcept { return this->pipeline; }
+		inline uint32 id() const noexcept { return this->pipeline; }
 
 		// Attach a program to Program Pipeline
 		void attach(const std::shared_ptr<ShaderProgram>& program, const Shader::Type type) const;

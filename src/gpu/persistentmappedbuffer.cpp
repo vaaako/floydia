@@ -31,7 +31,7 @@ PersistentMappedBuffer::~PersistentMappedBuffer() noexcept {
 void PersistentMappedBuffer::resize(const size_t new_perframesize) noexcept {
 #if defined(FLOYD_DEBUG_MAPPED_BUFFER)
 	TRACELOG(logger::Info, "Resizing %s. %zu -> %zu",
-		this->enum_to_str(this->btype).c_str(), this->perframesize, new_perframesize);
+		this->enum_to_str(this->btype).c_str(), this->_perframesize, new_perframesize);
 #endif
 	this->make_buffer(new_perframesize);
 }
@@ -80,7 +80,7 @@ void PersistentMappedBuffer::make_buffer(const size_t perframesize) noexcept {
 	// Assign new
 	this->buffer = buffer;
 	this->mapped = mapped;
-	this->perframesize = perframe;
+	this->_perframesize = perframe;
 	this->capacity = capacity;
 }
 

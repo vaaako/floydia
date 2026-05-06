@@ -192,7 +192,7 @@ void Renderer::flush() noexcept {
 	if(!this->batches.empty() || this->persistent_ssbo_dirty > 0) {
 		// Resize if necessary. Grow with margin
 		const size_t required = this->instances.size() * sizeof(InstanceData);
-		if(required > this->ssbo_instance.get_perframesize()) this->ssbo_instance.resize(required);
+		if(required > this->ssbo_instance.perframesize()) this->ssbo_instance.resize(required);
 		const size_t size = this->instances.size() * sizeof(InstanceData);
 		const size_t offset = this->ssbo_instance.frame_offset(frameindex);
 		this->ssbo_instance.update(this->instances.data(), size, offset);

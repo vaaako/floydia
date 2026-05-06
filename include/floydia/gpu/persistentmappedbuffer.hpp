@@ -37,8 +37,8 @@ class PersistentMappedBuffer {
 		PersistentMappedBuffer(const BufferType type, const uint32 binding, const size_t perframesize) noexcept;
 		~PersistentMappedBuffer() noexcept;
 
-		inline GLuint get_id() const noexcept { return this->buffer; };
-		inline size_t get_perframesize() const noexcept { return this->perframesize; };
+		inline uint32 id() const noexcept { return this->buffer; };
+		inline size_t perframesize() const noexcept { return this->_perframesize; };
 
 		// Copies CPU data directly into mapped GPU memory at given offset
 		inline void update(const void* data, const size_t size, const size_t offset) const noexcept {
@@ -90,13 +90,13 @@ class PersistentMappedBuffer {
 					frameindex, FRAMES_IN_FLIGHT);
 				return 0;
 			}
-			return frameindex * this->perframesize;
+			return frameindex * this->_perframesize;
 		}
 
 	protected:
 		GLsync fences[FRAMES_IN_FLIGHT] = {};
 		void* mapped = nullptr;
-		size_t perframesize = 0; // Size of one frame region
+		size_t _perframesize = 0; // Size of one frame region
 		size_t capacity = 0; // Total buffer size
 		const uint32 binding;
 		GLuint buffer = 0;

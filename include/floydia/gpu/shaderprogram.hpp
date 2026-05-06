@@ -19,15 +19,9 @@ class ShaderProgram {
 		~ShaderProgram() noexcept;
 
 		// This does not check if program was linked
-		inline void bind() const noexcept {
-			glUseProgram(this->program);
-		}
-
-		inline void unbind() const noexcept {
-			glUseProgram(0);
-		}
-
-		inline GLuint get_id() const noexcept { return this->program; };
+		inline void bind() const noexcept { glUseProgram(this->program); }
+		inline void unbind() const noexcept { glUseProgram(0); }
+		inline uint32 id() const noexcept { return this->program; };
 
 		// Takes shader ownership and attach to program.
 		// Does nothing if program already has a shader attached
