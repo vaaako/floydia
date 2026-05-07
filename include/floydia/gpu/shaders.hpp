@@ -110,10 +110,11 @@ layout(location = 1) in vec4 color;
 
 out vec4 fragcolor;
 
-// uniform sampler2D tex2d;
+uniform sampler2D albedo;
 
 void main() {
-	fragcolor = color; // * texture(tex2d, texuv);
+	vec4 base = texture(albedo, texuv) * color;
+	fragcolor = base;
 }
 )glsl";
 

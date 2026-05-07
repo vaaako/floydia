@@ -12,7 +12,6 @@ Core::Core() noexcept {
 	hints->major = 4;
 	hints->minor = 6;
 	RGFW_setGlobalHints_OpenGL(hints);
-	this->instance = this;
 }
 
 void Core::initialize() noexcept {

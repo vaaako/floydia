@@ -13,8 +13,6 @@ struct Core final {
 	std::unique_ptr<Assets> assets = nullptr;
 
 	// Global access to Core object
-	static inline Core* instance = nullptr;
-	// Global access to Core object
 	static Core& get() {
 		static Core _instance; // constructed once here
 		return _instance;
@@ -23,7 +21,6 @@ struct Core final {
 	Core() noexcept;
 	// After initialized. Core is accessible with Core::instance
 	void initialize() noexcept;
-	inline ~Core() noexcept { instance = nullptr; }
 };
 
 } // namespace floyd

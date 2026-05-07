@@ -2,8 +2,8 @@
 
 #include <memory>
 #include <vector>
-#include <floydia/rendering/material.hpp>
 #include <floydia/rendering/mesh.hpp>
+#include <floydia/material/materialinstance.hpp>
 
 namespace floyd {
 
@@ -14,16 +14,16 @@ class Model final {
 		
 		struct SubMesh {
 			std::shared_ptr<Mesh> mesh;
-			std::shared_ptr<Material> material;
+			std::shared_ptr<MaterialInstance> material;
 		};
-		void add_submesh(const std::shared_ptr<Mesh>& mesh, const std::shared_ptr<Material>& material);
-		// Returns all meshes on Model
-		inline const std::vector<SubMesh>& meshes() const noexcept {
-			return this->_submeshes;
-		}
 
+	public:
+		void add_submesh(const std::shared_ptr<Mesh>& mesh, const std::shared_ptr<MaterialInstance>& matinst);
+		// Returns all meshes on Model
+		inline const std::vector<SubMesh>& meshes() const noexcept { return this->_submeshes; }
+		// Returns all meshes on Model
+		inline std::vector<SubMesh>& meshes() noexcept { return this->_submeshes; }
 		// Method: Combine all submeshes AABB
-	
 	private:
 		std::vector<SubMesh> _submeshes;
 };

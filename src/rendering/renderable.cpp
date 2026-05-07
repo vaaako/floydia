@@ -1,6 +1,7 @@
 #include <floydia/rendering/renderable.hpp>
 
 #include <floydia/helpers/logger.hpp>
+#include <floydia/core/core.hpp>
 
 namespace floyd {
 

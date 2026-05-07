@@ -1,7 +1,10 @@
 #pragma once
 
+#include "floydia/helpers/hash.hpp"
+#include <floydia/gpu/shaderprogram.hpp>
 #include <floydia/rendering/mesh.hpp>
-#include <floydia/rendering/material.hpp>
+#include <floydia/material/material.hpp>
+#include <floydia/material/texture.hpp>
 #include <floydia/gpu/shaders.hpp>
 #include <unordered_map>
 #include <memory>
@@ -16,35 +19,55 @@ class Assets final {
 		Assets() noexcept;
 		~Assets() = default;
 
-		// Try to return a stored Mesh. Returns nullptr if not found
-		inline std::shared_ptr<Mesh> get_mesh(const std::string& key) const noexcept { return this->get_asset(key, this->meshes); }
-		// Try to return a stored Shader Program. Returns nullptr if not found
-		inline std::shared_ptr<ShaderProgram> get_program(const std::string& key) const noexcept { return this->get_asset(key, this->programs); }
-		// Try to return a stored Material. Returns nullptr if not found
-		inline std::shared_ptr<Material> get_material(const std::string& key) const noexcept { return this->get_asset(key, this->materials); }
-		// Builds a new Shader Program or pushes an existing and return it.
-		// If Vertex or Fragment shaders is null, the Shader Program will be separable
-		std::shared_ptr<ShaderProgram> emplace_program(const std::string& key, const char* vertex, const char* fragment);
+		// Builds a new Texture or returns an existing one
+		std::shared_ptr<Texture> load_texture(const char* path);
+		// Builds a new Shader Program or returns an existing one.
+		// If Vertex or Fragment shader is null, the Shader Program will be separable
+		std::shared_ptr<ShaderProgram> load_program(const char* vertex, const char* fragment);
+		// Builds a new Material or returns an existing one
+		std::shared_ptr<Material> load_material(
+			const std::shared_ptr<ShaderProgram>& vertex,
+			const std::shared_ptr<ShaderProgram>& fragment
+		) noexcept;
+
+		// Load an existing Mesh, Material, Texture or ShaderProgram
+		template <typename T>
+		std::shared_ptr<T> load(const size_t hash);
+		template <typename T>
+		std::shared_ptr<T> load(const std::string_view& key);
 
 	private:
-		// Putting on map is optional
+		// NOTE: Putting on map just so user can access it
 		std::shared_ptr<Mesh> make_cube_mesh() noexcept;
 		std::shared_ptr<Mesh> make_quad_mesh() noexcept;
 
-		std::unordered_map<std::string, std::shared_ptr<Mesh>> meshes;
-		std::unordered_map<std::string, std::shared_ptr<ShaderProgram>> programs;
-		std::unordered_map<std::string, std::shared_ptr<Material>> materials;
+		std::unordered_map<size_t, std::shared_ptr<Mesh>> meshes;
+		std::unordered_map<size_t, std::shared_ptr<ShaderProgram>> programs;
+		std::unordered_map<size_t, std::shared_ptr<Material>> materials;
+		std::unordered_map<size_t, std::shared_ptr<Texture>> textures;
 
-		// Helper to get obj from maps
-		template <typename T>
-		std::shared_ptr<T> get_asset(const std::string& key, const std::unordered_map<std::string, std::shared_ptr<T>>& map) const noexcept;
+		// Specialization
+		template <typename T> auto& get_cache();
+
+		// Helper to make a hash of a Material
+		size_t material_hash(const std::shared_ptr<ShaderProgram>& vertex, const std::shared_ptr<ShaderProgram>& fragment) const noexcept;
 };
 
+template<> inline auto& Assets::get_cache<Mesh>() { return this->meshes; }
+template<> inline auto& Assets::get_cache<Texture>() { return this->textures; }
+template<> inline auto& Assets::get_cache<Material>() { return this->materials; }
+template<> inline auto& Assets::get_cache<ShaderProgram>() { return this->programs; }
+
+
 template <typename T>
-std::shared_ptr<T> Assets::get_asset(const std::string& key, const std::unordered_map<std::string, std::shared_ptr<T>>& map) const noexcept {
-	auto it = map.find(key);
-	if(it == map.end()) return nullptr;
-	return it->second;
+std::shared_ptr<T> Assets::load(const std::string_view& key) { return this->load<T>(hash::of(key)); }
+
+template <typename T>
+std::shared_ptr<T> Assets::load(const size_t hash) {
+	auto& cache = this->get_cache<T>();
+	auto it = cache.find(hash);
+	if(it != cache.end()) return it->second;
+	return nullptr;
 }
 
 

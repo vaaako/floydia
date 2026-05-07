@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <string>
 
 namespace floyd {
 namespace hash {
@@ -25,6 +26,11 @@ namespace hash {
 		std::hash<T> h;
 		seed ^= h(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 	}
+
+	template <typename T>
+	size_t of(const T& value) noexcept { return std::hash<T>{}(value); }
+	template <typename T>
+	size_t of(const std::string& s) noexcept { return std::hash<std::string>{}(s); }
 
 	// Fast, deterministic, non-cryptographic hash for raw bytes.
 	// Use this for asset caching (textures, shaders, files).

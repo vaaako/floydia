@@ -124,7 +124,12 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 		// if(!this->frustum.test(sub.mesh->aabb, mmatrix)) continue;
 
 		// Try to find existing batch
-		BatchKey key = { sub.mesh.get(), sub.material.get() };
+		BatchKey key = {
+			sub.mesh.get(),
+			sub.material->base->vertex->id(),
+			sub.material->base->fragment->id(),
+			(sub.material->albedo) ? sub.material->albedo->id() : 0
+		};
 		auto it = target.find(key);
 
 		// Existing batch
@@ -140,7 +145,7 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 
 			DrawBatch batch;
 			batch.mesh = key.mesh;
-			batch.material = key.material;
+			batch.matinst = sub.material.get();
 			batch.instance_count = 1;
 			batch.instances.push_back(data);
 
@@ -203,10 +208,11 @@ void Renderer::flush() noexcept {
 	}
 
 #if defined(FLOYD_DEBUG_RENDERER)
-	const float avg_instances = (float)this->instances.size() / this->batches.size();
-	TRACELOG(logger::Debug, "Avg instances per batch: %.2f", avg_instances);
-	TRACELOG(logger::Debug, "Draw calls: %zu -> %zu", this->instances.size(), this->batches.size(
-	));
+	const size_t total_batches   = this->batches.size() + this->persistent_batches.size();
+	const size_t total_instances = this->instances.size();
+	const float avg = (float)total_instances / total_batches;
+	TRACELOG(logger::Debug, "Avg instances per batch: %.2f", avg);
+	TRACELOG(logger::Debug, "Draw calls: %zu -> %zu", total_instances, total_batches);
 #endif
 
 	// Render all objects
@@ -219,33 +225,31 @@ void Renderer::flush() noexcept {
 }
 
 void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept {
+	Mesh* prev_mesh = nullptr;
 	ShaderProgram* prev_vertex = nullptr;
 	ShaderProgram* prev_fragment = nullptr;
-	Mesh* prev_mesh = nullptr;
-	// Material* prev_material = nullptr;
+	MaterialInstance* prev_material = nullptr;
 
 	// for(const auto& [key, batch] : this->batches) {
 	for(const auto& [_, batch] : batchmap) {
-		// pipeline stage swaps
-		if(prev_vertex != batch.material->vertex.get()) {
-			this->ppipeline.attach(batch.material->vertex, Shader::Vertex);
-			prev_vertex = batch.material->vertex.get();
-		}
-		if(prev_fragment != batch.material->fragment.get()) {
-			this->ppipeline.attach(batch.material->fragment, Shader::Fragment);
-			prev_fragment = batch.material->fragment.get();
-		}
-
-		// surface data
-		// if(batch.material != prev_material) {
-		// 	// batch.material->bind();
-		// 	batch.material->vertex->bind();
-		// 	prev_material = batch.material;
-		// }
-
 		if(batch.mesh != prev_mesh) {
 			glBindVertexArray(batch.mesh->vaoid());
 			prev_mesh = batch.mesh;
+		}
+
+		if(prev_material != batch.matinst) {
+			// Material& mat = *batch.material->base; // cache
+			Material& mat = *batch.matinst->base; // cache
+			// pipeline stage swaps
+			if(prev_vertex != mat.vertex.get()) {
+				this->ppipeline.attach(mat.vertex, Shader::Vertex);
+				prev_vertex = mat.vertex.get();
+			}
+			if(prev_fragment != mat.fragment.get()) {
+				this->ppipeline.attach(mat.fragment, Shader::Fragment);
+				prev_fragment = mat.fragment.get();
+			}
+			batch.matinst->bind();
 		}
 
 		// Draw N instances starting from offset X in the instance buffer

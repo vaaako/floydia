@@ -1,7 +1,7 @@
 #pragma once
 
-#include <floydia/rendering/texture.hpp>
 #include <floydia/rendering/renderable.hpp>
+#include <floydia/material/texture.hpp>
 
 
 namespace floyd {

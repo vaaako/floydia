@@ -32,6 +32,10 @@ class ShaderProgram {
 		// Link attached shaders to program
 		void link();
 
+		inline void set_uniform_bool(const char* name, const bool value) noexcept {
+			glProgramUniform1i(this->program, this->get_uniform_loc(std::string(name)), value);
+		}
+
 		inline void set_uniform_int(const char* name, const int value) noexcept {
 			glProgramUniform1i(this->program, this->get_uniform_loc(std::string(name)), value);
 		}

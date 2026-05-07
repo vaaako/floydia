@@ -2,54 +2,99 @@
 
 #include <floydia/gpu/vertexlayout.hpp>
 #include <floydia/geometry/vertex.hpp>
+#include <floydia/helpers/hash.hpp>
 
 namespace floyd {
 
 Assets::Assets() noexcept {
-	// Shader Programs
-	this->emplace_program("default", Shaders::DEFAULT_VERTEX, Shaders::DEFAULT_FRAGMENT);
-	this->emplace_program("default2d", Shaders::DEFAULT_VERTEX_2D, Shaders::DEFAULT_FRAGMENT);
-	// Material
-	this->materials["default"] = std::make_shared<Material>(
-		this->emplace_program("default_vertex", Shaders::DEFAULT_VERTEX, nullptr),
-		this->emplace_program("default_fragment", nullptr, Shaders::DEFAULT_FRAGMENT)
-	);
-	this->materials["default2d"] = std::make_shared<Material>(
-		this->emplace_program("default_vertex_2d", Shaders::DEFAULT_VERTEX_2D, nullptr),
-		this->get_program("default_fragment")
-	);
-	this->materials["font_material"] = std::make_shared<Material>(
-		this->emplace_program("default_vertex_2d", Shaders::DEFAULT_VERTEX_2D, nullptr),
-		this->emplace_program("text_fragment", nullptr, Shaders::TEXT_FRAGMENT)
-	);
-	// Meshes
-	this->meshes["cube"] = this->make_cube_mesh();
-	this->meshes["quad"] = this->make_quad_mesh();
+	uint8 white[] = { 255, 255, 255, 255 }; // 1x1 RGBA white
+	uint8 blackpurple[] = {
+		// Row 0
+		0, 0, 0, 255,     // Black
+		128, 0, 128, 255, // Purple
+		// Row 1 
+		128, 0, 128, 255, // Purple
+		0, 0, 0, 255      // Black
+	};
+
+	this->textures[hash::of(std::string_view("d_white"))] = std::make_shared<Texture>(white, 1, 1);
+	this->textures[hash::of(std::string_view("d_notfound"))] = std::make_shared<Texture>(blackpurple, 2, 2);
+
+	std::shared_ptr<ShaderProgram> vert_3d   = this->load_program(Shaders::DEFAULT_VERTEX,    nullptr);
+	std::shared_ptr<ShaderProgram> vert_2d   = this->load_program(Shaders::DEFAULT_VERTEX_2D, nullptr);
+	std::shared_ptr<ShaderProgram> frag_def  = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT);
+	std::shared_ptr<ShaderProgram> frag_text = this->load_program(nullptr, Shaders::TEXT_FRAGMENT);
+
+	// Default 3D: vert_3d + frag_def + white texture
+	std::shared_ptr<Material> mat_3d = std::make_shared<Material>(vert_3d, frag_def);
+	this->materials[this->material_hash(vert_3d, frag_def)] = mat_3d;
+
+	// Default 2D: vert_2d + frag_def + white texture
+	std::shared_ptr<Material> mat_2d = std::make_shared<Material>(vert_2d, frag_def);
+	this->materials[this->material_hash(vert_2d, frag_def)] = mat_2d;
+
+	// Font: vert_2d + frag_text + white texture
+	std::shared_ptr<Material> mat_font = std::make_shared<Material>(vert_2d, frag_text);
+	this->materials[this->material_hash(vert_2d, frag_text)] = mat_font;
+
+	this->meshes[hash::of(std::string_view("cube"))] = this->make_cube_mesh();
+	this->meshes[hash::of(std::string_view("quad"))] = this->make_quad_mesh();
 }
 
-std::shared_ptr<ShaderProgram> Assets::emplace_program(const std::string& key, const char* vertex, const char* fragment) {
+std::shared_ptr<Texture> Assets::load_texture(const char* path) {
+	if(path == nullptr) throw std::invalid_argument("Texture path is null");
+	
+	size_t hash = hash::of(std::string_view(path));
+	std::shared_ptr<Texture> tex = this->load<Texture>(hash);
+	if(tex) return tex;
+
+	tex = std::make_shared<Texture>(path);
+	this->textures[hash] = tex;
+	return tex;
+}
+
+std::shared_ptr<ShaderProgram> Assets::load_program(const char* vertex, const char* fragment) {
 	// TODO: format shader if custom goes here
 	if(vertex == nullptr && fragment == nullptr) throw std::invalid_argument("Vertex and Fragment Shader source are null");
 
-	// Check if program is cached
-	std::shared_ptr<ShaderProgram> program = this->get_program(key);
+	// Hash the source content — pointer alone is not stable
+	size_t hash = 0;
+	if(vertex)   hash::combine(hash, std::string_view(vertex));
+	if(fragment) hash::combine(hash, std::string_view(fragment));
+
+	// Return cached if exists
+	std::shared_ptr<ShaderProgram> program = this->load<ShaderProgram>(hash);
 	if(program != nullptr) return program;
 
 	// Create program
 	const bool separable = ((vertex != nullptr) ^ (fragment != nullptr)); // Decide if must be built to Program Pipeline
 	program = std::make_shared<ShaderProgram>();
 	program->set_separable(separable);
-	if(vertex != nullptr) {
+	if(vertex) {
 		Shader vs = Shader(vertex, Shader::Vertex);
 		program->attach(vs);
 	}
-	if(fragment != nullptr) {
+	if(fragment) {
 		Shader fs = Shader(fragment, Shader::Fragment);
 		program->attach(fs);
 	}
 	program->link();
-	this->programs[key] = program;
+
+	this->programs[hash] = program;
 	return program;
+}
+
+std::shared_ptr<Material> Assets::load_material(
+	const std::shared_ptr<ShaderProgram>& vertex,
+	const std::shared_ptr<ShaderProgram>& fragment
+) noexcept {
+	size_t key = this->material_hash(vertex, fragment);
+	std::shared_ptr<Material> material = this->load<Material>(key);
+	if (material != nullptr) return material;
+
+	material = std::make_shared<Material>(vertex, fragment);
+	this->materials[key] = material;
+	return material;
 }
 
 std::shared_ptr<Mesh> Assets::make_cube_mesh() noexcept {
@@ -144,6 +189,14 @@ std::shared_ptr<Mesh> Assets::make_quad_mesh() noexcept {
 		return std::make_shared<Mesh>(vertices, indices, layout);
 	}();
 	return mesh;
+}
+
+
+size_t Assets::material_hash(const std::shared_ptr<ShaderProgram>& vertex, const std::shared_ptr<ShaderProgram>& fragment) const noexcept {
+	size_t seed = 0;
+	hash::combine(seed, vertex->id());
+	hash::combine(seed, fragment->id());
+	return seed;
 }
 
 } // namespace floyd

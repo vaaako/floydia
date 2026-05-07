@@ -1,11 +1,12 @@
 #pragma once
 
-#include "floydia/camera/frustum.hpp"
+#include <floydia/gpu/programpipeline.hpp>
+#include <floydia/camera/frustum.hpp>
 #include <floydia/types.hpp>
 #include <floydia/camera/camera.hpp>
 #include <floydia/rendering/renderable.hpp>
 #include <floydia/rendering/mesh.hpp>
-#include <floydia/rendering/material.hpp>
+#include <floydia/material/material.hpp>
 #include <floydia/gpu/uniformbuffer.hpp>
 #include <floydia/gpu/ssbo.hpp>
 #include <floydia/helpers/hash.hpp>
@@ -41,7 +42,9 @@ class Renderer final {
 
 		struct DrawBatch {
 			Mesh* mesh;
-			Material* material;
+			// MaterialInstance holds textures + points to cached Material (Shaders)
+			// BatchKey uses GPU IDs so different instances with same state share a batch
+			MaterialInstance* matinst;
 			std::vector<InstanceData> instances;
 			// Start index in SSBO
 			uint32 instance_index; // start offset into the instance buffer
@@ -61,10 +64,14 @@ class Renderer final {
 
 		struct BatchKey {
 			Mesh* mesh;
-			Material* material;
+			GLuint vert_id;
+			GLuint frag_id;
+			GLuint albedo_id;
 			bool operator==(const BatchKey& other) const noexcept {
-				return mesh == other.mesh &&
-					material == other.material;
+				return mesh   == other.mesh     &&
+					vert_id   == other.vert_id  &&
+					frag_id   == other.frag_id  &&
+					albedo_id == other.albedo_id;
 			}
 		};
 
@@ -72,7 +79,9 @@ class Renderer final {
 			std::size_t operator()(const BatchKey& k) const noexcept {
 				size_t seed = 0;
 				hash::combine(seed, std::hash<Mesh*>()(k.mesh));
-				hash::combine(seed, std::hash<Material*>()(k.material));
+				hash::combine(seed, std::hash<GLuint>()(k.vert_id));
+				hash::combine(seed, std::hash<GLuint>()(k.frag_id));
+				hash::combine(seed, std::hash<GLuint>()(k.albedo_id));
 				return seed;
 			}
 		};
