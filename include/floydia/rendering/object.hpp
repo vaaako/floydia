@@ -27,11 +27,8 @@ class Object {
 		}
 
 	private:
-		// Color is here so that batch draw
-		// can continue working regardless of the object's color
+		// Color is on object because it isn't considered when batching
 		vec4<float> color = vec4<float>(1.0f);
-		// float metallic = 0.0f;
-		// float roughness = 1.0f;
 
 };
 

@@ -92,11 +92,13 @@ class Window final {
 		// Advances the frame index, syncs GPU fences, updates camera UBO,
 		// updates the frustum, and rebuilds persistent batches if dirty
 		inline void begin_draw(const Camera& camera) const noexcept { renderer->begin_draw(camera); }
+		
 		// Submit a dynamic object for this frame. Frustum culled
 		inline void push(Renderable& obj) const noexcept { renderer->push(obj); }
 		// Submit a persistent object. Batched once and reused every frame.
 		// Skips per-frame frustum culling
-		inline void add(Renderable& obj) const noexcept { renderer->add(obj); }
+		inline void add(const Renderable& obj) const noexcept { renderer->add(obj); }
+
 		// Upload instance data to SSBo and issue draw calls
 		inline void flush() const { renderer->flush(); }
 		// Clears screen

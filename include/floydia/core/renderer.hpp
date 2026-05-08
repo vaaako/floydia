@@ -33,7 +33,7 @@ class Renderer final {
 		void push(Renderable& obj) noexcept;
 		// Submit a persistent object. Batched once and reused every frame.
 		// Skips per-frame frustum culling
-		size_t add(Renderable& obj) noexcept;
+		size_t add(const Renderable& obj) noexcept;
 		// Upload instance data to SSBo and issue draw calls
 		void flush() noexcept;
 
@@ -88,18 +88,18 @@ class Renderer final {
 
 	private:
 		// Dynamic batches, rebuilt every frame
-		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> batches;
+		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> dynamic_batches;
 		// Pre-built batches from persistent objects, rebuilt only when dirty
 		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> persistent_batches;
 		// All instance data, uploaded to the SSBO each frame
 		std::vector<InstanceData> instances;
 		// Persistent object pointers, stored by pointer to avoid copies
-		std::vector<Renderable*> persistent_objs;
+		std::vector<const Renderable*> persistent_objs;
 
 		glm::mat4 last_vp;
 		Frustum frustum;
 		UniformBuffer ubo_camera;
-		ShaderStorageBuffer ssbo_instance;
+		ShaderStorageBuffer ssbo_objs;
 		ProgramPipeline ppipeline;
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 
@@ -121,7 +121,8 @@ class Renderer final {
 			return false;
 		}
 		void rebuild_persistent_batches() noexcept;
-		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
+		void add_batch(const Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
+		void upload_objs() noexcept;
 		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept;
 };
 
