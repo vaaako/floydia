@@ -1,5 +1,6 @@
 #pragma once
 
+#include <floydia/rendering/light.hpp>
 #include <floydia/gpu/programpipeline.hpp>
 #include <floydia/camera/frustum.hpp>
 #include <floydia/types.hpp>
@@ -29,11 +30,17 @@ class Renderer final {
 		// Advances the frame index, syncs GPU fences, updates camera UBO,
 		// updates the frustum, and rebuilds persistent batches if dirty
 		void begin_draw(const Camera& camera) noexcept;
+
 		// Submit a dynamic object for this frame. Frustum culled
 		void push(Renderable& obj) noexcept;
 		// Submit a persistent object. Batched once and reused every frame.
 		// Skips per-frame frustum culling
 		size_t add(const Renderable& obj) noexcept;
+
+		// Submit a dynamic object for this frame. Frustum culled
+		void push(const Light& light) noexcept;
+		size_t add(const Light& light) noexcept;
+
 		// Upload instance data to SSBo and issue draw calls
 		void flush() noexcept;
 
@@ -55,6 +62,7 @@ class Renderer final {
 		struct alignas(16) CameraData {
 			glm::mat4 view;
 			glm::mat4 proj;
+			uint32 light_count; // Not correct here, but it is easier
 		};
 
 		struct alignas(16) InstanceData {
@@ -96,10 +104,18 @@ class Renderer final {
 		// Persistent object pointers, stored by pointer to avoid copies
 		std::vector<const Renderable*> persistent_objs;
 
+		// All instance data, uploaded to the SSBO each frame
+		std::vector<Light::LightData> lights;
+		// Persistent light pointers, stored by pointer to avoid copies
+		std::vector<const Light*> persistent_lights;
+
+		glm::mat4 cached_view;
+		glm::mat4 cached_proj;
 		glm::mat4 last_vp;
 		Frustum frustum;
 		UniformBuffer ubo_camera;
 		ShaderStorageBuffer ssbo_objs;
+		ShaderStorageBuffer ssbo_lights;
 		ProgramPipeline ppipeline;
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 
@@ -108,7 +124,8 @@ class Renderer final {
 		uint32 frameindex = 0;
 		// Counts down from FRAMES_IN_FLIGHT to ensure persistent data
 		// is uploaded to every buffer slot after a change
-		uint32 persistent_ssbo_dirty;
+		uint32 persistent_ssbo_objs_dirty;
+		uint32 persistent_ssbo_light_dirty;
 		bool camera_dirty = true; // Check if camera moved
 		bool persistent_dirty = true; // Track if persistent batch cache is dirty
 
@@ -120,9 +137,7 @@ class Renderer final {
 			}
 			return false;
 		}
-		void rebuild_persistent_batches() noexcept;
 		void add_batch(const Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
-		void upload_objs() noexcept;
 		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept;
 };
 
