@@ -18,6 +18,9 @@ class Transform {
 		inline const vec3<float>& scale() const noexcept { return this->_scale; }
 		inline const glm::quat& rotation() const noexcept { return this->_rotation; }
 		inline bool isdirty() const noexcept { return this->dirty; }
+
+		// Forward position
+		inline vec3<float> forward() const noexcept { return glm::normalize(-vec3<float>(this->model_matrix()[2])); }
 		// Retrives model matrix
 		const glm::mat4& model_matrix() const noexcept;
 	private:

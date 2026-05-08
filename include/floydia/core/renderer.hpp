@@ -1,5 +1,6 @@
 #pragma once
 
+#include <floydia/rendering/light.hpp>
 #include <floydia/gpu/programpipeline.hpp>
 #include <floydia/camera/frustum.hpp>
 #include <floydia/types.hpp>
@@ -29,11 +30,17 @@ class Renderer final {
 		// Advances the frame index, syncs GPU fences, updates camera UBO,
 		// updates the frustum, and rebuilds persistent batches if dirty
 		void begin_draw(const Camera& camera) noexcept;
+
 		// Submit a dynamic object for this frame. Frustum culled
 		void push(Renderable& obj) noexcept;
 		// Submit a persistent object. Batched once and reused every frame.
 		// Skips per-frame frustum culling
-		size_t add(Renderable& obj) noexcept;
+		size_t add(const Renderable& obj) noexcept;
+		// Submit a dynamic light object for this frame. Frustum culled
+		void push(const Light& light) noexcept;
+		// Submit a persistent light object. Batched once and reused every frame.
+		size_t add(const Light& light) noexcept;
+
 		// Upload instance data to SSBo and issue draw calls
 		void flush() noexcept;
 
@@ -88,18 +95,26 @@ class Renderer final {
 
 	private:
 		// Dynamic batches, rebuilt every frame
-		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> batches;
+		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> dynamic_batches;
 		// Pre-built batches from persistent objects, rebuilt only when dirty
-		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> persistent_batches;
+		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> static_batches;
 		// All instance data, uploaded to the SSBO each frame
 		std::vector<InstanceData> instances;
-		// Persistent object pointers, stored by pointer to avoid copies
-		std::vector<Renderable*> persistent_objs;
+		// Persistent object pointers, stored as pointer to avoid copies
+		std::vector<const Renderable*> static_objs;
+
+		// Persistent light pointers, stored as pointer to avoid copies
+		std::vector<const Light*> static_lights;
+		// Dynamic lights. Cleared every frame
+		std::vector<const Light*> dynamic_lights;
+		// All Light data, uploaded to the SSBO each frame
+		std::vector<Light::LightData> lights;
 
 		glm::mat4 last_vp;
 		Frustum frustum;
 		UniformBuffer ubo_camera;
-		ShaderStorageBuffer ssbo_instance;
+		ShaderStorageBuffer ssbo_objs;
+		ShaderStorageBuffer ssbo_lights;
 		ProgramPipeline ppipeline;
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 
@@ -108,7 +123,8 @@ class Renderer final {
 		uint32 frameindex = 0;
 		// Counts down from FRAMES_IN_FLIGHT to ensure persistent data
 		// is uploaded to every buffer slot after a change
-		uint32 persistent_ssbo_dirty;
+		uint32 static_ssbo_dirty;
+		uint32 static_lights_ssbo_dirty;
 		bool camera_dirty = true; // Check if camera moved
 		bool persistent_dirty = true; // Track if persistent batch cache is dirty
 
@@ -121,8 +137,11 @@ class Renderer final {
 			return false;
 		}
 		void rebuild_persistent_batches() noexcept;
-		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
-		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept;
+		void add_batch(const Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
+
+		void draw_batch(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept;
+		void upload_objs() noexcept;
+		void upload_lights() noexcept;
 };
 
 } // namespace floyd

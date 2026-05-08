@@ -21,15 +21,13 @@ Billboard, Cube, Two Crossed Planes and the Skybox
 	+ Basic 2D/3D shapes
 	+ Material component
 - **Memory Management**: Automatic memory handling with a built-in resource manager and batch renderer
-- **Simplified VAO creation**: Dynamic tools to create VAOs (just if needed) with minimal boilerplate
 - **Built-in systems**
 	+ Clock, Timer and Alarm
-	+ Sounds
 	+ Wavefront OBJ loading
-	+ AABB
-	+ 2D Terrain Map Collision
-	+ 3D Uniform Grid Collison
+	+ Frustum Culling
 	+ Dynamic light sources
+	+ AABB
+	+ Sounds
 - **Custom Shader Support**: Easily load and apply custom GLSL shaders
 
 ---

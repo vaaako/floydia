@@ -29,7 +29,8 @@ namespace floyd {
 
 Renderer::Renderer() noexcept :
 	ubo_camera(0, sizeof(CameraData)),
-	ssbo_instance(1, sizeof(InstanceData) * 100),
+	ssbo_objs(1, sizeof(InstanceData) * 100),
+	ssbo_lights(2, sizeof(Light::LightData) * 100),
 	ppipeline(ProgramPipeline())
 	{
 
@@ -61,9 +62,13 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 	this->frameindex = (this->frameindex + 1) % PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Cap to ring buffer size
 	// Block CPU until GPU is done reading this frame's buffer slots.
 	this->ubo_camera.wait(this->frameindex); // Correct but overkill
-	this->ssbo_instance.wait(this->frameindex);
+	this->ssbo_objs.wait(this->frameindex);
+	this->ssbo_lights.wait(this->frameindex);
 	// Clear previous frame
-	this->batches.clear();
+	this->dynamic_batches.clear();
+	this->dynamic_lights.clear();
+	// Clear SSBOs
+	this->lights.clear();
 	this->instances.clear();
 	this->total_instances = 0;
 	// Update Camera and Camera Uniform Buffer
@@ -93,26 +98,36 @@ void Renderer::push(Renderable& obj) noexcept {
 		obj.visible = this->frustum.test(obj.world_aabb);
 	}
 	if(!obj.visible) return;
-	this->add_batch(obj, this->batches);
+	this->add_batch(obj, this->dynamic_batches);
 }
 
-size_t Renderer::add(Renderable& obj) noexcept {
-	this->persistent_objs.push_back(&obj);
+size_t Renderer::add(const Renderable& obj) noexcept {
+	this->static_objs.push_back(&obj);
 	this->persistent_dirty = true;
-	this->persistent_ssbo_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
-	return this->persistent_objs.size() - 1;
+	this->static_ssbo_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
+	return this->static_objs.size() - 1;
+}
+
+void Renderer::push(const Light& light) noexcept {
+	this->dynamic_lights.push_back(&light);
+}
+
+size_t Renderer::add(const Light& light) noexcept {
+	this->static_lights.push_back(&light);
+	this->static_lights_ssbo_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
+	return this->static_lights.size() - 1;
 }
 
 void Renderer::rebuild_persistent_batches() noexcept {
-	this->persistent_batches.clear();
-	for(Renderable* obj : this->persistent_objs) {
+	this->static_batches.clear();
+	for(const Renderable* obj : this->static_objs) {
 		if(!obj) continue;
-		this->add_batch(*obj, this->persistent_batches);
+		this->add_batch(*obj, this->static_batches);
 	}
 	this->persistent_dirty = false;
 }
 
-void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept {
+void Renderer::add_batch(const Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept {
 	// NOTE: Culling for both types of objects may cause problems.
 	// If Persistent Object was added not visible, it is likely to never be visible
 	// (excepts a new object is added when it is visible)
@@ -168,13 +183,72 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 
 void Renderer::flush() noexcept {
 	// Skip if queue is empty
-	if(this->batches.empty() && this->persistent_batches.empty()) return;
-
+	if(this->dynamic_batches.empty() && this->static_batches.empty()) return;
 	// Store intance index inside its batch
 	this->instances.reserve(this->total_instances);
 
+	// Upload all
+	this->upload_objs();
+	this->upload_lights();
+
+	// Update SSBO when there are dynamic objects or persistent slots need filling
+	if(!this->dynamic_batches.empty() || this->static_ssbo_dirty > 0) {
+		// Resize if necessary. Grow with margin
+		const size_t size = this->instances.size() * sizeof(InstanceData);
+		if(size > this->ssbo_objs.perframesize()) this->ssbo_objs.resize(size);
+
+		const size_t offset = this->ssbo_objs.frame_offset(frameindex);
+		this->ssbo_objs.update(this->instances.data(), size, offset);
+		this->ssbo_objs.flush(offset, size);
+
+		// Persistent objects are added once, so it is needed to manually
+		// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
+		if(this->static_ssbo_dirty > 0) --this->static_ssbo_dirty;
+	}
+
+	if(!this->dynamic_lights.empty() || this->static_lights_ssbo_dirty > 0) {
+		if(!this->lights.empty()) {
+			Light::LightBuffer header;
+			header.count = (uint32)this->lights.size();
+
+			const size_t header_size = sizeof(Light::LightBuffer);
+			const size_t data_size = this->lights.size() * sizeof(Light::LightData);
+			const size_t total_size = header_size + data_size;
+
+			// Resize if necessary. Grow with margin
+			if(total_size > this->ssbo_lights.perframesize()) this->ssbo_lights.resize(total_size);
+
+			const size_t offset = this->ssbo_lights.frame_offset(frameindex);
+			this->ssbo_lights.update(&header, header_size, offset);
+			this->ssbo_lights.update(this->lights.data(), data_size, offset + header_size);
+			this->ssbo_lights.flush(offset, total_size);
+		}
+		// Persistent objects are added once, so it is needed to manually
+		// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
+		if(this->static_lights_ssbo_dirty > 0) --this->static_lights_ssbo_dirty;
+	}
+
+#if defined(FLOYD_DEBUG_RENDERER)
+	const size_t total_batches = this->dynamic_batches.size() + this->static_batches.size();
+	const size_t total_instances = this->instances.size();
+	const float avg = (float)total_instances / total_batches;
+	TRACELOG(logger::Debug, "Avg instances per batch: %.2f", avg);
+	TRACELOG(logger::Debug, "Draw calls: %zu -> %zu", total_instances, total_batches);
+#endif
+
+	// Render all objects
+	this->draw_batch(this->static_batches);
+	this->draw_batch(this->dynamic_batches);
+
+	// Signal GPU fence, marks this frame's buffer slots as in-flight
+	this->ubo_camera.lock(this->frameindex);
+	this->ssbo_objs.lock(this->frameindex);
+	this->ssbo_lights.lock(this->frameindex);
+}
+
+void Renderer::upload_objs() noexcept {
 	// Persistent first
-	for(auto& [_, batch] : this->persistent_batches) {
+	for(auto& [_, batch] : this->dynamic_batches) {
 		batch.instance_index = this->instances.size();
 		// Bulk copy. Insert all of batch's instances into 'instances'
 		this->instances.insert(
@@ -184,47 +258,29 @@ void Renderer::flush() noexcept {
 		);
 	}
 
-	for(auto& [_, batch] : this->batches) {
+	for(auto& [_, batch] : this->static_batches) {
 		batch.instance_index = this->instances.size();
+		// Bulk copy. Insert all of batch's instances into 'instances'
 		this->instances.insert(
 			this->instances.end(),
 			batch.instances.begin(),
 			batch.instances.end()
 		);
 	}
-
-	// Update SSBO when there are dynamic objects or persistent slots need filling
-	if(!this->batches.empty() || this->persistent_ssbo_dirty > 0) {
-		// Resize if necessary. Grow with margin
-		const size_t required = this->instances.size() * sizeof(InstanceData);
-		if(required > this->ssbo_instance.perframesize()) this->ssbo_instance.resize(required);
-		const size_t size = this->instances.size() * sizeof(InstanceData);
-		const size_t offset = this->ssbo_instance.frame_offset(frameindex);
-		this->ssbo_instance.update(this->instances.data(), size, offset);
-		this->ssbo_instance.flush(offset, size);
-		// Persistent objects are added once, so it is needed to manually
-		// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
-		if(this->persistent_ssbo_dirty > 0) --this->persistent_ssbo_dirty;
-	}
-
-#if defined(FLOYD_DEBUG_RENDERER)
-	const size_t total_batches   = this->batches.size() + this->persistent_batches.size();
-	const size_t total_instances = this->instances.size();
-	const float avg = (float)total_instances / total_batches;
-	TRACELOG(logger::Debug, "Avg instances per batch: %.2f", avg);
-	TRACELOG(logger::Debug, "Draw calls: %zu -> %zu", total_instances, total_batches);
-#endif
-
-	// Render all objects
-	this->draw_map(this->persistent_batches);
-	this->draw_map(this->batches);
-
-	// Signal GPU fence, marks this frame's buffer slots as in-flight
-	this->ubo_camera.lock(this->frameindex);
-	this->ssbo_instance.lock(this->frameindex);
 }
 
-void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept {
+
+void Renderer::upload_lights() noexcept {
+	for(const Light* l : this->static_lights) {
+		this->lights.push_back(l->to_gpu_data());
+	}
+
+	for(const Light* l : this->dynamic_lights) {
+		this->lights.push_back(l->to_gpu_data());
+	}
+}
+
+void Renderer::draw_batch(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept {
 	Mesh* prev_mesh = nullptr;
 	ShaderProgram* prev_vertex = nullptr;
 	ShaderProgram* prev_fragment = nullptr;
@@ -263,5 +319,6 @@ void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHa
 		);
 	}
 }
+
 
 } // namespace floyd

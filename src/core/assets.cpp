@@ -8,30 +8,22 @@ namespace floyd {
 
 Assets::Assets() noexcept {
 	uint8 white[] = { 255, 255, 255, 255 }; // 1x1 RGBA white
-	uint8 blackpurple[] = {
-		// Row 0
-		0, 0, 0, 255,     // Black
-		128, 0, 128, 255, // Purple
-		// Row 1 
-		128, 0, 128, 255, // Purple
-		0, 0, 0, 255      // Black
-	};
-
 	this->textures[hash::of(std::string_view("d_white"))] = std::make_shared<Texture>(white, 1, 1);
-	this->textures[hash::of(std::string_view("d_notfound"))] = std::make_shared<Texture>(blackpurple, 2, 2);
+	this->textures[hash::of(std::string_view("d_notfound"))] = std::make_shared<Texture>(nullptr, 2, 2); // Make not found texture
 
 	std::shared_ptr<ShaderProgram> vert_3d   = this->load_program(Shaders::DEFAULT_VERTEX,    nullptr);
 	std::shared_ptr<ShaderProgram> vert_2d   = this->load_program(Shaders::DEFAULT_VERTEX_2D, nullptr);
-	std::shared_ptr<ShaderProgram> frag_def  = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT);
+	std::shared_ptr<ShaderProgram> frag_3d   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT);
+	std::shared_ptr<ShaderProgram> frag_2d   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_2D);
 	std::shared_ptr<ShaderProgram> frag_text = this->load_program(nullptr, Shaders::TEXT_FRAGMENT);
 
 	// Default 3D: vert_3d + frag_def + white texture
-	std::shared_ptr<Material> mat_3d = std::make_shared<Material>(vert_3d, frag_def);
-	this->materials[this->material_hash(vert_3d, frag_def)] = mat_3d;
+	std::shared_ptr<Material> mat_3d = std::make_shared<Material>(vert_3d, frag_3d);
+	this->materials[this->material_hash(vert_3d, frag_3d)] = mat_3d;
 
 	// Default 2D: vert_2d + frag_def + white texture
-	std::shared_ptr<Material> mat_2d = std::make_shared<Material>(vert_2d, frag_def);
-	this->materials[this->material_hash(vert_2d, frag_def)] = mat_2d;
+	std::shared_ptr<Material> mat_2d = std::make_shared<Material>(vert_2d, frag_2d);
+	this->materials[this->material_hash(vert_2d, frag_2d)] = mat_2d;
 
 	// Font: vert_2d + frag_text + white texture
 	std::shared_ptr<Material> mat_font = std::make_shared<Material>(vert_2d, frag_text);
