@@ -11,6 +11,7 @@ class Transform {
 		void set_position(const vec3<float>& position) noexcept;
 		void set_scale(const vec3<float>& scale) noexcept;
 		void set_rotation(const vec3<float>& rotation) noexcept;
+		void set_rotation(const glm::quat& rotation) noexcept;
 
 		// -- const access
 

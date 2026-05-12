@@ -1,4 +1,5 @@
-#include "floydia/gpu/shader.hpp"
+#include <floydia/core/core.hpp>
+#include <floydia/gpu/shader.hpp>
 #include <floydia/core/renderer.hpp>
 
 #include <floydia/gpu/programpipeline.hpp>
@@ -66,6 +67,7 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 	// Update Camera and Camera Uniform Buffer
 	this->cached_view = camera.view();
 	this->cached_proj = camera.projection();
+	this->camerapos = camera.position;
 
 	// Update frustum once per frame
 	glm::mat4 vp = this->cached_proj * this->cached_view;
@@ -181,7 +183,7 @@ void Renderer::flush() noexcept {
 	if(this->dynamic_batches.empty() && this->persistent_batches.empty()) return;
 
 	// Update camera here so 'lights' is updated
-	CameraData cam = { this->cached_view, this->cached_proj, static_cast<uint32>(this->lights.size()) };
+	CameraData cam = { this->cached_view, this->cached_proj, glm::vec4(this->camerapos, 1.0f) };
 	const size_t offset = this->ubo_camera.frame_offset(frameindex);
 	this->ubo_camera.update(&cam, sizeof(CameraData), offset);
 	this->ubo_camera.flush(offset, sizeof(CameraData)); // Bind for shader use
@@ -219,17 +221,24 @@ void Renderer::flush() noexcept {
 		if(this->persistent_ssbo_objs_dirty > 0) --this->persistent_ssbo_objs_dirty;
 	}
 
+	// Update lights on scene
 	if(!this->lights.empty() || this->persistent_ssbo_light_dirty > 0) {
-		const size_t size = this->lights.size() * sizeof(Light::LightData);
-		if(size > this->ssbo_lights.perframesize()) this->ssbo_lights.resize(size);
+		if(!this->lights.empty()) {
+			Light::LightBuffer header;
+			header.count = static_cast<uint32>(this->lights.size());
+			const size_t header_size = sizeof(Light::LightBuffer);
+			const size_t data_size = this->lights.size() * sizeof(Light::LightData);
 
-		const size_t offset = this->ssbo_lights.frame_offset(this->frameindex);
-		this->ssbo_lights.update(this->lights.data(), size, offset);
-		this->ssbo_lights.flush(offset, size);
+			const size_t total_size = header_size + data_size;
+			if(total_size > this->ssbo_lights.perframesize()) this->ssbo_lights.resize(total_size);
 
+			const size_t offset = this->ssbo_lights.frame_offset(this->frameindex);
+			this->ssbo_lights.update(&header, header_size, offset);
+			this->ssbo_lights.update(this->lights.data(), data_size, offset + header_size); // Append after header
+			this->ssbo_lights.flush(offset, total_size);
+		}
 		if(this->persistent_ssbo_light_dirty > 0) --this->persistent_ssbo_light_dirty;
 	}
-
 
 	// Render all objects
 	this->draw_map(this->persistent_batches);
@@ -279,6 +288,25 @@ void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHa
 			batch.instance_index // gl_BaseInstance
 		);
 	}
+}
+
+
+Cube Renderer::show_light(const Light& light) noexcept {
+	Assets* assets = Core::get().assets.get();
+
+	Cube cube = Cube();
+	cube.transform.set_position(light.transform.position());
+	cube.transform.set_scale({0.2f, 0.2f, 0.2f});
+	cube.transform.set_rotation(light.transform.rotation());
+	cube.set_color(light.color());
+	// Set to be not affected by light
+	cube.material()->base =
+		assets->load_material(
+			assets->load_program(Shaders::DEFAULT_VERTEX, nullptr),
+			assets->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_UNLIT)
+		);
+	this->add(cube);
+	return cube;
 }
 
 } // namespace floyd

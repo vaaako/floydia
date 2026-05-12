@@ -6,6 +6,7 @@
 #include <floydia/types.hpp>
 #include <floydia/camera/camera.hpp>
 #include <floydia/rendering/renderable.hpp>
+#include <floydia/geometry/cube.hpp>
 #include <floydia/rendering/mesh.hpp>
 #include <floydia/material/material.hpp>
 #include <floydia/gpu/uniformbuffer.hpp>
@@ -37,9 +38,12 @@ class Renderer final {
 		// Skips per-frame frustum culling
 		size_t add(const Renderable& obj) noexcept;
 
-		// Submit a dynamic object for this frame. Frustum culled
+		// Submit a dynamic object for this frame
 		void push(const Light& light) noexcept;
+		// Submit a persistent light object
 		size_t add(const Light& light) noexcept;
+		// Debug a cube on a light source position
+		Cube show_light(const Light& light) noexcept;
 
 		// Upload instance data to SSBo and issue draw calls
 		void flush() noexcept;
@@ -62,7 +66,7 @@ class Renderer final {
 		struct alignas(16) CameraData {
 			glm::mat4 view;
 			glm::mat4 proj;
-			uint32 light_count; // Not correct here, but it is easier
+			glm::vec4 camerapos; // on std140 vec3 and vec4 has the same size (16 bytes), but the behaviour may be unexpected (some drivers reads vec3 as 12 bytes), vec4 is safer
 		};
 
 		struct alignas(16) InstanceData {
@@ -111,6 +115,7 @@ class Renderer final {
 
 		glm::mat4 cached_view;
 		glm::mat4 cached_proj;
+		vec3<float> camerapos;
 		glm::mat4 last_vp;
 		Frustum frustum;
 		UniformBuffer ubo_camera;

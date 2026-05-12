@@ -17,6 +17,11 @@ void Transform::set_rotation(const vec3<float>& rotation) noexcept {
 	this->dirty = true;
 }
 
+void Transform::set_rotation(const glm::quat& rotation) noexcept {
+	this->_rotation = rotation;
+	this->dirty = true;
+}
+
 const glm::mat4& Transform::model_matrix() const noexcept {
 	if(this->dirty) {
 		glm::mat4 T = glm::translate(glm::mat4(1.0f), this->_position);

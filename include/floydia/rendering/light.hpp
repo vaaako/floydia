@@ -7,9 +7,17 @@ namespace floyd {
 class Light : public Object {
 	public:
 		enum Type : uint32 {
+			// Infinite distance, no position or attenuation
 			Directional = 0,
+			// Point of light
 			Point = 1,
+			// Point of light with a cone restriction
 			Spot = 2
+		};
+
+		struct alignas(16) LightBuffer {
+			uint32 count;
+			uint32 _pad[3]; // Remove padding warning
 		};
 
 		struct alignas(16) LightData {
@@ -24,26 +32,25 @@ class Light : public Object {
 
 	public:
 		float intensity = 1.0f;
-		float range = 10.0f;
+		float range = 15.0f;
 		// Spot only
 		float inner_angle = 12.5f; // degrees
 		float outer_angle = 17.5f; // degrees
 		Light::Type type = Light::Directional;
 
 	public:
-		Light() noexcept = default;
 		explicit Light(const Light::Type type) noexcept : type(type) {}
 		~Light() noexcept = default;
 
 		inline LightData to_gpu_data() const noexcept {
 			return {
-				vec4<float>(this->transform.position(), (this->type == Light::Directional) ? 0.0f : 1.0f),
-				vec4<float>(this->transform.forward(), 0.0f),
-				vec4<float>(vec3<float>(this->color_norm()), this->intensity),
-				range,
-				glm::cos(glm::radians(this->inner_angle)),
-				glm::cos(glm::radians(this->outer_angle)),
-				type
+				.position = vec4<float>(this->transform.position(), (this->type == Light::Directional) ? 0.0f : 1.0f),
+				.direction = vec4<float>(this->transform.forward(), 0.0f),
+				.color =  vec4<float>(vec3<float>(this->color_norm()), this->intensity),
+				.range = range,
+				.inner_angle = glm::cos(glm::radians(this->inner_angle)),
+				.outer_angle = glm::cos(glm::radians(this->outer_angle)),
+				.type = type
 			};
 		}
 };

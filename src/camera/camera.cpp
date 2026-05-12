@@ -6,10 +6,7 @@ namespace floyd {
 
 Camera::Camera(const float width, const float height) noexcept
 		: width(width), height(height) {
-
-	if(width == 0 || height == 0) {
-		std::invalid_argument("'width' or 'height' is 0");
-	}
+	if(width == 0 || height == 0) std::invalid_argument("'width' or 'height' is 0");
 }
 
 // Updates width and height
