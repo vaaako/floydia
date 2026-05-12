@@ -22,8 +22,8 @@ Assets::Assets() noexcept {
 	this->materials[this->material_hash(vert_3d, frag_3d)] = mat_3d;
 
 	// Default 2D: vert_2d + frag_def + white texture
-	std::shared_ptr<Material> mat_2d = std::make_shared<Material>(vert_2d, frag_2d);
-	this->materials[this->material_hash(vert_2d, frag_2d)] = mat_2d;
+	std::shared_ptr<Material> mat_2d = std::make_shared<Material>(vert_2d, frag_3d);
+	this->materials[this->material_hash(vert_2d, frag_3d)] = mat_2d;
 
 	// Font: vert_2d + frag_text + white texture
 	std::shared_ptr<Material> mat_font = std::make_shared<Material>(vert_2d, frag_text);

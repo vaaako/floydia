@@ -11,6 +11,7 @@ class Transform {
 		void set_position(const vec3<float>& position) noexcept;
 		void set_scale(const vec3<float>& scale) noexcept;
 		void set_rotation(const vec3<float>& rotation) noexcept;
+		void set_rotation(const glm::quat& rotation) noexcept;
 
 		// -- const access
 
@@ -21,6 +22,7 @@ class Transform {
 
 		// Forward position
 		inline vec3<float> forward() const noexcept { return glm::normalize(-vec3<float>(this->model_matrix()[2])); }
+
 		// Retrives model matrix
 		const glm::mat4& model_matrix() const noexcept;
 	private:

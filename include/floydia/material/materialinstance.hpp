@@ -11,6 +11,8 @@ namespace floyd {
 struct MaterialInstance {
 	std::shared_ptr<Material> base;
 	std::shared_ptr<Texture> albedo;
+	// float metallic = 0.0f;
+	// float roughness = 1.0f;
 
 	inline MaterialInstance(const std::shared_ptr<Material>& base, const std::shared_ptr<Texture> albedo)
 		: base(base), albedo(albedo) {}

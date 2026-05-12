@@ -17,10 +17,8 @@ Texture::Texture(const char* path) {
 
 	if(data == nullptr) {
 		logger::log(logger::Error, "Texture \"%s\" not found!", path);
-
 		this->_width = 2;
 		this->_height = 2;
-
 		data = new uint8[sizeof(FALLBACK_TEXTURE)];
 		std::memcpy(data, FALLBACK_TEXTURE, sizeof(FALLBACK_TEXTURE));
 		stbi_allocated = false;
@@ -49,10 +47,8 @@ Texture::Texture(uint8* data, const uint32 width, const uint32 height)
 	bool fallback = false;
 	if(data == nullptr) {
 		logger::log(logger::Error, "Texture data is nullptr");
-
 		this->_width = 2;
 		this->_height = 2;
-
 		data = new uint8[sizeof(FALLBACK_TEXTURE)];
 		std::memcpy(data, FALLBACK_TEXTURE, sizeof(FALLBACK_TEXTURE));
 		fallback = true;

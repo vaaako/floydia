@@ -6,6 +6,8 @@ namespace floyd {
 
 class Camera {
 	public:
+		vec3<float> position = vec3<float>(0.0f);
+	public:
 		Camera(const float width, const float height) noexcept;
 
 		// Calculate projection matrix
@@ -17,7 +19,6 @@ class Camera {
 
 	protected:
 		mutable glm::mat4 proj;
-		vec3<float> position = vec3<float>(0.0f);
 		float width;
 		float height;
 		mutable bool dirty = true;
