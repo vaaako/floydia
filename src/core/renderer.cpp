@@ -27,8 +27,8 @@ Renderer::Renderer() noexcept :
 	ppipeline(ProgramPipeline())
 	{
 
-	// glEnable(GL_BLEND);
-	// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	// glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glEnable(GL_DEPTH_TEST);
@@ -101,7 +101,7 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 	}
 }
 
-void Renderer::push(Renderable& obj) noexcept {
+void Renderer::draw(Renderable& obj) noexcept {
 	// Only cull if obj changed or camera moved
 	if(obj.transform.isdirty()) {
 		obj.rebuild_world_aabb();
@@ -120,7 +120,7 @@ size_t Renderer::add(const Renderable& obj) noexcept {
 	return this->persistent_objs.size() - 1;
 }
 
-void Renderer::push(const Light& light) noexcept {
+void Renderer::draw(const Light& light) noexcept {
 	this->lights.push_back(light.to_gpu_data());
 }
 
@@ -134,7 +134,7 @@ void Renderer::add_batch(const Renderable& obj, std::unordered_map<BatchKey, Dra
 	// NOTE: Culling for both types of objects may cause problems.
 	// If Persistent Object was added not visible, it is likely to never be visible
 	// (excepts a new object is added when it is visible)
-	const glm::mat4& mmatrix = obj.transform.model_matrix(); // this updates model matrix
+	const glm::mat4& mmatrix = obj.final_matrix(this->cached_view); // this updates model matrix
 	InstanceData data = { mmatrix, obj.color_norm() };
 	// Create draw commands with instance index
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
@@ -290,25 +290,6 @@ void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHa
 			batch.instance_index // gl_BaseInstance
 		);
 	}
-}
-
-
-Cube Renderer::show_light(const Light& light) noexcept {
-	Assets* assets = Core::get().assets.get();
-
-	Cube cube = Cube();
-	cube.transform.set_position(light.transform.position());
-	cube.transform.set_scale({ 0.2f, 0.2f, 0.2f });
-	cube.transform.set_rotation(light.transform.rotation());
-	cube.set_color(light.color());
-	// Set to be not affected by light
-	cube.material()->base =
-		assets->load_material(
-			assets->load_program(Shaders::DEFAULT_VERTEX, nullptr),
-			assets->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_UNLIT)
-		);
-	this->add(cube);
-	return cube;
 }
 
 } // namespace floyd

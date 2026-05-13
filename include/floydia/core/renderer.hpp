@@ -33,17 +33,15 @@ class Renderer final {
 		void begin_draw(const Camera& camera) noexcept;
 
 		// Submit a dynamic object for this frame. Frustum culled
-		void push(Renderable& obj) noexcept;
+		void draw(Renderable& obj) noexcept;
 		// Submit a persistent object. Batched once and reused every frame.
 		// Skips per-frame frustum culling
 		size_t add(const Renderable& obj) noexcept;
 
 		// Submit a dynamic object for this frame
-		void push(const Light& light) noexcept;
+		void draw(const Light& light) noexcept;
 		// Submit a persistent light object
 		size_t add(const Light& light) noexcept;
-		// Debug a cube on a light source position
-		Cube show_light(const Light& light) noexcept;
 
 		// Upload instance data to SSBo and issue draw calls
 		void flush() noexcept;

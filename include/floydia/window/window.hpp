@@ -95,17 +95,15 @@ class Window final {
 		inline void begin_draw(const Camera& camera) const noexcept { renderer->begin_draw(camera); }
 		
 		// Submit a dynamic object for this frame. Frustum culled
-		inline void push(Renderable& obj) const noexcept { renderer->push(obj); }
+		inline void draw(Renderable& obj) const noexcept { renderer->draw(obj); }
 		// Submit a persistent object. Batched once and reused every frame.
 		// Skips per-frame frustum culling
 		inline void add(const Renderable& obj) const noexcept { renderer->add(obj); }
 
 		// Submit a dynamic light object for this frame
-		inline void push(const Light& light) const noexcept { renderer->push(light); }
+		inline void draw(const Light& light) const noexcept { renderer->draw(light); }
 		// Submit a persistent light object
 		inline void add(const Light& light) const noexcept { renderer->add(light); }
-		// Debug a cube on a light source position
-		Cube show_light(const Light& light) noexcept { return renderer->show_light(light); }
 
 		// Upload instance data to SSBo and issue draw calls
 		inline void flush() const { renderer->flush(); }
