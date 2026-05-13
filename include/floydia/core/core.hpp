@@ -23,6 +23,7 @@ struct Core final {
 	void initialize() noexcept;
 };
 
+// Global accessor
 inline Assets& assets() noexcept {
 	return *Core::get().assets;
 }

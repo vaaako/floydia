@@ -23,6 +23,8 @@ class Cube : public Renderable {
 		// Cube(const uint8 face_mask = 0b111111) noexcept;
 
 		Cube() noexcept;
+
+	// This is static so method is not repeated
 	private:
 		static std::shared_ptr<Model> create_model() noexcept;
 };

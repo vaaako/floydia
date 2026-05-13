@@ -23,8 +23,9 @@ class Transform {
 		// Forward position
 		inline vec3<float> forward() const noexcept { return glm::normalize(-vec3<float>(this->model_matrix()[2])); }
 
-		// Retrives model matrix
+		// Retrives model matrix.
 		const glm::mat4& model_matrix() const noexcept;
+	
 	private:
 		glm::quat   _rotation = { 1.0f, 0.0f, 0.0f, 0.0f };
 		vec3<float> _position = { 0.0f, 0.0f, 0.0f };

@@ -5,8 +5,7 @@
 
 namespace floyd {
 
-Sprite::Sprite() noexcept
-	: Renderable(Sprite::create_model()) {}
+Sprite::Sprite() noexcept : Renderable(Sprite::create_model()) {}
 
 std::shared_ptr<Model> Sprite::create_model() noexcept {
 	Assets* assets = Core::get().assets.get();

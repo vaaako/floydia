@@ -5,8 +5,7 @@
 
 namespace floyd {
 
-Cube::Cube() noexcept
-	: Renderable(Cube::create_model()) {}
+Cube::Cube() noexcept : Renderable(Cube::create_model()) {}
 
 std::shared_ptr<Model> Cube::create_model() noexcept {
 	Assets* assets = Core::get().assets.get();

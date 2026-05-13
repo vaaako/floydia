@@ -42,14 +42,12 @@ Billboard, Cube, Two Crossed Planes and the Skybox
 > Licenses for all third-party libraries are avaiable in the [`licenses/`](licenses/) directory
 
 ## Dependencies
-- `GLAD`
-- `glm`
 - `libxcursor`
 - `libxrandr`
 - `libxi`
 - `mesa` (`libgl1-mesa-dev` on Debian)
 
-No additional headers are required beyond the ones listed above
+Only `GLAD` and `glm` headers are required
 
 ---
 
