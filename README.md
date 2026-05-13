@@ -1,7 +1,5 @@
-# UNFINISHED
-
 # Floydia 🪲 v1.0
-**Floydia** is a C++ OpenGL 4.5 graphics library designed to simplify 2D and 3D development. It provides an easy-to-use, beginner-friendly API while still offering powerful features like resource management, custom shaders, batch drawing, and more
+**Floydia** is a C++ OpenGL 4.5 graphics library designed to simplify 2D and 3D development. It provides an easy-to-use, beginner-friendly API while still offering powerful features like resource management, lighting, batch rendering, and more
 
 > ⚠️ Floydia is a **hobby project** and still under active development
 
@@ -16,32 +14,32 @@ Billboard, Cube, Two Crossed Planes and the Skybox
 ---
 
 # Features
-- **Beginner-Friendly API**: Designed with simplicity in mind, it is easy to learn for new developers while remaining powerful enough for advanced users
-- **2D and 3D development**: Easy-to-use tools for 2D and 3D rendering. Includes:
-	+ Basic 2D/3D shapes
-	+ Material component
-- **Memory Management**: Automatic memory handling with a built-in resource manager and batch renderer
-- **Built-in systems**
-	+ Clock, Timer and Alarm
-	+ Wavefront OBJ loading
-	+ Frustum Culling
-	+ Dynamic light sources
-	+ AABB
-	+ Sounds
-- **Custom Shader Support**: Easily load and apply custom GLSL shaders
+- **Beginner-Friendly API**: Designed with simplicity in mind, easy to learn for new developers while remaining powerful enough for advanced users
+- **2D and 3D development**: Easy-to-use tools for 2D and 3D development:
+	+ Basic shapes: `Cube`, `Sprite`, `Billboard`
+	+ Wavefront OBJ loading with `.mtl` material support
+	+ `PerspectiveCamera` and `OrthoCamera`
+- **Lighting System**: Blinn-Phong shading with three light types: Directional, Point and Spot
+- **Material System**
+	+ Per-object `metallic` and `roughness` properties
+	+ Custom GLSL shader support via separable shader pipeline
+- **Batch Renderer**: Automatic instanced draw call batching grouped by mesh, shader and texture
+- **Frustum Culling**: Automatic per-object visibility testing against the camera frustum
+- **AABB**: Per-model and per-submesh axis-aligned bounding boxes
+- **Asset Manager**: Automatic caching of meshes, shaders, textures and materials
 
 ---
 
 # Libraries used
-- [`RGFW`](https://github.com/ColleagueRiley/RGFW) for window management
+- [`RGFW`](https://github.com/ColleagueRiley/RGFW) for window and input management
 - [`miniaudio`](https://miniaud.io/) for sound handling
 - [`stb_image`](https://github.com/nothings/stb) for image loading
 - [`stb_truetype`](https://github.com/nothings/stb) for TTF font loading
 - [`GLAD`](https://github.com/Dav1dde/glad) for OpenGL loader
 - [`glm`](https://github.com/g-truc/glm) for vector and matrix math
-- [`tinyobjloader`](https://github.com/tinyobjloader/tinyobjloader) for wavefront OBJ loader
+- [`tinyobjloader`](https://github.com/tinyobjloader/tinyobjloader) for Wavefront OBJ loader
 
-> Licenses for these libraries are in the [`licenses/`](licenses/) directory
+> Licenses for all third-party libraries are avaiable in the [`licenses/`](licenses/) directory
 
 ## Dependencies
 - `GLAD`
@@ -49,9 +47,9 @@ Billboard, Cube, Two Crossed Planes and the Skybox
 - `libxcursor`
 - `libxrandr`
 - `libxi`
-- `mesa` (`libgl1-mesa-dev` on debian)
+- `mesa` (`libgl1-mesa-dev` on Debian)
 
-No other header files are necessary
+No additional headers are required beyond the ones listed above
 
 ---
 
@@ -64,29 +62,31 @@ This example creates a single 3D scene with a rotating cube
 ---
 
 # Compiling
-The library was tested on `Linux` and `Windows` only
+The library has been tested on **Linux** and **Windows**
 
-## Macros
-### Debug
-- `FLOYD_DEBUG_RENDERER`: Logs created batches
-- `FLOYD_DEBUG_MAPPED_BUFFER`: Logs when a SSBO/UBO are resized
-
-## Command
-This will output a static and shared library under `build/`
+## Build Commands
+Outputs a static and shared library under `build/`:
 ```sh
 make release
 ```
 
-To compile with **debug** flags:
+With debug flags:
 ```sh
-make debug
+make debug vars
 ```
 
+## Debug Macros
+| Macro                       | Description                             |
+|-----------------------------|-----------------------------------------|
+| `FLOYD_DEBUG_RENDERER`      | Logs batch creation and draw call count |
+| `FLOYD_DEBUG_MAPPED_BUFFER` | Logs SSBO/UBO resize events             |
+
+
 ## Using the Library
-To use the provided [Makefile](examples/Makefile), follow this structure:
+To use the provided [Makefile](examples/Makefile), follow this project structure:
 ```py
 your_project/
-├── src/               # Your .cpp files
+├── src/               # Your source files
 ├── lib/
 │   └── floydia/       # Built static/shared library
 ├── include/
