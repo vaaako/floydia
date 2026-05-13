@@ -22,8 +22,12 @@ namespace string {
 	}
 
 	// Just a fallback in case 'Args...' is empty
-	inline std::string format(const char* fmt) {
-		return std::string(fmt);
+	inline std::string format(const char* fmt) { return std::string(fmt); }
+
+	// Find base dir of path
+	inline std::string base_dir(const std::string& filepath) {
+		if(filepath.find_last_of("/\\") != std::string::npos) return filepath.substr(0, filepath.find_last_of("/\\"));
+		return "";
 	}
 
 } // namespace string

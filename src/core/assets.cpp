@@ -3,6 +3,10 @@
 #include <floydia/gpu/vertexlayout.hpp>
 #include <floydia/geometry/vertex.hpp>
 #include <floydia/helpers/hash.hpp>
+#include <stdexcept>
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
 
 namespace floyd {
 
@@ -20,11 +24,9 @@ Assets::Assets() noexcept {
 	// Default 3D: vert_3d + frag_def + white texture
 	std::shared_ptr<Material> mat_3d = std::make_shared<Material>(vert_3d, frag_3d);
 	this->materials[this->material_hash(vert_3d, frag_3d)] = mat_3d;
-
 	// Default 2D: vert_2d + frag_def + white texture
 	std::shared_ptr<Material> mat_2d = std::make_shared<Material>(vert_2d, frag_3d);
 	this->materials[this->material_hash(vert_2d, frag_3d)] = mat_2d;
-
 	// Font: vert_2d + frag_text + white texture
 	std::shared_ptr<Material> mat_font = std::make_shared<Material>(vert_2d, frag_text);
 	this->materials[this->material_hash(vert_2d, frag_text)] = mat_font;
@@ -82,11 +84,114 @@ std::shared_ptr<Material> Assets::load_material(
 ) noexcept {
 	size_t key = this->material_hash(vertex, fragment);
 	std::shared_ptr<Material> material = this->load<Material>(key);
-	if (material != nullptr) return material;
+	if(material != nullptr) return material;
 
 	material = std::make_shared<Material>(vertex, fragment);
 	this->materials[key] = material;
 	return material;
+}
+
+std::shared_ptr<Model> Assets::load_model(const char* path) {
+	// Check cache
+	size_t key = hash::of(std::string_view(path));
+	std::shared_ptr<Model> model = this->load<Model>(key);
+	if(model != nullptr) return model;
+	model = std::make_shared<Model>();
+
+	// Data containers
+	tinyobj::attrib_t attrib; // Mesh information
+	std::vector<tinyobj::shape_t> shapes; // Mesh shapes
+	std::vector<tinyobj::material_t> materials; // Mesh materials
+
+	std::string err;
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err,
+		path, string::base_dir(path).c_str(), true); // path, mtl_basedir, triangulate
+	if(!err.empty()) logger::log(logger::Warning, "%s", err.c_str());
+	if(!ret) throw std::runtime_error(string::format("Failed to load \"%s\": %s", path, err.c_str()));
+
+
+	// Each shape = one SubMesh
+	for (const tinyobj::shape_t& shape : shapes) {
+		std::vector<Vertex> vertices;
+		std::vector<uint32> indices;
+		std::unordered_map<size_t, uint32> uniq_verts; // dedup vertices
+		
+		for(const tinyobj::index_t& idx : shape.mesh.indices) {
+			Vertex v;
+
+			v.pos = {
+				attrib.vertices[3 * idx.vertex_index + 0],
+				attrib.vertices[3 * idx.vertex_index + 1],
+				attrib.vertices[3 * idx.vertex_index + 2]
+			};
+
+			if(idx.normal_index >= 0) {
+				v.normal = {
+					attrib.normals[3 * idx.normal_index + 0],
+					attrib.normals[3 * idx.normal_index + 1],
+					attrib.normals[3 * idx.normal_index + 2]
+				};
+			}
+
+			if(idx.texcoord_index >= 0) {
+				v.uv = {
+					attrib.texcoords[2 * idx.texcoord_index + 0],
+					1.0f - attrib.texcoords[2 * idx.texcoord_index + 1] // flip Y
+				};
+			}
+
+			// Dedup
+			size_t h = 0;
+			hash::combine(h, idx.vertex_index);
+			hash::combine(h, idx.normal_index);
+			hash::combine(h, idx.texcoord_index);
+
+			auto it = uniq_verts.find(h);
+			if(it != uniq_verts.end()) {
+				// Duplicated
+				indices.push_back(it->second);
+			} else {
+				uint32 i = (uint32)vertices.size();
+				vertices.push_back(v);
+				indices.push_back(i);
+				uniq_verts[h] = i;
+			}
+		}
+
+		// Build material from .mtl
+		std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(
+			this->load_material(this->load_program(Shaders::DEFAULT_VERTEX, nullptr), this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT)),
+			this->load<Texture>(hash::of(std::string_view("d_white")))
+		);
+
+		// First material index for this shape
+		if(!shape.mesh.material_ids.empty()) {
+			int mat_id = shape.mesh.material_ids[0];
+			if(mat_id >= 0 && mat_id < (int)materials.size()) {
+				const tinyobj::material_t& mat = materials[mat_id];
+				if(!mat.diffuse_texname.empty()) {
+					const std::string texpath = string::base_dir(path) + mat.diffuse_texname;
+					matinst->albedo = this->load_texture(texpath.c_str());
+				}
+				// Metallic and roughness
+				matinst->metallic = mat.metallic;
+				matinst->roughness = mat.roughness;
+			}
+		}
+
+		// Since the Mesh uses Vertex
+		// the minimum size is 32 bytes
+		// so it has to layout to the three attributes
+		VertexLayout layout;
+		layout.add<float>(3);
+		layout.add<float>(3);
+		layout.add<float>(2);
+		std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>(vertices, indices, layout);
+		model->add_submesh(mesh, matinst);
+	}
+
+	this->models[key] = model;
+	return model;
 }
 
 std::shared_ptr<Mesh> Assets::make_cube_mesh() noexcept {

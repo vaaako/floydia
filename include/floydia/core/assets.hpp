@@ -1,6 +1,7 @@
 #pragma once
 
-#include "floydia/helpers/hash.hpp"
+#include <floydia/helpers/hash.hpp>
+#include <floydia/rendering/model.hpp>
 #include <floydia/gpu/shaderprogram.hpp>
 #include <floydia/rendering/mesh.hpp>
 #include <floydia/material/material.hpp>
@@ -30,6 +31,8 @@ class Assets final {
 			const std::shared_ptr<ShaderProgram>& fragment
 		) noexcept;
 
+		std::shared_ptr<Model> load_model(const char* path);
+
 		// Load an existing Mesh, Material, Texture or ShaderProgram
 		template <typename T>
 		std::shared_ptr<T> load(const size_t hash);
@@ -45,6 +48,7 @@ class Assets final {
 		std::unordered_map<size_t, std::shared_ptr<ShaderProgram>> programs;
 		std::unordered_map<size_t, std::shared_ptr<Material>> materials;
 		std::unordered_map<size_t, std::shared_ptr<Texture>> textures;
+		std::unordered_map<size_t, std::shared_ptr<Model>> models;
 
 		// Specialization
 		template <typename T> auto& get_cache();
@@ -57,6 +61,7 @@ template<> inline auto& Assets::get_cache<Mesh>() { return this->meshes; }
 template<> inline auto& Assets::get_cache<Texture>() { return this->textures; }
 template<> inline auto& Assets::get_cache<Material>() { return this->materials; }
 template<> inline auto& Assets::get_cache<ShaderProgram>() { return this->programs; }
+template<> inline auto& Assets::get_cache<Model>() { return this->models; }
 
 
 template <typename T>

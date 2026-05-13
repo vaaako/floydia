@@ -298,7 +298,7 @@ Cube Renderer::show_light(const Light& light) noexcept {
 
 	Cube cube = Cube();
 	cube.transform.set_position(light.transform.position());
-	cube.transform.set_scale({0.2f, 0.2f, 0.2f});
+	cube.transform.set_scale({ 0.2f, 0.2f, 0.2f });
 	cube.transform.set_rotation(light.transform.rotation());
 	cube.set_color(light.color());
 	// Set to be not affected by light

@@ -23,4 +23,8 @@ struct Core final {
 	void initialize() noexcept;
 };
 
+inline Assets& assets() noexcept {
+	return *Core::get().assets;
+}
+
 } // namespace floyd

@@ -18,8 +18,8 @@ struct Vertex2D {
 
 struct Vertex {
 	vec3<float> pos;
-	vec3<float> normal;
-	vec2<float> uv;
+	vec3<float> normal = vec3<float>(0.0f, 1.0f, 0.0f);
+	vec2<float> uv = vec2<float>(0.0f, 0.0f);
 
 	inline bool operator==(const Vertex& other) const noexcept {
 		return this->pos == other.pos

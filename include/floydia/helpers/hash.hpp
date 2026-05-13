@@ -30,6 +30,8 @@ namespace hash {
 	template <typename T>
 	size_t of(const T& value) noexcept { return std::hash<T>{}(value); }
 	template <typename T>
+	size_t of(const char* s) noexcept { return std::hash<T>{}(std::string_view(s)); }
+	template <typename T>
 	size_t of(const std::string& s) noexcept { return std::hash<std::string>{}(s); }
 
 	// Fast, deterministic, non-cryptographic hash for raw bytes.
