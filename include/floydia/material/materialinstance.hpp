@@ -23,11 +23,13 @@ struct MaterialInstance {
 
 	inline void bind() const noexcept {
 		this->albedo->bind(0);
-		glProgramUniform1f(this->base->fragment->id(), 0, this->metallic);
-		glProgramUniform1f(this->base->fragment->id(), 1, this->roughness);
+		this->base->fragment->set_uniform_float("u_metallic",  this->metallic);
+		this->base->fragment->set_uniform_float("u_roughness", this->roughness);
 		// NOTE: 'metallic' and 'roughness' are per batch, not instance.
 		// All objects on the same batch share the same MaterialInstance,
 		// so the valor is constant
+		//
+		// NOTE: for shaders that don't have these uniforms, it will simply ignore
 	}
 };
 
