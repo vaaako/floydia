@@ -6,33 +6,26 @@
 
 namespace floyd {
 namespace hash {
-	// Froom boost library.
-	// Makes a hash out of a value and return it.
+	// From boost library.
+	// Makes a hash out of a value and returns it.
 	// WARNING: Do NOT use raw pointers (like 'char*')
 	template <typename T>
 	size_t make(const T& value) noexcept {
-		size_t hash = 0;
-		std::hash<T> h;
-		// Golden ratio
-		hash ^= h(value) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-		return hash;
+		size_t seed = 0;
+		seed ^= std::hash<T>{}(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+		return seed;
 	}
 
-	// Froom boost library.
-	// To multiple values, keep passing the same variable as 'seed' until you done.
+	// Hash any value
 	// WARNING: Do NOT use raw pointers (like 'char*')
 	template <typename T>
-	void combine(size_t& seed, const T& value) noexcept {
-		std::hash<T> h;
-		seed ^= h(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-	}
+	void combine(size_t& seed, const T& value) noexcept { seed ^= std::hash<T>{}(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2); }
 
 	template <typename T>
-	size_t of(const T& value) noexcept { return std::hash<T>{}(value); }
-	template <typename T>
-	size_t of(const char* s) noexcept { return std::hash<T>{}(std::string_view(s)); }
-	template <typename T>
-	size_t of(const std::string& s) noexcept { return std::hash<std::string>{}(s); }
+	inline size_t of(const T& value) noexcept { return std::hash<T>{}(value); }
+	inline size_t of(const char* s) noexcept { return std::hash<std::string_view>{}(std::string_view(s)); }
+	inline size_t of(const std::string& s) noexcept { return std::hash<std::string_view>{}(s); }
+	inline size_t of(const std::string_view s) noexcept { return std::hash<std::string_view>{}(s); }
 
 	// Fast, deterministic, non-cryptographic hash for raw bytes.
 	// Use this for asset caching (textures, shaders, files).

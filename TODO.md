@@ -112,11 +112,13 @@ I wrote most of the things here very tired, sorry for any english mistake
 - [x] Improve current renderer, then add persistent object renderer
 	+ `register` to push obj to scene once. `unregister` remove from scene
 	+ `push` will still exist
-
-- [ ] Discord RPC support?
-- [ ] Default texture on Asset Manager
+- [x] Default texture on Asset Manager
 	+ Only used when a texture is not found or an error occurs
 	+ Pre-build like the White texture
+- [x] Light. Blinn-Phong
+- [x] Metallic / Roughness
+
+- [ ] Discord RPC support?
 - [ ] Click on shape makes a raycast to change object
 	- [ ] Scene storage
 

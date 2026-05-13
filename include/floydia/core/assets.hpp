@@ -40,9 +40,10 @@ class Assets final {
 		std::shared_ptr<T> load(const std::string_view& key);
 
 	private:
-		// NOTE: Putting on map just so user can access it
-		std::shared_ptr<Mesh> make_cube_mesh() noexcept;
+		// NOTE: Putting mesh on map just for user to access it
 		std::shared_ptr<Mesh> make_quad_mesh() noexcept;
+		std::shared_ptr<Mesh> make_quad3d_mesh() noexcept;
+		std::shared_ptr<Mesh> make_cube_mesh() noexcept;
 
 		std::unordered_map<size_t, std::shared_ptr<Mesh>> meshes;
 		std::unordered_map<size_t, std::shared_ptr<ShaderProgram>> programs;

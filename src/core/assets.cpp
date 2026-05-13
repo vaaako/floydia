@@ -12,8 +12,8 @@ namespace floyd {
 
 Assets::Assets() noexcept {
 	uint8 white[] = { 255, 255, 255, 255 }; // 1x1 RGBA white
-	this->textures[hash::of(std::string_view("d_white"))] = std::make_shared<Texture>(white, 1, 1);
-	this->textures[hash::of(std::string_view("d_notfound"))] = std::make_shared<Texture>(nullptr, 2, 2); // Make not found texture
+	this->textures[hash::of("d_white")] = std::make_shared<Texture>(white, 1, 1);
+	this->textures[hash::of("d_notfound")] = std::make_shared<Texture>(nullptr, 2, 2); // Make not found texture
 
 	std::shared_ptr<ShaderProgram> vert_3d   = this->load_program(Shaders::DEFAULT_VERTEX,    nullptr);
 	std::shared_ptr<ShaderProgram> vert_2d   = this->load_program(Shaders::DEFAULT_VERTEX_2D, nullptr);
@@ -31,14 +31,15 @@ Assets::Assets() noexcept {
 	std::shared_ptr<Material> mat_font = std::make_shared<Material>(vert_2d, frag_text);
 	this->materials[this->material_hash(vert_2d, frag_text)] = mat_font;
 
-	this->meshes[hash::of(std::string_view("cube"))] = this->make_cube_mesh();
-	this->meshes[hash::of(std::string_view("quad"))] = this->make_quad_mesh();
+	this->meshes[hash::of("cube")] = this->make_cube_mesh();
+	this->meshes[hash::of("quad")] = this->make_quad_mesh();
+	this->meshes[hash::of("quad3d")] = this->make_quad3d_mesh();
 }
 
 std::shared_ptr<Texture> Assets::load_texture(const char* path) {
 	if(path == nullptr) throw std::invalid_argument("Texture path is null");
 	
-	size_t hash = hash::of(std::string_view(path));
+	size_t hash = hash::of(path);
 	std::shared_ptr<Texture> tex = this->load<Texture>(hash);
 	if(tex) return tex;
 
@@ -93,7 +94,7 @@ std::shared_ptr<Material> Assets::load_material(
 
 std::shared_ptr<Model> Assets::load_model(const char* path) {
 	// Check cache
-	size_t key = hash::of(std::string_view(path));
+	size_t key = hash::of(path);
 	std::shared_ptr<Model> model = this->load<Model>(key);
 	if(model != nullptr) return model;
 	model = std::make_shared<Model>();
@@ -161,7 +162,7 @@ std::shared_ptr<Model> Assets::load_model(const char* path) {
 		// Build material from .mtl
 		std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(
 			this->load_material(this->load_program(Shaders::DEFAULT_VERTEX, nullptr), this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT)),
-			this->load<Texture>(hash::of(std::string_view("d_white")))
+			this->load<Texture>(hash::of("d_white"))
 		);
 
 		// First material index for this shape
@@ -192,6 +193,50 @@ std::shared_ptr<Model> Assets::load_model(const char* path) {
 
 	this->models[key] = model;
 	return model;
+}
+
+std::shared_ptr<Mesh> Assets::make_quad_mesh() noexcept {
+	static std::shared_ptr<Mesh> mesh = []() {
+		const std::vector<Vertex2D> vertices = {
+			// positions                // texture coords
+			{ { -0.5f, -0.5f,  0.5f },  { 0.0f, 0.0f } },
+			{ {  0.5f, -0.5f,  0.5f },  { 1.0f, 0.0f } },
+			{ {  0.5f,  0.5f,  0.5f },  { 1.0f, 1.0f } },
+			{ { -0.5f,  0.5f,  0.5f },  { 0.0f, 1.0f } }
+		};
+
+		const std::vector<uint8> indices = {
+			0, 1, 2,
+			2, 3, 0,
+		};
+
+		VertexLayout layout;
+		layout.add<float>(3); // position
+		layout.add<float>(2); // texuv
+		return std::make_shared<Mesh>(vertices, indices, layout);
+	}();
+	return mesh;
+}
+
+
+std::shared_ptr<Mesh> Assets::make_quad3d_mesh() noexcept {
+	static std::shared_ptr<Mesh> mesh = []() {
+		const std::vector<Vertex> vertices = {
+			// positions               // normals            // texture coords
+			{ { -0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
+			{ {  0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
+			{ {  0.5f,  0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
+			{ { -0.5f,  0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } }
+		};
+		const std::vector<uint8> indices = { 0, 1, 2, 2, 3, 0 };
+
+		VertexLayout layout;
+		layout.add<float>(3); // position
+		layout.add<float>(3); // normals
+		layout.add<float>(2); // texuv
+		return std::make_shared<Mesh>(vertices, indices, layout);
+	}();
+	return mesh;
 }
 
 std::shared_ptr<Mesh> Assets::make_cube_mesh() noexcept {
@@ -259,29 +304,6 @@ std::shared_ptr<Mesh> Assets::make_cube_mesh() noexcept {
 		VertexLayout layout;
 		layout.add<float>(3); // position
 		layout.add<float>(3); // normal
-		layout.add<float>(2); // texuv
-		return std::make_shared<Mesh>(vertices, indices, layout);
-	}();
-	return mesh;
-}
-
-std::shared_ptr<Mesh> Assets::make_quad_mesh() noexcept {
-	static std::shared_ptr<Mesh> mesh = []() {
-		std::vector<Vertex2D> vertices = {
-			// positions                // texture coords
-			{ { -0.5f, -0.5f,  0.5f },  { 0.0f, 0.0f } },
-			{ {  0.5f, -0.5f,  0.5f },  { 1.0f, 0.0f } },
-			{ {  0.5f,  0.5f,  0.5f },  { 1.0f, 1.0f } },
-			{ { -0.5f,  0.5f,  0.5f },  { 0.0f, 1.0f } },
-		};
-
-		std::vector<uint8> indices = {
-			0, 1, 2,
-			2, 3, 0,
-		};
-
-		VertexLayout layout;
-		layout.add<float>(3); // position
 		layout.add<float>(2); // texuv
 		return std::make_shared<Mesh>(vertices, indices, layout);
 	}();
