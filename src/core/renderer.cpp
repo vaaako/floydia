@@ -146,7 +146,9 @@ void Renderer::add_batch(const Renderable& obj, std::unordered_map<BatchKey, Dra
 			sub.mesh.get(),
 			sub.material->base->vertex->id(),
 			sub.material->base->fragment->id(),
-			(sub.material->albedo) ? sub.material->albedo->id() : 0
+			(sub.material->albedo) ? sub.material->albedo->id() : 0,
+			sub.material->metallic,
+			sub.material->roughness
 		};
 
 		auto [it, emplaced] = target.try_emplace(key);
@@ -191,7 +193,6 @@ void Renderer::flush() noexcept {
 	// Update dynamic batches
 	for(auto& [_, batch] : this->dynamic_batches) {
 		batch.instance_index = this->instances.size();
-		// Bulk copy. Insert all of batch's instances into 'instances'
 		this->instances.insert(
 			this->instances.end(),
 			batch.instances.begin(),
@@ -251,18 +252,7 @@ void Renderer::flush() noexcept {
 	this->ssbo_lights.lock(this->frameindex);
 }
 
-
-void Renderer::upload_lights() noexcept {
-	for(const Light* l : this->static_lights) {
-		this->lights.push_back(l->to_gpu_data());
-	}
-
-	for(const Light* l : this->dynamic_lights) {
-		this->lights.push_back(l->to_gpu_data());
-	}
-}
-
-void Renderer::draw_batch(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept {
+void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept {
 	Mesh* prev_mesh = nullptr;
 	ShaderProgram* prev_vertex = nullptr;
 	ShaderProgram* prev_fragment = nullptr;
@@ -322,3 +312,4 @@ Cube Renderer::show_light(const Light& light) noexcept {
 }
 
 } // namespace floyd
+

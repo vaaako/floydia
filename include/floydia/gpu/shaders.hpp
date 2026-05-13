@@ -83,6 +83,12 @@ layout(location = 1) in vec3 normal;
 layout(location = 2) in vec4 color;
 layout(location = 3) in vec3 fragpos;
 
+layout(location = 0) uniform float u_metallic;
+layout(location = 1) uniform float u_roughness;
+layout(location = 2) uniform sampler2D albedo;
+
+out vec4 fragcolor;
+
 struct LightData {
 	vec4 position; // w=0 if directional
 	vec4 direction;
@@ -108,26 +114,39 @@ layout(std430, binding = 2) buffer LightBuffer {
 
 // https://www.mbsoftworks.sk/tutorials/opengl3/17-spotlight/
 
-vec3 calc_point(LightData light, vec3 n) {
+vec3 calc_light(vec3 n, vec3 light_color, float intensity, vec3 light_dir,
+	vec3 view_dir, vec4 base_color, float attenuation) {
+	// Blinn-Phong halfway vector
+	vec3 halfway = normalize(light_dir + view_dir);
+	float diff = max(dot(n, light_dir), 0.0);
+
+	// Roughness
+	float shininess = mix(256.0, 1.0, u_roughness);
+	float spec      = pow(max(dot(n, halfway), 0.0), shininess);
+	// Metallic
+	vec3 spec_color = mix(vec3(1.0), base_color.rgb, u_metallic);
+	float spec_strength = mix(0.3, 1.0, u_metallic);
+
+	// Diffuse: how directly the surface faces the light
+	// Specular: highlight where light reflects toward the camera
+	vec3 diffuse = light_color * intensity * diff;
+	vec3 specular = light_color * intensity * spec * spec_color * spec_strength;
+	
+	return (diffuse + specular) * attenuation;
+}
+
+vec3 calc_point(LightData light, vec3 n, vec3 view_dir, vec4 base_color) {
 	vec3 to_light = light.position.xyz - fragpos; // Surface to lightsource
 	float dist    = length(to_light);
 	if(dist > light.range) return vec3(0.0); // Fragment is outside light range
 
 	vec3 light_dir = normalize(to_light);
-	// Blinn-Phong halfway vector
-	vec3 view_dir  = normalize(campos.xyz - fragpos);
-	vec3 halfway   = normalize(light_dir + view_dir);
 	// 1.0 at center, 0.0 at range boundary
 	float attenuation = 1.0 - smoothstep(0.0, light.range, dist);
-
-	// Diffuse: how directly the surface faces the light
-	// Specular: highlight where light reflects toward the camera
-	float diff = max(dot(n, light_dir), 0.0);
-	float spec = pow(max(dot(n, halfway), 0.0), 32.0); // 32 = shininess
-	return light.color.rgb * light.color.a * (diff + spec * 0.3) * attenuation;
+	return calc_light(n, light.color.rgb, light.color.a, light_dir, view_dir, base_color, attenuation);
 }
 
-vec3 calc_spot(LightData light, vec3 n) {
+vec3 calc_spot(LightData light, vec3 n, vec3 view_dir, vec4 base_color) {
 	vec3  to_light = normalize(fragpos - light.position.xyz);
 	// Angle between fragment direction and spot cone axis
 	float theta    = dot(light.direction.xyz, to_light);
@@ -137,12 +156,8 @@ vec3 calc_spot(LightData light, vec3 n) {
 	float epsilon = light.inner_angle - light.outer_angle;
 	float factor  = clamp((theta - light.outer_angle) / epsilon, 0.0, 1.0);
 	// Reuse point light calculation, scaled by cone factor
-	return calc_point(light, n) * factor;
+	return calc_point(light, n, view_dir, base_color) * factor;
 }
-
-
-out vec4 fragcolor;
-uniform sampler2D albedo;
 
 void main() {
 	// vec4 base = texture(albedo, texuv) * color;
@@ -153,7 +168,12 @@ void main() {
 
 	vec3 n = normalize(normal); // Renormalize after interpolation
 	vec3 view_dir = normalize(campos.xyz - fragpos);
-	vec3 lighting = vec3(0.1); // ambient
+	vec4 base = texture(albedo, texuv) * color;
+
+	// Metals absorve more light, the ambient must be darker
+	// vec3 ambient = vec3(0.1);
+	vec3 ambient = mix(vec3(0.1), base.rgb * 0.05, u_metallic);
+	vec3 lighting = ambient;
 
 	// Blinn-Phong specular
 	for(uint i = 0; i < lights_count; ++i) {
@@ -163,24 +183,20 @@ void main() {
 			// Directional
 			case 0u: {
 				vec3 light_dir = normalize(-light.direction.xyz);
-				vec3  halfway  = normalize(light_dir + view_dir);
-				float diff     = max(dot(n, light_dir), 0.0);
-				float spec     = pow(max(dot(n, halfway), 0.0), 32.0);
-				lighting += light.color.rgb * light.color.a * (diff + spec * 0.3);
+				float attenuation = 1.0; // Directional has no attenuation
+				lighting += calc_light(n, light.color.rgb, light.color.a, light_dir, view_dir, base, attenuation);
 				break;
 			}
-			case 1u: lighting += calc_point(light, n); break;
-			case 2u: lighting += calc_spot(light, n); break;
+			case 1u: lighting += calc_point(light, n, view_dir, base); break;
+			case 2u: lighting += calc_spot(light, n, view_dir, base); break;
 			default: break;
 		}
 	}
 
 	// float dist = length(lights[0].position.xyz - fragpos);
 	// fragcolor = vec4(dist / 50.0, 0.0, 0.0, 1.0);
-
 	// fragcolor = vec4(fragpos * 0.1 + 0.5, 1.0);
-
-	vec4 base = texture(albedo, texuv) * color;
+	
 	fragcolor = vec4(base.rgb * lighting, base.a);
 }
 )glsl";

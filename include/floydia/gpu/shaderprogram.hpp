@@ -32,21 +32,11 @@ class ShaderProgram {
 		// Link attached shaders to program
 		void link();
 
-		inline void set_uniform_bool(const char* name, const bool value) noexcept {
-			glProgramUniform1i(this->program, this->get_uniform_loc(std::string(name)), value);
-		}
-
-		inline void set_uniform_int(const char* name, const int value) noexcept {
-			glProgramUniform1i(this->program, this->get_uniform_loc(std::string(name)), value);
-		}
-
-		inline void set_uniform_vec4f(const char* name, const glm::vec4& value) noexcept {
-			glProgramUniform4f(this->program, this->get_uniform_loc(std::string(name)), value.x, value.y, value.z, value.w);
-		}
-
-		inline void set_uniform_mat4f(const char* name, const glm::mat4& value, const GLsizei index = 1) noexcept {
-			glProgramUniformMatrix4fv(this->program, this->get_uniform_loc(std::string(name)), index, GL_FALSE, glm::value_ptr(value));
-		}
+		inline void set_uniform_bool(const char* name, const bool value) noexcept { glProgramUniform1i(this->program, this->get_uniform_loc(std::string(name)), value); }
+		inline void set_uniform_int(const char* name, const int value) noexcept { glProgramUniform1i(this->program, this->get_uniform_loc(std::string(name)), value); }
+		inline void set_uniform_float(const char* name, const float value) noexcept { glProgramUniform1f(this->program, this->get_uniform_loc(std::string(name)), value); }
+		inline void set_uniform_vec4f(const char* name, const glm::vec4& value) noexcept { glProgramUniform4f(this->program, this->get_uniform_loc(std::string(name)), value.x, value.y, value.z, value.w); }
+		inline void set_uniform_mat4f(const char* name, const glm::mat4& value, const GLsizei index = 1) noexcept { glProgramUniformMatrix4fv(this->program, this->get_uniform_loc(std::string(name)), index, GL_FALSE, glm::value_ptr(value)); }
 
 	private:
 		std::unordered_map<std::string, GLint> uniforms_cache;
