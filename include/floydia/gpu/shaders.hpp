@@ -260,7 +260,7 @@ void main() {
 
 
 
-constexpr const char* TEXT_FRAGMENT = R"glsl(
+constexpr const char* DEFAULT_FRAGMENT_TEXT = R"glsl(
 #version 460 core
 
 layout(location = 0) in vec2 texuv;

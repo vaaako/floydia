@@ -17,6 +17,27 @@ namespace floyd {
 // May contain repeated Assets if user pushes same asset with different name
 class Assets final {
 	public:
+		// Default resource hashes. Computed once, used for fast lookup
+		struct Hashes {
+			// Shader Program of Shaders::DEFAULT_VERTEX
+			size_t PROG_VERT_3D = 0;
+			// Shader Program of Shaders::DEFAULT_VERTEX_2D
+			size_t PROG_VERT_2D = 0;
+			// Shader Program of Shaders::DEFAULT_FRAGMENT
+			size_t PROG_FRAG_3D = 0;
+			// Shader Program of Shaders::DEFAULT_FRAGMENT_2D
+			size_t PROG_FRAG_2D = 0;
+			// Shader Program of Shaders::DEFAULT_FRAGMENT_TEXT
+			size_t PROG_FRAG_TEXT = 0;
+			// Material of Shaders::DEFAULT_VERTEX + Shaders::DEFAULT_FRAGMENT
+			size_t MAT_3D = 0;
+			// Material of Shaders::DEFAULT_VERTEX_2D + Shaders::DEFAULT_FRAGMENT_2D
+			size_t MAT_2D = 0;
+			// Material of Shaders::DEFAULT_VERTEX_2D + Shaders::DEFAULT_FRAGMENT_TEXT
+			size_t MAT_TEXT = 0;
+		} hashes;
+
+	public:
 		Assets() noexcept;
 		~Assets() = default;
 
@@ -30,7 +51,7 @@ class Assets final {
 			const std::shared_ptr<ShaderProgram>& vertex,
 			const std::shared_ptr<ShaderProgram>& fragment
 		) noexcept;
-
+		// Builds a Model of a Wavefront OBJ file or returns if already loaded
 		std::shared_ptr<Model> load_model(const char* path);
 
 		// Load an existing Mesh, Material, Texture or ShaderProgram
@@ -59,9 +80,9 @@ class Assets final {
 };
 
 template<> inline auto& Assets::get_cache<Mesh>() { return this->meshes; }
-template<> inline auto& Assets::get_cache<Texture>() { return this->textures; }
-template<> inline auto& Assets::get_cache<Material>() { return this->materials; }
 template<> inline auto& Assets::get_cache<ShaderProgram>() { return this->programs; }
+template<> inline auto& Assets::get_cache<Material>() { return this->materials; }
+template<> inline auto& Assets::get_cache<Texture>() { return this->textures; }
 template<> inline auto& Assets::get_cache<Model>() { return this->models; }
 
 

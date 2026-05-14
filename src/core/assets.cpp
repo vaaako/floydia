@@ -12,28 +12,38 @@ namespace floyd {
 
 Assets::Assets() noexcept {
 	uint8 white[] = { 255, 255, 255, 255 }; // 1x1 RGBA white
-	this->textures[hash::of("d_white")] = std::make_shared<Texture>(white, 1, 1);
-	this->textures[hash::of("d_notfound")] = std::make_shared<Texture>(nullptr, 2, 2); // Make not found texture
+	uint8 blackpurple[16] = {
+		// Row 0
+		0, 0, 0, 255,  255, 0, 255, 255, // Purple, Black
+		// Row 1
+		255, 0, 255, 255,  0, 0, 0, 255 // Black, Purple
+	}; // Here to avoid Error log when library starts
+	this->textures[hash::of("d_white")]    = std::make_shared<Texture>(white, 1, 1);
+	this->textures[hash::of("d_notfound")] = std::make_shared<Texture>(blackpurple, 2, 2);
 
-	std::shared_ptr<ShaderProgram> vert_3d   = this->load_program(Shaders::DEFAULT_VERTEX,    nullptr);
-	std::shared_ptr<ShaderProgram> vert_2d   = this->load_program(Shaders::DEFAULT_VERTEX_2D, nullptr);
-	std::shared_ptr<ShaderProgram> frag_3d   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT);
-	std::shared_ptr<ShaderProgram> frag_2d   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_2D);
-	std::shared_ptr<ShaderProgram> frag_text = this->load_program(nullptr, Shaders::TEXT_FRAGMENT);
+	const std::shared_ptr<ShaderProgram> vert_3d   = this->load_program(Shaders::DEFAULT_VERTEX,    nullptr);
+	const std::shared_ptr<ShaderProgram> vert_2d   = this->load_program(Shaders::DEFAULT_VERTEX_2D, nullptr);
+	const std::shared_ptr<ShaderProgram> frag_3d   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT);
+	const std::shared_ptr<ShaderProgram> frag_2d   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_2D);
+	const std::shared_ptr<ShaderProgram> frag_text = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_TEXT);
 
-	// Default 3D: vert_3d + frag_def + white texture
-	std::shared_ptr<Material> mat_3d = std::make_shared<Material>(vert_3d, frag_3d);
-	this->materials[this->material_hash(vert_3d, frag_3d)] = mat_3d;
-	// Default 2D: vert_2d + frag_def + white texture
-	std::shared_ptr<Material> mat_2d = std::make_shared<Material>(vert_2d, frag_3d);
-	this->materials[this->material_hash(vert_2d, frag_3d)] = mat_2d;
-	// Font: vert_2d + frag_text + white texture
-	std::shared_ptr<Material> mat_font = std::make_shared<Material>(vert_2d, frag_text);
-	this->materials[this->material_hash(vert_2d, frag_text)] = mat_font;
+	this->load_material(vert_3d, frag_3d);
+	this->load_material(vert_2d, frag_2d);
+	this->load_material(vert_2d, frag_text);
 
 	this->meshes[hash::of("cube")] = this->make_cube_mesh();
 	this->meshes[hash::of("quad")] = this->make_quad_mesh();
 	this->meshes[hash::of("quad3d")] = this->make_quad3d_mesh();
+
+	// Cache hashes
+	this->hashes.PROG_VERT_3D   = hash::of(std::string_view(Shaders::DEFAULT_VERTEX));
+	this->hashes.PROG_VERT_2D   = hash::of(std::string_view(Shaders::DEFAULT_VERTEX_2D));
+	this->hashes.PROG_FRAG_3D   = hash::of(std::string_view(Shaders::DEFAULT_FRAGMENT));
+	this->hashes.PROG_FRAG_2D   = hash::of(std::string_view(Shaders::DEFAULT_FRAGMENT_2D));
+	this->hashes.PROG_FRAG_TEXT = hash::of(std::string_view(Shaders::DEFAULT_FRAGMENT_TEXT));
+	this->hashes.MAT_3D   = this->material_hash(vert_3d, frag_3d);
+	this->hashes.MAT_2D   = this->material_hash(vert_2d, frag_2d);
+	this->hashes.MAT_TEXT = this->material_hash(vert_2d, frag_text);
 }
 
 std::shared_ptr<Texture> Assets::load_texture(const char* path) {
@@ -161,7 +171,7 @@ std::shared_ptr<Model> Assets::load_model(const char* path) {
 
 		// Build material from .mtl
 		std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(
-			this->load_material(this->load_program(Shaders::DEFAULT_VERTEX, nullptr), this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT)),
+			this->load<Material>(this->hashes.MAT_3D),
 			this->load<Texture>(hash::of("d_white"))
 		);
 

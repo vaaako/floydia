@@ -47,11 +47,9 @@ class Texture final {
 
 		static constexpr uint8 FALLBACK_TEXTURE[16] = {
 			// Row 0
-			0, 0, 0, 255,     // Black
-			128, 0, 128, 255, // Purple
-							  // Row 1
-			128, 0, 128, 255, // Purple
-			0, 0, 0, 255      // Black
+			0, 0, 0, 255,  255, 0, 255, 255, // Purple, Black
+			// Row 1
+			255, 0, 255, 255,  0, 0, 0, 255 // Black, Purple
 		};
 
 };

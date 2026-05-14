@@ -11,7 +11,7 @@ std::shared_ptr<Model> Cube::create_model() noexcept {
 	Assets* assets = Core::get().assets.get();
 	std::shared_ptr<Mesh> mesh = assets->load<Mesh>("cube");
 	std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(
-		assets->load_material(assets->load_program(Shaders::DEFAULT_VERTEX, nullptr), assets->load_program(nullptr, Shaders::DEFAULT_FRAGMENT)),
+		assets->load<Material>(assets->hashes.MAT_3D),
 		assets->load_texture("d_white")
 	);
 	std::shared_ptr<Model> model = std::make_shared<Model>();
