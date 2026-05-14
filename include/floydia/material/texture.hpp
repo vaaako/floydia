@@ -20,7 +20,7 @@ class Texture final {
 
 	public:
 		Texture(const char* path);
-		Texture(uint8* data, const uint32 width, const uint32 height);
+		Texture(uint8* data, const uint32 width, const uint32 height, const uint8 channels = 4);
 		~Texture() noexcept;
 		// No copy
 		Texture(const Texture&) = delete;

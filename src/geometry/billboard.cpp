@@ -22,7 +22,7 @@ glm::mat4 Billboard::final_matrix(const glm::mat4& view) const noexcept {
 		mv[2] = glm::vec4(0, 0, glm::length(glm::vec3(model[2])), 0);
 	}
 
-	return glm::inverse(view) * mv; // Expense
+	return glm::inverse(view) * mv; // Expensive
 }
 
 std::shared_ptr<Model> Billboard::create_model() noexcept {

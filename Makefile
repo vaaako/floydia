@@ -3,7 +3,7 @@ CXX = g++
 INCLUDE_DIRS = -Iinclude -Iinclude/external
 CXXFLAGS = $(INCLUDE_DIRS) -std=c++17 -fPIC
 # Linking flags
-LDLIBS = -lX11 -lGL -lXrandr
+LDLIBS = -lX11 -lGL -lXrandr lib/libfreetype.a
 
 # Directories
 SRC_DIR = src

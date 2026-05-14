@@ -13,9 +13,10 @@ namespace opengl {
 	// Returns GLenum from a type
 	template <typename T>
 	constexpr GLenum to_glenum();
-
 	// Check OpenGL error
 	void check_gl_error(const char* file, const int line);
+	// Extract texture format from channels
+	GLuint channel_to_format(const uint8 channels, const bool internal);
 
 	template<> constexpr GLenum to_glenum<float>()  { return GL_FLOAT; }
 	template<> constexpr GLenum to_glenum<double>() { return GL_DOUBLE; }

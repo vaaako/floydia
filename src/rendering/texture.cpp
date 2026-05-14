@@ -1,7 +1,7 @@
 #include <cstring>
 #include <floydia/material/texture.hpp>
 #include <floydia/helpers/logger.hpp>
-#include <stdexcept>
+#include <floydia/helpers/opengl.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -25,11 +25,11 @@ Texture::Texture(const char* path) {
 	}
 
 	glCreateTextures(GL_TEXTURE_2D, 1, &this->tex);
-	glTextureStorage2D(this->tex, 1, GL_RGBA8, this->_width, this->_height);
+	glTextureStorage2D(this->tex, 1, opengl::channel_to_format(channels, true), this->_width, this->_height);
 	glTextureSubImage2D(this->tex,
 		0, 0, 0, // level, xoffset, yoffset
 		this->_width, this->_height,
-		GL_RGBA, GL_UNSIGNED_BYTE, data
+		opengl::channel_to_format(channels, false), GL_UNSIGNED_BYTE, data
 	);
 
 	const Texture::Filter filter = (stbi_allocated) ? Texture::Filter::Linear : Texture::Filter::Nearest;
@@ -41,7 +41,7 @@ Texture::Texture(const char* path) {
 	else delete[] data;
 }
 
-Texture::Texture(uint8* data, const uint32 width, const uint32 height)
+Texture::Texture(uint8* data, const uint32 width, const uint32 height, const uint8 channels)
 	: _width(width), _height(height) {
 
 	bool fallback = false;
@@ -55,11 +55,11 @@ Texture::Texture(uint8* data, const uint32 width, const uint32 height)
 	}
 
 	glCreateTextures(GL_TEXTURE_2D, 1, &this->tex);
-	glTextureStorage2D(this->tex, 1, GL_RGBA8, this->_width, this->_height);
+	glTextureStorage2D(this->tex, 1, opengl::channel_to_format(channels, true), this->_width, this->_height);
 	glTextureSubImage2D(this->tex,
 		0, 0, 0, // level, xoffset, yoffset
 		this->_width, this->_height,
-		GL_RGBA, GL_UNSIGNED_BYTE, data
+		opengl::channel_to_format(channels, false), GL_UNSIGNED_BYTE, data
 	);
 
 	const Texture::Filter filter = (fallback) ? Texture::Filter::Nearest : Texture::Filter::Linear;

@@ -106,6 +106,9 @@ I wrote most of the things here very tired, sorry for any english mistake
 		* On 2D shapes loop change camera and disable cull face
 - [x] Make `ResourcesManager` more user friendly
 	+ Make `ShaderProgram` accept only two shaders (vertex and fragment)
+     
+
+Verification
 	+ Use a struct maybe
 - [x] UniformBuffer and SSBO use mapping
 	+ Ring Buffer and Fences
@@ -121,6 +124,10 @@ I wrote most of the things here very tired, sorry for any english mistake
 - [ ] Discord RPC support?
 - [ ] Click on shape makes a raycast to change object
 	- [ ] Scene storage
+- [ ] scarablib stuff
+	+ [ ] Alarm
+	+ [ ] 3D Uniform Grid Collision
+	+ [ ] 2D Color map
 
 - Entity Scene system
 	+ Objects in scene may have triggers inject to it
