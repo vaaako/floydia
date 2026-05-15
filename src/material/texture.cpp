@@ -1,8 +1,6 @@
 #include "floydia/rendering/image.hpp"
-#include <cstring>
-#include <floydia/material/texture.hpp>
-#include <floydia/helpers/logger.hpp>
-#include <floydia/helpers/opengl.hpp>
+#include "floydia/material/texture.hpp"
+#include "floydia/helpers/opengl.hpp"
 
 namespace floyd {
 
@@ -57,11 +55,11 @@ void Texture::bake_texture(const uint8* data, const uint8 channels) {
 void Texture::set_filter(const Texture::Filter filter) const noexcept {
 	GLuint ifilter = (GLuint)filter;
 	if(filter == Texture::Filter::Nearest || filter == Texture::Filter::Linear) {
-		glTextureParameteri(this->tex, GL_TEXTURE_WRAP_S, ifilter);
-		glTextureParameteri(this->tex, GL_TEXTURE_WRAP_T, ifilter);
-	} else {
 		glTextureParameteri(this->tex, GL_TEXTURE_MAG_FILTER, ifilter);
 		glTextureParameteri(this->tex, GL_TEXTURE_MIN_FILTER, ifilter);
+	} else {
+		glTextureParameteri(this->tex, GL_TEXTURE_WRAP_S, ifilter);
+		glTextureParameteri(this->tex, GL_TEXTURE_WRAP_T, ifilter);
 	}
 }
 

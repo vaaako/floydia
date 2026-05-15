@@ -1,6 +1,6 @@
 #pragma once
 
-#include <floydia/types.hpp>
+#include "floydia/types.hpp"
 
 #include <glad/gl.h>
 
@@ -13,6 +13,9 @@ namespace opengl {
 	// Returns GLenum from a type
 	template <typename T>
 	constexpr GLenum to_glenum();
+	// Track OpenGL errors in real time
+	void track_gl_error();
+
 	// Check OpenGL error
 	void check_gl_error(const char* file, const int line);
 	// Extract texture format from channels

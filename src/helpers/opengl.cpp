@@ -1,8 +1,19 @@
-#include <floydia/helpers/opengl.hpp>
+#include "floydia/helpers/opengl.hpp"
+#include "floydia/helpers/logger.hpp"
 #include <iostream>
 
 namespace floyd {
 namespace opengl {
+
+	void track_gl_error() {
+		glEnable(GL_DEBUG_OUTPUT);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); // Makes the callback fire on the exact call that caused the error
+		glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
+			if(severity == GL_DEBUG_SEVERITY_NOTIFICATION) return; // Ignore notifications
+			TRACELOG(logger::Debug, "GL ERROR: type=0x%x severity=0x%x message=%s", type, severity, message);
+		}, nullptr);
+	}
+
 	GLuint channel_to_format(const uint8 channels, const bool internal) {
 		switch(channels) {
 			case 1:
