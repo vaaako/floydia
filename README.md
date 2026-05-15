@@ -1,5 +1,5 @@
 # Floydia 🪲 v1.0
-**Floydia** is a C++ OpenGL 4.6 graphics library designed to simplify 2D and 3D development. It provides an easy-to-use, beginner-friendly API while still offering powerful features like resource management, lighting, batch rendering, and more
+**Floydia** is a C++ OpenGL 4.5 graphics library designed to simplify 2D and 3D development. It provides an easy-to-use, beginner-friendly API while still offering powerful features like resource management, lighting, batch rendering, and more
 
 > ⚠️ Floydia is a **hobby project** and still under active development
 
@@ -47,7 +47,7 @@ Billboard, Cube, Two Crossed Planes and the Skybox
 - `libxi`
 - `mesa` (`libgl1-mesa-dev` on Debian)
 
-Only `GLAD` and `glm` headers are required
+Only `GLAD` and `glm` headers are required 
 
 ---
 
@@ -78,6 +78,7 @@ make debug vars
 |-----------------------------|-----------------------------------------|
 | `FLOYD_DEBUG_RENDERER`      | Logs batch creation and draw call count |
 | `FLOYD_DEBUG_MAPPED_BUFFER` | Logs SSBO/UBO resize events             |
+| `FLOYD_DEBUG_TEXT`          | Generates an image of the atlas         |
 
 
 ## Using the Library

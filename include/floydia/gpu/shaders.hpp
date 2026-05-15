@@ -87,7 +87,7 @@ layout(location = 0) uniform float u_metallic;
 layout(location = 1) uniform float u_roughness;
 layout(location = 2) uniform sampler2D albedo;
 
-out vec4 fragcolor;
+layout(location = 0) out vec4 fragcolor;
 
 struct LightData {
 	vec4 position; // w=0 if directional
@@ -248,9 +248,9 @@ constexpr const char* DEFAULT_FRAGMENT_2D = R"glsl(
 layout(location = 0) in vec2 texuv;
 layout(location = 1) in vec4 color;
 
-out vec4 fragcolor;
+layout(location = 0) out vec4 fragcolor;
 
-uniform sampler2D albedo;
+layout(location = 0) uniform sampler2D albedo;
 
 void main() {
 	vec4 base = texture(albedo, texuv) * color;
@@ -260,19 +260,14 @@ void main() {
 
 
 
+
+constexpr const char* DEFAULT_VERTEX_TEXT = R"glsl(
+
+)glsl";
+
+
 constexpr const char* DEFAULT_FRAGMENT_TEXT = R"glsl(
-#version 460 core
 
-layout(location = 0) in vec2 texuv;
-layout(location = 1) in vec4 color;
-
-out vec4 fragcolor;
-uniform sampler2D u_atlas;
-
-void main() {
-	float alpha = texture(u_atlas, texuv).r; // atlas is single channel
-	fragcolor = vec4(color.rgb, color.a * alpha);
-}
 )glsl";
 
 

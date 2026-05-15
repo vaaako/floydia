@@ -24,7 +24,7 @@ struct Window::impl {
 
 Window::Window(const Settings& settings)
 	: pimpl(std::make_unique<impl>()),
-	title(settings.title), width(settings.width), height(settings.height) {
+	title(settings.title), _width(settings.width), _height(settings.height) {
 
 	std::lock_guard<std::mutex> lock(wmutex);
 	const bool isfirst = (wincount == 0);
@@ -86,13 +86,21 @@ Window::~Window() {
 	}
 }
 
-bool Window::is_open() const noexcept {
-	return RGFW_window_shouldClose(pimpl->window) == RGFW_FALSE;
+
+vec2<uint32> sttc_size() noexcept {
+	int w, h;
+	RGFW_window_getSize(RGFW_getCurrentWindow_OpenGL(), &w, &h);
+	return { w, h };
 }
 
-void Window::close() const noexcept {
-	RGFW_window_setShouldClose(pimpl->window, true);
+vec2<uint32> Window::size() const noexcept {
+	int w, h;
+	RGFW_window_getSize(pimpl->window, &w, &h);
+	return { w, h };
 }
+
+bool Window::is_open() const noexcept { return RGFW_window_shouldClose(pimpl->window) == RGFW_FALSE; }
+void Window::close() const noexcept   { RGFW_window_setShouldClose(pimpl->window, true); }
 
 void Window::poll_events() noexcept {
 	// Clear previous events
@@ -119,71 +127,37 @@ void Window::swap_buffers() const noexcept { RGFW_window_swapBuffers_OpenGL(pimp
 // -- SETTINGS
 
 void Window::set_grab_mouse(const bool state) noexcept {
-	if(state) {
-		RGFW_window_holdMouse(pimpl->window);
-	} else {
-		RGFW_window_unholdMouse(pimpl->window);
-	}
+	if(state) RGFW_window_holdMouse(pimpl->window);
+	else RGFW_window_unholdMouse(pimpl->window);
 }
 void Window::set_title(const std::string &title) noexcept { RGFW_window_setName(pimpl->window, title.c_str()); }
-void Window::set_vsync(const bool state) noexcept { RGFW_window_swapInterval_OpenGL(pimpl->window, state); }
-void Window::set_hide_mouse(const bool state) noexcept { RGFW_window_showMouse(pimpl->window, !state); }
-void Window::set_fullscreen(const bool state) noexcept { RGFW_window_setFullscreen(pimpl->window, state); }
-void Window::set_border(const bool state) noexcept { RGFW_window_setBorder(pimpl->window, state); }
-void Window::set_opacity(const uint8 opacity) noexcept { RGFW_window_setOpacity(pimpl->window, opacity); }
+void Window::set_vsync(const bool state) noexcept         { RGFW_window_swapInterval_OpenGL(pimpl->window, state); }
+void Window::set_hide_mouse(const bool state) noexcept    { RGFW_window_showMouse(pimpl->window, !state); }
+void Window::set_fullscreen(const bool state) noexcept    { RGFW_window_setFullscreen(pimpl->window, state); }
+void Window::set_border(const bool state) noexcept        { RGFW_window_setBorder(pimpl->window, state); }
+void Window::set_opacity(const uint8 opacity) noexcept    { RGFW_window_setOpacity(pimpl->window, opacity); }
 
-void Window::set_min_size(const uint32 width, const uint32 height) noexcept {
-	RGFW_window_setMinSize(pimpl->window, static_cast<int>(width),
-			static_cast<int>(height));
-}
-void Window::set_max_size(const uint32 width, const uint32 height) noexcept {
-	RGFW_window_setMaxSize(pimpl->window, static_cast<int>(width),
-			static_cast<int>(height));
-}
+void Window::set_min_size(const uint32 width, const uint32 height) noexcept { RGFW_window_setMinSize(pimpl->window, static_cast<int>(width), static_cast<int>(height)); }
+void Window::set_max_size(const uint32 width, const uint32 height) noexcept { RGFW_window_setMaxSize(pimpl->window, static_cast<int>(width), static_cast<int>(height)); }
 void Window::viewport(const uint32 width, const uint32 height) noexcept {
-	this->width = width;
-	this->height = height;
+	this->_width = width; this->_height = height;
 	// RGFW_window_setAspectRatio(pimpl->window, static_cast<int>(width),
 	// 		static_cast<int>(height));
 	glViewport(0, 0, width, height);
 }
-
 bool Window::is_mouse_grabbed() const noexcept { return RGFW_window_isHoldingMouse(pimpl->window); }
-
-
-vec2<uint32> Window::size() const noexcept {
-	vec2<int> output;
-	RGFW_window_getSize(pimpl->window, &output.x, &output.y);
-	return vec2<uint32>(output);
-}
 
 // -- KEYBOARD
 
-bool Window::keydown(const Keycode key) const noexcept {
-	return RGFW_isKeyDown(static_cast<uint8>(key));
-}
-
-bool Window::keypressed(const Keycode key) const noexcept {
-	return RGFW_isKeyPressed(static_cast<uint8>(key));
-}
-
-bool Window::keyup(const Keycode key) const noexcept {
-	return RGFW_isKeyReleased(static_cast<uint8>(key));
-}
+bool Window::keydown(const Keycode key) const noexcept    { return RGFW_isKeyDown(static_cast<uint8>(key)); }
+bool Window::keypressed(const Keycode key) const noexcept { return RGFW_isKeyPressed(static_cast<uint8>(key)); }
+bool Window::keyup(const Keycode key) const noexcept      { return RGFW_isKeyReleased(static_cast<uint8>(key)); }
 
 // -- MOUSE
 
-bool Window::mousedown(const MouseButton key) const noexcept {
-	return RGFW_isMouseDown(static_cast<uint8>(key));
-}
-
-bool Window::mousepressed(const MouseButton key) const noexcept {
-	return RGFW_isMousePressed(static_cast<uint8>(key));
-}
-
-bool Window::mouseup(const MouseButton key) const noexcept {
-	return RGFW_isMouseReleased(static_cast<uint8>(key));
-}
+bool Window::mousedown(const MouseButton key) const noexcept    { return RGFW_isMouseDown(static_cast<uint8>(key)); }
+bool Window::mousepressed(const MouseButton key) const noexcept { return RGFW_isMousePressed(static_cast<uint8>(key)); }
+bool Window::mouseup(const MouseButton key) const noexcept      { return RGFW_isMouseReleased(static_cast<uint8>(key)); }
 
 vec2<float> Window::mouse_scroll() const noexcept {
 	vec2<float> output;
@@ -203,7 +177,7 @@ vec2<int> Window::mouse_pos() const noexcept {
 	return output;
 }
 
-void Window::enable_ctx() const noexcept { RGFW_window_makeCurrentContext_OpenGL(pimpl->window); }
+void Window::enable_ctx() const noexcept  { RGFW_window_makeCurrentContext_OpenGL(pimpl->window); }
 void Window::disable_ctx() const noexcept { RGFW_window_makeCurrentContext_OpenGL(nullptr); }
 
 // void Window::mouse_pos_global(int* x, int* y) const noexcept {

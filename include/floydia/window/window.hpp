@@ -31,6 +31,15 @@ class Window final {
 		Window(const Settings& settings);
 		~Window();
 
+		// Window current width
+		inline uint32 width() const noexcept { return this->_width; }
+		// Window current height
+		inline uint32 height() const noexcept { return this->_height; }
+		// Window current size
+		vec2<uint32> sttc_size() noexcept;
+		// Window current size
+		vec2<uint32> size() const noexcept;
+
 		// Check if the window is open
 		bool is_open() const noexcept;
 		// Mark window as "should close"
@@ -87,29 +96,41 @@ class Window final {
 
 		// Returns true if mouse is grabbed
 		bool is_mouse_grabbed() const noexcept;
-		// Returns window current size
-		vec2<uint32> size() const noexcept;
 
+		// Clears screen
+		inline void clear() const { renderer->clear(); }
+
+		// Advances 'frameindex' and waits for the GPU to finish reading
+		// the current frame's buffer slots before the CPU writes new data
+		void begin_frame() noexcept { renderer->begin_frame(); }
+		// Singals GPU fences to mark this frame's buffer slots as in-flight,
+		// preventing the CPU from overwriting them before the GPU is done
+		void end_frame() noexcept { renderer->end_frame(); }
 		// Advances the frame index, syncs GPU fences, updates camera UBO,
 		// updates the frustum, and rebuilds persistent batches if dirty
-		inline void begin_draw(const Camera& camera) const noexcept { renderer->begin_draw(camera); }
+		inline void begin_draw(const Camera& camera) const noexcept { renderer->begin_draw(*this, camera); }
 		
+		// Includes persistent objects in the current pass.
+		// Must be called after 'begin_draw()' and before 'flush()'.
+		// Persistent objects are only rebuilt when dirty (i.e. when 'add()' is called).
+		// Without this call, persistent objects are excluded from the current pass
+		void draw_persistent() const noexcept { renderer->draw_persistent(); }
 		// Submit a dynamic object for this frame. Frustum culled
 		inline void draw(Renderable& obj) const noexcept { renderer->draw(obj); }
 		// Submit a persistent object. Batched once and reused every frame.
 		// Skips per-frame frustum culling
 		inline void add(const Renderable& obj) const noexcept { renderer->add(obj); }
-
 		// Submit a dynamic light object for this frame
 		inline void draw(const Light& light) const noexcept { renderer->draw(light); }
 		// Submit a persistent light object
 		inline void add(const Light& light) const noexcept { renderer->add(light); }
-
 		// Upload instance data to SSBo and issue draw calls
 		inline void flush() const { renderer->flush(); }
 
-		// Clears screen
-		inline void clear() const { renderer->clear(); }
+		// Submit a text object for this frame
+		// void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font,
+		// 	const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept { renderer->draw_text(text, pos, font, scale, color); }
+
 
 		// Returns true if the key is down
 		bool keydown(const Keycode key) const noexcept;
@@ -148,8 +169,8 @@ class Window final {
 		Clock clock = Clock();
 
 		std::string title;
-		uint32 width;
-		uint32 height;
+		uint32 _width;
+		uint32 _height;
 
 		int mouse_x = 0;
 		int mouse_y = 0;

@@ -15,6 +15,11 @@ class ShaderStorageBuffer final : public PersistentMappedBuffer {
 		ShaderStorageBuffer(const uint32 binding, const size_t perframesize) noexcept;
 		~ShaderStorageBuffer() = default;
 
+		// Binds a chunk of the SSBO
+		inline void bind(const uint32 offset, const size_t bytes) const noexcept {
+			glBindBufferRange(GL_SHADER_STORAGE_BUFFER, this->binding, this->buffer, offset, bytes);
+		}
+
 		// Makes written data visible to GPU and binds the relevant buffer range.
 		inline void flush(const size_t offset, const size_t size) const noexcept override {
 			// flush only what was written

@@ -11,6 +11,12 @@ namespace floyd {
 // Renderable object
 class Renderable : public Object {
 	public:
+		struct alignas(16) InstanceData {
+			glm::mat4 model;
+			glm::vec4 color;
+		};
+
+	public:
 		// Fast test
 		AABB world_aabb;
 		// Visible on Frustum Culling

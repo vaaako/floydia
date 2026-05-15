@@ -6,6 +6,13 @@ namespace floyd {
 
 class Camera {
 	public:
+		struct alignas(16) CameraData {
+			glm::mat4 view;
+			glm::mat4 proj;
+			glm::vec4 camerapos; // on std140 vec3 and vec4 has the same size (16 bytes), but the behaviour may be unexpected (some drivers reads vec3 as 12 bytes), vec4 is safer
+		};
+
+	public:
 		vec3<float> position = vec3<float>(0.0f);
 	public:
 		Camera(const float width, const float height) noexcept;

@@ -3,7 +3,7 @@ CXX = g++
 INCLUDE_DIRS = -Iinclude -Iinclude/external
 CXXFLAGS = $(INCLUDE_DIRS) -std=c++17 -fPIC
 # Linking flags
-LDLIBS = -lX11 -lGL -lXrandr lib/libfreetype.a
+LDLIBS = -lX11 -lGL -lXrandr
 
 # Directories
 SRC_DIR = src
@@ -61,7 +61,7 @@ clean:
 # Debug build
 # -Wpadded
 # debug: CXXFLAGS += -O0 -fsanitize=address -g -Wall -Wextra -Wuninitialized -Wunreachable-code
-debug: CXXFLAGS += -O0 -DFLOYD_DEBUG_MAPPED_BUFFER -g -Wall -Wextra -Wuninitialized -Wunreachable-code -Wpadded
+debug: CXXFLAGS += -O0 -DFLOYD_DEBUG_MAPPED_BUFFER -DFLOYD_DEBUG_TEXT -g -Wall -Wextra -Wuninitialized -Wunreachable-code -Wpadded
 debug: all
 
 # Release build

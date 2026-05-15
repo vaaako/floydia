@@ -47,6 +47,11 @@ class ShaderProgram {
 			if(loc >= 0) glProgramUniform1f(this->program, loc, value);
 		}
 
+		inline void set_uniform_vec2f(const char* name, const glm::vec2& value) noexcept {
+			const GLint loc = this->get_uniform_loc(std::string(name));
+			if(loc >= 0) glProgramUniform2f(this->program, loc, value.x, value.y);
+		}
+
 		inline void set_uniform_vec4f(const char* name, const glm::vec4& value) noexcept {
 			const GLint loc = this->get_uniform_loc(std::string(name));
 			if(loc >= 0) glProgramUniform4f(this->program, loc, value.x, value.y, value.z, value.w);

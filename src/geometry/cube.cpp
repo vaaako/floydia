@@ -9,7 +9,7 @@ Cube::Cube() noexcept : Renderable(Cube::create_model()) {}
 
 std::shared_ptr<Model> Cube::create_model() noexcept {
 	Assets* assets = Core::get().assets.get();
-	std::shared_ptr<Mesh> mesh = assets->load<Mesh>("cube");
+	std::shared_ptr<Mesh> mesh = assets->load_cube_mesh();
 	std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(
 		assets->load<Material>(assets->hashes.MAT_3D),
 		assets->load_texture("d_white")
