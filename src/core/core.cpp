@@ -1,3 +1,4 @@
+#include "floydia/rendering/image.hpp"
 #include <floydia/core/core.hpp>
 #include <floydia/core/assets.hpp>
 #include <floydia/helpers/logger.hpp>
@@ -27,6 +28,9 @@ void Core::initialize() noexcept {
 	// Initialize OpenGL dependend objects
 	this->assets = std::make_unique<Assets>();
 	this->renderer = std::make_unique<Renderer>();
+
+	// Enable flip vertically once
+	Image::init_stb_image();
 
 	TRACELOG(logger::Info, "OpenGL initialized!");
 	TRACELOG(logger::Info, "GL Version: %s", glGetString(GL_VERSION));

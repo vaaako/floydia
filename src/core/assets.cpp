@@ -1,8 +1,8 @@
-#include <floydia/core/assets.hpp>
+#include "floydia/core/assets.hpp"
 
-#include <floydia/gpu/vertexlayout.hpp>
-#include <floydia/geometry/vertex.hpp>
-#include <floydia/helpers/hash.hpp>
+#include "floydia/gpu/vertexlayout.hpp"
+#include "floydia/geometry/vertex.hpp"
+#include "floydia/helpers/hash.hpp"
 #include <stdexcept>
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -22,34 +22,31 @@ Assets::Assets() noexcept {
 	this->textures[hash::of("d_notfound")] = std::make_shared<Texture>(blackpurple, 2, 2);
 
 	const std::shared_ptr<ShaderProgram> vert_3d   = this->load_program(Shaders::DEFAULT_VERTEX,    nullptr);
-	const std::shared_ptr<ShaderProgram> vert_2d   = this->load_program(Shaders::DEFAULT_VERTEX_2D, nullptr);
 	const std::shared_ptr<ShaderProgram> frag_3d   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT);
+	const std::shared_ptr<ShaderProgram> vert_2d   = this->load_program(Shaders::DEFAULT_VERTEX_2D, nullptr);
 	const std::shared_ptr<ShaderProgram> frag_2d   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_2D);
-	const std::shared_ptr<ShaderProgram> frag_text = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_TEXT);
+	// const std::shared_ptr<ShaderProgram> vert_text = this->load_program(Shaders::DEFAULT_VERTEX_TEXT, nullptr);
+	// const std::shared_ptr<ShaderProgram> frag_text = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_TEXT);
 
 	this->load_material(vert_3d, frag_3d);
 	this->load_material(vert_2d, frag_2d);
-	this->load_material(vert_2d, frag_text);
-
-	this->meshes[hash::of("cube")] = this->make_cube_mesh();
-	this->meshes[hash::of("quad")] = this->make_quad_mesh();
-	this->meshes[hash::of("quad3d")] = this->make_quad3d_mesh();
+	// this->load_material(vert_text, frag_text);
 
 	// Cache hashes
 	this->hashes.PROG_VERT_3D   = hash::of(std::string_view(Shaders::DEFAULT_VERTEX));
-	this->hashes.PROG_VERT_2D   = hash::of(std::string_view(Shaders::DEFAULT_VERTEX_2D));
 	this->hashes.PROG_FRAG_3D   = hash::of(std::string_view(Shaders::DEFAULT_FRAGMENT));
+	this->hashes.PROG_VERT_2D   = hash::of(std::string_view(Shaders::DEFAULT_VERTEX_2D));
 	this->hashes.PROG_FRAG_2D   = hash::of(std::string_view(Shaders::DEFAULT_FRAGMENT_2D));
+	this->hashes.PROG_VERT_TEXT = hash::of(std::string_view(Shaders::DEFAULT_VERTEX_TEXT));
 	this->hashes.PROG_FRAG_TEXT = hash::of(std::string_view(Shaders::DEFAULT_FRAGMENT_TEXT));
 	this->hashes.MAT_3D   = this->material_hash(vert_3d, frag_3d);
 	this->hashes.MAT_2D   = this->material_hash(vert_2d, frag_2d);
-	this->hashes.MAT_TEXT = this->material_hash(vert_2d, frag_text);
+	// this->hashes.MAT_TEXT = this->material_hash(vert_text, frag_text);
 }
 
 std::shared_ptr<Texture> Assets::load_texture(const char* path) {
 	if(path == nullptr) throw std::invalid_argument("Texture path is null");
-	
-	size_t hash = hash::of(path);
+	const size_t hash = hash::of(path);
 	std::shared_ptr<Texture> tex = this->load<Texture>(hash);
 	if(tex) return tex;
 
@@ -58,13 +55,35 @@ std::shared_ptr<Texture> Assets::load_texture(const char* path) {
 	return tex;
 }
 
+std::shared_ptr<Texture> Assets::load_texture(uint8* data, const uint32 width, const uint32 height, const uint8 channels) {
+	if(data == nullptr) throw std::invalid_argument("Texture data is null");
+	const size_t hash = hash::of(data);
+	std::shared_ptr<Texture> tex = this->load<Texture>(hash);
+	if(tex) return tex;
+
+	tex = std::make_shared<Texture>(data, width, height, channels);
+	this->textures[hash] = tex;
+	return tex;
+}
+
+std::shared_ptr<Text> Assets::load_font(const char* path, const uint32 size) {
+	if(path == nullptr) throw std::invalid_argument("Font path is null");
+	const size_t hash = hash::of(path);
+	std::shared_ptr<Text> text = this->load<Text>(hash);
+	if(text) return text;
+
+	text = std::make_shared<Text>(path, size);
+	this->texts[hash] = text;
+	return text;
+}
+
 std::shared_ptr<ShaderProgram> Assets::load_program(const char* vertex, const char* fragment) {
 	// TODO: format shader if custom goes here
 	if(vertex == nullptr && fragment == nullptr) throw std::invalid_argument("Vertex and Fragment Shader source are null");
 
 	// Hash the source content — pointer alone is not stable
 	size_t hash = 0;
-	if(vertex)   hash::combine(hash, std::string_view(vertex));
+	if(vertex) hash::combine(hash, std::string_view(vertex));
 	if(fragment) hash::combine(hash, std::string_view(fragment));
 
 	// Return cached if exists
@@ -93,7 +112,7 @@ std::shared_ptr<Material> Assets::load_material(
 	const std::shared_ptr<ShaderProgram>& vertex,
 	const std::shared_ptr<ShaderProgram>& fragment
 ) noexcept {
-	size_t key = this->material_hash(vertex, fragment);
+	const size_t key = this->material_hash(vertex, fragment);
 	std::shared_ptr<Material> material = this->load<Material>(key);
 	if(material != nullptr) return material;
 
@@ -104,7 +123,7 @@ std::shared_ptr<Material> Assets::load_material(
 
 std::shared_ptr<Model> Assets::load_model(const char* path) {
 	// Check cache
-	size_t key = hash::of(path);
+	const size_t key = hash::of(path);
 	std::shared_ptr<Model> model = this->load<Model>(key);
 	if(model != nullptr) return model;
 	model = std::make_shared<Model>();
@@ -205,7 +224,7 @@ std::shared_ptr<Model> Assets::load_model(const char* path) {
 	return model;
 }
 
-std::shared_ptr<Mesh> Assets::make_quad_mesh() noexcept {
+std::shared_ptr<Mesh> Assets::load_quad_mesh() noexcept {
 	static std::shared_ptr<Mesh> mesh = []() {
 		const std::vector<Vertex2D> vertices = {
 			// positions                // texture coords
@@ -229,7 +248,7 @@ std::shared_ptr<Mesh> Assets::make_quad_mesh() noexcept {
 }
 
 
-std::shared_ptr<Mesh> Assets::make_quad3d_mesh() noexcept {
+std::shared_ptr<Mesh> Assets::load_quad3d_mesh() noexcept {
 	static std::shared_ptr<Mesh> mesh = []() {
 		const std::vector<Vertex> vertices = {
 			// positions               // normals            // texture coords
@@ -249,7 +268,7 @@ std::shared_ptr<Mesh> Assets::make_quad3d_mesh() noexcept {
 	return mesh;
 }
 
-std::shared_ptr<Mesh> Assets::make_cube_mesh() noexcept {
+std::shared_ptr<Mesh> Assets::load_cube_mesh() noexcept {
 	static std::shared_ptr<Mesh> mesh = []() {
 		std::vector<Vertex> vertices = {
 			// positions                // normals               // texture coords

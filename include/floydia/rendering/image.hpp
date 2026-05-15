@@ -1,0 +1,44 @@
+#pragma once
+
+#include "floydia/types.hpp"
+
+namespace floyd {
+
+// Wrapper for stb_image
+struct Image {
+	const char* path;
+	u8* data = nullptr;
+	int width; // 'int' because turns into pointer
+	int height;
+	int channels;
+	bool fallback = false;
+
+	// Load from file
+	Image(const char* path) noexcept;
+	// Load from raw pixels
+	Image(const uint8* data, const u32 width, const u32 height, const u8 channels) noexcept;
+	// Load from image data
+	Image(const uint8* data, const int size) noexcept;
+	~Image() noexcept;
+
+	Image(const Image& other) noexcept = delete;
+	Image& operator=(const Image&) noexcept = delete;
+	Image(Image&&) noexcept = default;
+	Image& operator=(Image&&) noexcept = default;
+
+	// Image size in bytes
+	inline constexpr size_t bytes() const noexcept { return this->width * this->height * this->channels; }
+	// Write image to file
+	void write_to_file(const char* filename) const noexcept;
+
+	static void init_stb_image() noexcept;
+
+	static constexpr uint8 FALLBACK_IMAGE[16] = {
+		// Row 0
+		0, 0, 0, 255,  255, 0, 255, 255, // Purple, Black
+		// Row 1
+		255, 0, 255, 255,  0, 0, 0, 255 // Black, Purple
+	};
+};
+
+} // namespace floyd

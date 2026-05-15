@@ -22,10 +22,14 @@ namespace hash {
 	void combine(size_t& seed, const T& value) noexcept { seed ^= std::hash<T>{}(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2); }
 
 	template <typename T>
-	inline size_t of(const T& value) noexcept { return std::hash<T>{}(value); }
-	inline size_t of(const char* s) noexcept { return std::hash<std::string_view>{}(std::string_view(s)); }
-	inline size_t of(const std::string& s) noexcept { return std::hash<std::string_view>{}(s); }
-	inline size_t of(const std::string_view s) noexcept { return std::hash<std::string_view>{}(s); }
+	inline size_t of(const T& value) noexcept {
+		size_t seed = 0;
+		hash::combine(seed, value);
+		return seed;
+	}
+	inline size_t of(const char* s) noexcept            { return hash::of<std::string_view>(std::string_view(s)); }
+	inline size_t of(const std::string& s) noexcept     { return hash::of<std::string_view>(s); }
+	inline size_t of(const std::string_view s) noexcept { return hash::of<std::string_view>(s); }
 
 	// Fast, deterministic, non-cryptographic hash for raw bytes.
 	// Use this for asset caching (textures, shaders, files).

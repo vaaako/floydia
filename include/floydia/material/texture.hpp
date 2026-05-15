@@ -44,14 +44,6 @@ class Texture final {
 		GLuint tex = 0;
 		int _width = 0;
 		int _height = 0;
-
-		static constexpr uint8 FALLBACK_TEXTURE[16] = {
-			// Row 0
-			0, 0, 0, 255,  255, 0, 255, 255, // Purple, Black
-			// Row 1
-			255, 0, 255, 255,  0, 0, 0, 255 // Black, Purple
-		};
-
 };
 
 } // namespace floyd
