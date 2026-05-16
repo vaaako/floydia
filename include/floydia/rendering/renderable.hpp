@@ -30,7 +30,7 @@ class Renderable : public Object {
 		// How many meshes are inside the model
 		inline size_t mesh_count() const { return this->_model->meshes().size(); }
 		// Overridable for Redenderable objects that need aditional math on `model_matrix`
-		inline virtual glm::mat4 final_matrix(const glm::mat4& view) const noexcept { return this->transform.model_matrix(); }
+		inline virtual glm::mat4 final_matrix(const glm::mat4& view) const noexcept { (void)view; return this->transform.model_matrix(); }
 
 		// Returns Model class
 		inline Model* model() noexcept { return this->_model.get(); }

@@ -107,7 +107,7 @@ void Renderer::begin_draw(const Window& window, const Camera& camera) noexcept {
 		// Build instances to send to SSBO
 		for(auto& [_, batch] : this->persistent_batches) {
 			batch.instance_index = this->persistent_instances.size();
-			// Bulk copy. Insert all of batch's instances into 'instances'
+			// Bulk copy. Insert all of batch's instances into 'persistent_instances'
 			this->persistent_instances.insert(
 				this->persistent_instances.end(),
 				batch.instances.begin(),
@@ -129,13 +129,13 @@ void Renderer::draw_persistent() noexcept {
 
 void Renderer::draw(Renderable& obj) noexcept {
 	// Only cull if obj changed or camera moved
-	// if(obj.transform.isdirty()) {
-	// 	obj.rebuild_world_aabb();
-	// 	obj.visible = this->frustum.test(obj.world_aabb);
-	// } else if(this->camera_dirty) {
-	// 	obj.visible = this->frustum.test(obj.world_aabb);
-	// }
-	// if(!obj.visible) return;
+	if(obj.transform.isdirty()) {
+		obj.rebuild_world_aabb();
+		obj.visible = this->frustum.test(obj.world_aabb);
+	} else if(this->camera_dirty) {
+		obj.visible = this->frustum.test(obj.world_aabb);
+	}
+	if(!obj.visible) return;
 	this->add_batch(obj, this->dynamic_batches);
 }
 
@@ -176,7 +176,7 @@ void Renderer::flush() noexcept {
 		this->ubo_camera.flush(offset, sizeof(Camera::CameraData)); // Bind for shader use
 
 		// Put on final instances
-		if(persistent_included) this->instances.insert(this->instances.begin(), this->persistent_instances.begin(), this->persistent_instances.end());
+		if(persistent_included) this->instances.insert(this->instances.end(), this->persistent_instances.begin(), this->persistent_instances.end());
 		// Update dynamic batches
 		for(auto& [_, batch] : this->dynamic_batches) {
 			batch.instance_index = this->instances.size();
