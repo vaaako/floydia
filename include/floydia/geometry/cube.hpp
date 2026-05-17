@@ -25,7 +25,7 @@ class Cube : public Renderable {
 		Cube() noexcept;
 
 	// This is static so method is not repeated
-	private:
+	protected:
 		static std::shared_ptr<Model> create_model() noexcept;
 };
 

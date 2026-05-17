@@ -262,12 +262,46 @@ void main() {
 
 
 constexpr const char* DEFAULT_VERTEX_TEXT = R"glsl(
+#version 460 core
 
-)glsl";
+layout(location = 0) out vec2 texuv;
+layout(location = 1) out vec4 color;
 
+out gl_PerVertex {
+	vec4 gl_Position;
+};
 
-constexpr const char* DEFAULT_FRAGMENT_TEXT = R"glsl(
+struct GlyphData {
+	vec2 pos;
+	vec2 size;
+	vec2 uv0;
+	vec2 uv1;
+	vec4 color;
+};
 
+layout(std430, binding = 3) buffer GlyphBuffer {
+	GlyphData glyphs[];
+};
+
+layout(location = 0) uniform vec2 u_screen_size;
+
+const vec2 CORNERS[6] = vec2[6](
+	vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0),
+	vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)
+);
+
+void main() {
+	GlyphData g = glyphs[gl_InstanceID + gl_BaseInstance];
+	vec2 corner = CORNERS[gl_VertexID];
+
+	vec2 px  = g.pos + corner * g.size;
+	vec2 ndc = (px / u_screen_size) * 2.0 - 1.0;
+	ndc.y    = -ndc.y; // flip y: screen top-left
+
+	gl_Position = vec4(ndc, 0.0, 1.0);
+	texuv = g.uv0 + corner * (g.uv1 - g.uv0);
+	color = g.color;
+}
 )glsl";
 
 

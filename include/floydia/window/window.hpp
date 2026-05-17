@@ -92,7 +92,7 @@ class Window final {
 		// Sets the maximum size of the window
 		void set_max_size(const uint32 width, const uint32 height) noexcept;
 		// Resizes the window viewport to the given dimensions
-		void viewport(const uint32 width, const uint32 height) noexcept;
+		void update_viewport(const uint32 width, const uint32 height) noexcept;
 
 		// Returns true if mouse is grabbed
 		bool is_mouse_grabbed() const noexcept;
@@ -128,8 +128,8 @@ class Window final {
 		inline void flush() const { renderer->flush(); }
 
 		// Submit a text object for this frame
-		// void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font,
-		// 	const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept { renderer->draw_text(text, pos, font, scale, color); }
+		void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font,
+			const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept { renderer->draw_text(text, pos, font, scale, color); }
 
 
 		// Returns true if the key is down

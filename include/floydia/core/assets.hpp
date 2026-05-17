@@ -17,27 +17,23 @@ namespace floyd {
 // May contain repeated Assets if user pushes same asset with different name
 class Assets final {
 	public:
-		// Default resource hashes. Computed once, used for fast lookup
-		struct Hashes {
+		// Default assets
+		struct Default {
 			// Shader Program of Shaders::DEFAULT_VERTEX
-			size_t PROG_VERT_3D = 0;
+			std::shared_ptr<ShaderProgram> PROG_VERT_3D;
 			// Shader Program of Shaders::DEFAULT_VERTEX_2D
-			size_t PROG_VERT_2D = 0;
+			std::shared_ptr<ShaderProgram> PROG_VERT_2D;
 			// Shader Program of Shaders::DEFAULT_FRAGMENT
-			size_t PROG_FRAG_3D = 0;
+			std::shared_ptr<ShaderProgram> PROG_FRAG_3D;
 			// Shader Program of Shaders::DEFAULT_FRAGMENT_2D
-			size_t PROG_FRAG_2D = 0;
+			std::shared_ptr<ShaderProgram> PROG_FRAG_2D;
 			// Shader Program of Shaders::DEFAULT_VERTEX_TEXT
-			size_t PROG_VERT_TEXT = 0;
-			// Shader Program of Shaders::DEFAULT_FRAGMENT_TEXT
-			size_t PROG_FRAG_TEXT = 0;
+			std::shared_ptr<ShaderProgram> PROG_VERT_TEXT;
 			// Material of Shaders::DEFAULT_VERTEX + Shaders::DEFAULT_FRAGMENT
-			size_t MAT_3D = 0;
+			std::shared_ptr<Material> MAT_3D;
 			// Material of Shaders::DEFAULT_VERTEX_2D + Shaders::DEFAULT_FRAGMENT_2D
-			size_t MAT_2D = 0;
-			// Material of Shaders::DEFAULT_VERTEX_TEXT + Shaders::DEFAULT_FRAGMENT_TEXT
-			size_t MAT_TEXT = 0;
-		} hashes;
+			std::shared_ptr<Material> MAT_2D;
+		} defaults;
 
 	public:
 		Assets() noexcept;

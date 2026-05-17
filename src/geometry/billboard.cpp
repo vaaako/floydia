@@ -1,6 +1,6 @@
 #include <floydia/geometry/billboard.hpp>
 
-#include <floydia/core/core.hpp>
+#include "floydia/core/core.hpp"
 #include <floydia/material/materialinstance.hpp>
 
 namespace floyd {
@@ -26,11 +26,10 @@ glm::mat4 Billboard::final_matrix(const glm::mat4& view) const noexcept {
 }
 
 std::shared_ptr<Model> Billboard::create_model() noexcept {
-	Assets* assets = Core::get().assets.get();
-	std::shared_ptr<Mesh> mesh = assets->load_quad3d_mesh();
+	std::shared_ptr<Mesh> mesh = assets().load_quad3d_mesh();
 	std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(
-		assets->load<Material>(assets->hashes.MAT_3D),
-		assets->load_texture("d_white")
+		assets().defaults.MAT_3D,
+		assets().load_texture("d_white")
 	);
 	std::shared_ptr<Model> model = std::make_shared<Model>();
 	model->add_submesh(mesh, matinst); // use default material

@@ -20,7 +20,7 @@ class Billboard : public Renderable {
 		// Calculates model matrix
 		glm::mat4 final_matrix(const glm::mat4& view) const noexcept override;
 
-	private:
+	protected:
 		static std::shared_ptr<Model> create_model() noexcept;
 };
 

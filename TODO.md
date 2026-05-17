@@ -106,9 +106,6 @@ I wrote most of the things here very tired, sorry for any english mistake
 		* On 2D shapes loop change camera and disable cull face
 - [x] Make `ResourcesManager` more user friendly
 	+ Make `ShaderProgram` accept only two shaders (vertex and fragment)
-     
-
-Verification
 	+ Use a struct maybe
 - [x] UniformBuffer and SSBO use mapping
 	+ Ring Buffer and Fences
@@ -120,6 +117,7 @@ Verification
 	+ Pre-build like the White texture
 - [x] Light. Blinn-Phong
 - [x] Metallic / Roughness
+- [x] Store persistent instances and append to final instances
 
 - [ ] Discord RPC support?
 - [ ] Click on shape makes a raycast to change object
@@ -175,7 +173,6 @@ class DoorScript : public Script {
 	+ Matrix Multiplication to GPU
 - [x] Shader Pipeline
 	+ Do not replace program, make it optional
-- [ ] make transparency work without `if(tex.a == 0.0)`?
 
 
 # TODO Quick Fixes
@@ -186,7 +183,7 @@ class DoorScript : public Script {
 	+ Feature: change texture alpha
 - [x] Simplify Keyboard and Mouse input and put all that in Window class
 - [x] Unify bundle and VAOManger somehow idk get rid of bundle
-- [ ] Make `Assets` store members into a unordered map instead
+- [x] Make `Assets` store members into a unordered map instead
 
 # TODO Bug
 - [x] Memory leak somewhere (i don't know if is in my code or in some library, but is not dangerous)

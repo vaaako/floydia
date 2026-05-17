@@ -16,8 +16,6 @@
 
 #include <vector>
 
-#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
-
 namespace floyd {
 
 class Window;
@@ -27,6 +25,8 @@ class Renderer final {
 		Renderer() noexcept;
 		~Renderer() = default;
 
+		// Update stored width and height values
+		void update_viewport(const uint32 width, const uint32 height) noexcept;
 		// Changes the clear color
 		void set_clear_color(const vec4<uint8>& color) noexcept;
 		// Clear the screen
@@ -60,8 +60,8 @@ class Renderer final {
 		size_t add(const Light& light) noexcept;
 
 		// Submit a text object for this frame
-		// void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font,
-		// 		const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept;
+		void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font,
+			const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept;
 
 		// Upload instance data to SSBo and issue draw calls
 		void flush() noexcept;
@@ -80,10 +80,10 @@ class Renderer final {
 		};
 
 		struct TextBatch {
-			GLuint tex;
-			uint32 instance_index;
-			uint32 instance_count;
-			std::vector<Text::GlyphData> glyphs;
+			Text* font;
+			// First gl_InstanceID on SSBO
+			u32 glyph_start;
+			u32 glyph_count;
 		};
 
 		struct BatchKey {
@@ -132,8 +132,9 @@ class Renderer final {
 		// Persistent light pointers, stored by pointer to avoid copies
 		std::vector<const Light*> persistent_lights;
 
-		// Batch of text
-		// std::vector<TextBatch> text_batches;
+		std::vector<TextBatch> text_batches;
+		std::vector<Text::GlyphData> glyphs;
+
 
 		glm::mat4 cached_view;
 		glm::mat4 cached_proj;
@@ -149,8 +150,9 @@ class Renderer final {
 		ShaderStorageBuffer ssbo_glyphs;
 		ProgramPipeline ppipeline;
 
-		size_t total_text_instances = 0; // Only used to resize 'ssbo_glyphs'
-
+		u32 total_text_instances = 0; // Only used to resize 'ssbo_glyphs'
+		GLuint text_vao; // empty vao to satisfy core profile
+		
 		// Cache if necessary
 		uint32 win_width;
 		uint32 win_height;
@@ -171,7 +173,7 @@ class Renderer final {
 		bool camera_moved(const glm::mat4& vp) noexcept;
 		void add_batch(const Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
 		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept;
-		// void draw_text_batches() noexcept;
+		void draw_text_batches() noexcept;
 };
 
 } // namespace floyd

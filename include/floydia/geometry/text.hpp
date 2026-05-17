@@ -1,8 +1,7 @@
 #pragma once
 
-#include "floydia/geometry/vertex.hpp"
+#include "floydia/geometry/sprite.hpp"
 #include "floydia/material/texture.hpp"
-#include "floydia/rendering/mesh.hpp"
 #include "floydia/types.hpp"
 
 #include <memory>
@@ -12,34 +11,42 @@
 
 namespace floyd {
 
-class Text {
+class Text : protected Sprite {
 	public:
 		struct Glyph {
-			// Size of glyph (px)
-			vec2<int> size;
-			// Offset from baseline to left/top of glyph
-			vec2<int> bearing;
+			// Horizontal advance in pixels
 			float advance;
-			uint32 layer; // texture layer
+			float width;
+			float height;
+			// Offset from cursor
+			float offset_x;
+			// Offset from cursor
+			float offset_y;
+			// Top-left UV in atlas
+			glm::vec2 uv0;
+			/// Bottom-right UV in atlas
+			glm::vec2 uv1;
 		};
 
 		struct alignas(16) GlyphData {
 			glm::vec2 pos;
-			glm::vec2 scale;
+			glm::vec2 size;
+			glm::vec2 uv0;
+			glm::vec2 uv1;
 			vec4<float> color;
-			uint32 glyphindex;
-			uint32 _pad[3];
 		};
 
-		// Slot fixed size. Largest glyph in charset
-		GLuint atlas;
 	public:
 		Text(const char* path, const uint32 size);
 		~Text() noexcept;
 
+		inline const Texture* atlas() { return this->atlas_texture.get(); }
+		inline float line_height() { return this->base_height; }
+		inline float ascent() { return this->base_ascent; }
+
 		// Get stored Glyph from codepoint.
-		// Returns 'nullptr' if 'codepoint' not found
-		const Glyph* glyph(const uint32 codepoint) const noexcept;
+		// Fallback to space character if not found
+		Glyph glyph(const uint32 codepoint, const float scale) const noexcept;
 		// Simplified UTF-8 decoder
 		// Remove control bits from UTF-8 (1-4 bytes)
 		// https://datatracker.ietf.org/doc/html/rfc3629
@@ -50,17 +57,32 @@ class Text {
 		// std::shared_ptr<Texture> bake_texture(const std::string& text) const noexcept;
 
 	private:
+		// Glyph data without scaling
+		struct RawGlyph {
+			float advance;
+			float width;
+			float height;
+			float offset_x;
+			float offset_y;
+			glm::vec2 uv0;
+			glm::vec2 uv1;
+		};
+
+	private:
 		struct impl; // hide external libraries from header
 		std::unique_ptr<impl> pimpl;
 
-		std::unordered_map<uint32, Glyph> glyphs;
+		std::shared_ptr<Texture> atlas_texture;
+		std::unordered_map<u32, RawGlyph> glyphs;
+		float base_height = 0.0f;
+		float base_ascent = 0.0f;
 
 		// ASCII + Common latin characters
-		static constexpr int ATLAS_WIDTH  = 512;
-		static constexpr int ATLAS_HEIGHT = 512;
+		static constexpr uint32 ATLAS_WIDTH  = 512;
+		static constexpr uint32 ATLAS_HEIGHT = 512;
+		static constexpr uint32 ATLAS_SIZE = ATLAS_WIDTH * ATLAS_HEIGHT;
 		static constexpr uint32 CHARSET_BEGIN = 32; // Space
 		static constexpr uint32 CHARSET_END = 255; // latin-1 supplement
-		static constexpr uint8 ATLAS_PADDING = 2; // px between glyphs
 
 	private:
 		// Measure width of a text

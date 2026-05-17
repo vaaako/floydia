@@ -17,8 +17,6 @@ Shader Program: ~224-285 fps
 Program Pipeline: ~257-303 fps
 */
 
-// TODO: store persistent_instances and only rebuild when necessary
-
 // #define FLOYD_DEBUG_RENDERER
 
 namespace floyd {
@@ -39,12 +37,14 @@ Renderer::Renderer() noexcept :
 	glDisable(GL_CULL_FACE);
 	// glEnable(GL_CULL_FACE);
 
+	glGenVertexArrays(1, &this->text_vao);
 	this->ppipeline.bind();
 }
 
-void Renderer::clear() const noexcept {
-	glClearColor(this->clear_color[0], this->clear_color[1], this->clear_color[2], this->clear_color[3]);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+void Renderer::update_viewport(const uint32 width, const uint32 height) noexcept {
+	this->win_width = width;
+	this->win_height = height;
+	assets().defaults.PROG_VERT_TEXT->set_uniform_vec2f("u_screen_size", { this->win_width, this->win_height });
 }
 
 void Renderer::set_clear_color(const vec4<uint8>& color) noexcept {
@@ -52,6 +52,11 @@ void Renderer::set_clear_color(const vec4<uint8>& color) noexcept {
 	this->clear_color[1] = color.y / 255.0f;
 	this->clear_color[2] = color.z / 255.0f;
 	this->clear_color[3] = color.w / 255.0f;
+}
+
+void Renderer::clear() const noexcept {
+	glClearColor(this->clear_color[0], this->clear_color[1], this->clear_color[2], this->clear_color[3]);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void Renderer::begin_frame() noexcept {
@@ -79,6 +84,8 @@ void Renderer::begin_draw(const Window& window, const Camera& camera) noexcept {
 	this->dynamic_batches.clear();
 	this->instances.clear();
 	this->lights.clear();
+	this->text_batches.clear();
+	this->glyphs.clear();
 	this->total_text_instances = 0;
 	this->persistent_included = false;
 
@@ -86,10 +93,6 @@ void Renderer::begin_draw(const Window& window, const Camera& camera) noexcept {
 	this->cached_view = camera.view();
 	this->cached_proj = camera.projection();
 	this->camerapos = camera.position;
-
-	// Update window size
-	this->win_width = window.width();
-	this->win_height = window.height();
 
 	// Update frustum once per frame
 	glm::mat4 vp = this->cached_proj * this->cached_view;
@@ -156,10 +159,51 @@ size_t Renderer::add(const Light& light) noexcept {
 	return this->persistent_lights.size() - 1;
 }
 
+void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font, const float scale, const vec4<float>& color) noexcept {
+	if(text.empty() || !font) return;
 
-// void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font, const float scale, const vec4<float>& color) noexcept {
-// 	if(text.empty()) return;
-// }
+	// TODO: not a good search
+	// unordered_map<Text*, TextBatch*>
+	TextBatch* batch = nullptr;
+	for(TextBatch& b : this->text_batches) {
+		if(b.font == font.get()) { batch = &b; break; }
+	}
+
+	if(batch == nullptr) {
+		this->text_batches.push_back({ font.get(), this->total_text_instances, 0 });
+		batch = &this->text_batches.back();
+	}
+
+	const float ascent = font->ascent();
+	const uint8* p = reinterpret_cast<const uint8*>(text.c_str());
+	float pen_x = pos.x;
+	float pen_y = pos.y;
+
+	while(*p) {
+		const uint32 codepoint = font->utf8_next(p);
+		if(codepoint == '\n') {
+			pen_x  = pos.x;
+			pen_y += font->line_height() * scale;
+			continue;
+		}
+
+		const Text::Glyph g = font->glyph(codepoint, scale);
+		if(g.width > 0.0f && g.height > 0.0f) {
+			Text::GlyphData gd;
+			// gd.pos   = { pen_x + g.offset_x, pen_y + g.offset_y };
+			gd.pos = { pen_x + g.offset_x, pen_y + ascent + g.offset_y };
+			gd.size  = { g.width, g.height };
+			gd.uv0   = g.uv0;
+			gd.uv1   = g.uv1;
+			gd.color = color;
+
+			this->glyphs.push_back(gd);
+			++batch->glyph_count;
+		}
+		pen_x += g.advance;
+	}
+	this->total_text_instances = this->glyphs.size();
+}
 
 void Renderer::flush() noexcept {
 	// Skip if no object
@@ -233,7 +277,7 @@ void Renderer::flush() noexcept {
 	// Render all objects
 	if(this->persistent_included) this->draw_map(this->persistent_batches);
 	this->draw_map(this->dynamic_batches);
-	// this->draw_text_batches();
+	this->draw_text_batches();
 }
 
 bool Renderer::camera_moved(const glm::mat4& vp) noexcept {
@@ -330,8 +374,40 @@ void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHa
 	}
 }
 
-// void Renderer::draw_text_batches() noexcept {
-// }
+void Renderer::draw_text_batches() noexcept {
+	if(this->text_batches.empty() || this->glyphs.empty()) return;
+
+	// Upload all glyphs at once
+	const size_t size = this->glyphs.size() * sizeof(Text::GlyphData);
+	if(size > this->ssbo_glyphs.perframesize()) this->ssbo_glyphs.resize(size);
+
+	const size_t base_offset = this->ssbo_glyphs.frame_offset(this->frameindex);
+	this->ssbo_glyphs.update(this->glyphs.data(), size, base_offset);
+	this->ssbo_glyphs.flush(base_offset, size);
+
+	// Switch pipeline
+	this->ppipeline.attach(assets().defaults.PROG_VERT_TEXT, Shader::Vertex);
+	this->ppipeline.attach(assets().defaults.PROG_FRAG_2D, Shader::Fragment);
+
+	glBindVertexArray(this->text_vao);
+	glDepthMask(GL_FALSE);
+
+	for(const TextBatch& batch : this->text_batches) {
+		if(batch.glyph_count == 0) continue;
+		batch.font->atlas()->bind(0);
+
+		glDrawArraysInstancedBaseInstance(
+			GL_TRIANGLES,
+			0,
+			6,
+			batch.glyph_count,
+			batch.glyph_start
+		);
+	}
+
+	glDepthMask(GL_TRUE);
+	glBindVertexArray(0);
+}
 
 } // namespace floyd
 

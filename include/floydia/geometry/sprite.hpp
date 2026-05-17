@@ -6,11 +6,11 @@
 
 namespace floyd {
 
-class Sprite final : public Renderable {
+class Sprite : public Renderable {
 	public:
 		Sprite() noexcept;
 
-	private:
+	protected:
 		static std::shared_ptr<Model> create_model() noexcept;
 };
 

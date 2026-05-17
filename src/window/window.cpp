@@ -139,11 +139,12 @@ void Window::set_opacity(const uint8 opacity) noexcept    { RGFW_window_setOpaci
 
 void Window::set_min_size(const uint32 width, const uint32 height) noexcept { RGFW_window_setMinSize(pimpl->window, static_cast<int>(width), static_cast<int>(height)); }
 void Window::set_max_size(const uint32 width, const uint32 height) noexcept { RGFW_window_setMaxSize(pimpl->window, static_cast<int>(width), static_cast<int>(height)); }
-void Window::viewport(const uint32 width, const uint32 height) noexcept {
+void Window::update_viewport(const uint32 width, const uint32 height) noexcept {
 	this->_width = width; this->_height = height;
 	// RGFW_window_setAspectRatio(pimpl->window, static_cast<int>(width),
 	// 		static_cast<int>(height));
 	glViewport(0, 0, width, height);
+	this->renderer->update_viewport(width, height);
 }
 bool Window::is_mouse_grabbed() const noexcept { return RGFW_window_isHoldingMouse(pimpl->window); }
 
