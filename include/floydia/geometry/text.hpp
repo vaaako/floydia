@@ -81,8 +81,10 @@ class Text : protected Sprite {
 		static constexpr uint32 ATLAS_WIDTH  = 512;
 		static constexpr uint32 ATLAS_HEIGHT = 512;
 		static constexpr uint32 ATLAS_SIZE = ATLAS_WIDTH * ATLAS_HEIGHT;
-		static constexpr uint32 CHARSET_BEGIN = 32; // Space
+		static constexpr uint32 CHARSET_BEGIN = 32;
 		static constexpr uint32 CHARSET_END = 255; // latin-1 supplement
+		// static constexpr uint32 CHARSET_END   = 383; // Latin Extended-A
+		// static constexpr uint32 CHARSET_END   = 1279; // Latin Ext-B + Cyrillic
 
 	private:
 		// Measure width of a text
