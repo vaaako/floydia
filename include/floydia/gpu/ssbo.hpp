@@ -12,11 +12,11 @@ class ShaderStorageBuffer final : public PersistentMappedBuffer {
 		// Creates a persistently mapped buffer divided into N frame regions.
 		// 'binding' is the shader binding point 'layout(binding = X)'.
 		// 'perframesize' is aligned internally to meet OpenGL offset requirements
-		ShaderStorageBuffer(const uint32 binding, const size_t perframesize) noexcept;
+		ShaderStorageBuffer(const u32 binding, const size_t perframesize) noexcept;
 		~ShaderStorageBuffer() = default;
 
 		// Binds a chunk of the SSBO
-		inline void bind(const uint32 offset, const size_t bytes) const noexcept {
+		inline void bind(const u32 offset, const size_t bytes) const noexcept {
 			glBindBufferRange(GL_SHADER_STORAGE_BUFFER, this->binding, this->buffer, offset, bytes);
 		}
 

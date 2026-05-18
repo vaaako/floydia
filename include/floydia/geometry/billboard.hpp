@@ -6,7 +6,7 @@ namespace floyd {
 
 class Billboard : public Renderable {
 	public:
-		enum Type : uint8 {
+		enum Type : u8 {
 			// Rotates all axis
 			Full = 1,
 			// Rotates only Y axis

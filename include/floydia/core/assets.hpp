@@ -42,9 +42,9 @@ class Assets final {
 		// Builds a new Texture or returns an existing one
 		std::shared_ptr<Texture> load_texture(const char* path);
 		// Builds a new Texture or returns an existing one
-		std::shared_ptr<Texture> load_texture(uint8* data, const uint32 width, const uint32 height, const uint8 channels = 4);
+		std::shared_ptr<Texture> load_texture(u8* data, const u32 width, const u32 height, const u8 channels = 4);
 		// Builds a new TTF file or returns an existing one.
-		std::shared_ptr<Text> load_font(const char* path, const uint32 size);
+		std::shared_ptr<Text> load_font(const char* path, const u32 size);
 		// Builds a new Shader Program or returns an existing one.
 		// If Vertex or Fragment shader is null, the Shader Program will be separable
 		std::shared_ptr<ShaderProgram> load_program(const char* vertex, const char* fragment);

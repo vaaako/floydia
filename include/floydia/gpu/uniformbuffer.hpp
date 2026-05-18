@@ -12,7 +12,7 @@ class UniformBuffer final : public PersistentMappedBuffer {
 		// Creates a persistently mapped buffer divided into N frame regions.
 		// 'binding' is the shader binding point 'layout(binding = X)'.
 		// 'perframesize' is aligned internally to meet OpenGL offset requirements
-		UniformBuffer(const uint32 binding, const size_t capacity) noexcept;
+		UniformBuffer(const u32 binding, const size_t capacity) noexcept;
 		~UniformBuffer() = default;
 
 		// Makes written data visible to GPU and binds the relevant buffer range.

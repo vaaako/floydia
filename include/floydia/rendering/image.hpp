@@ -16,9 +16,9 @@ struct Image {
 	// Load from file
 	Image(const char* path) noexcept;
 	// Load from raw pixels
-	Image(const uint8* data, const u32 width, const u32 height, const u8 channels) noexcept;
+	Image(const u8* data, const u32 width, const u32 height, const u8 channels) noexcept;
 	// Load from image data
-	Image(const uint8* data, const int size) noexcept;
+	Image(const u8* data, const int size) noexcept;
 	~Image() noexcept;
 
 	Image(const Image& other) noexcept = delete;
@@ -33,7 +33,7 @@ struct Image {
 
 	static void init_stb_image() noexcept;
 
-	static constexpr uint8 FALLBACK_IMAGE[16] = {
+	static constexpr u8 FALLBACK_IMAGE[16] = {
 		// Row 0
 		0, 0, 0, 255,  255, 0, 255, 255, // Purple, Black
 		// Row 1

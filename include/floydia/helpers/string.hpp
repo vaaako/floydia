@@ -29,7 +29,7 @@ namespace string {
 		return "";
 	}
 
-	std::vector<uint8> read_file_bytes(const char* path) noexcept;
+	std::vector<u8> read_file_bytes(const char* path) noexcept;
 
 } // namespace string
 } // namespace floyd

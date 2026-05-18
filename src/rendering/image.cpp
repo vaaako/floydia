@@ -19,12 +19,12 @@ Image::Image(const char* path) noexcept {
 		this->channels = 1;
 		this->fallback = true;
 
-		this->data = new uint8[sizeof(Image::FALLBACK_IMAGE)];
+		this->data = new u8[sizeof(Image::FALLBACK_IMAGE)];
 		std::memcpy(this->data, Image::FALLBACK_IMAGE, sizeof(Image::FALLBACK_IMAGE));
 	}
 }
 
-Image::Image(const uint8* data, const u32 width, const u32 height, const u8 channels) noexcept
+Image::Image(const u8* data, const u32 width, const u32 height, const u8 channels) noexcept
 	: width(width), height(height), channels(channels) {
 	if(data == nullptr || width <= 0 || height <= 0 || (channels != 1 && channels != 3 && channels != 4)) {
 		logger::log(logger::Error, "Raw image data is invalid!");
@@ -33,17 +33,17 @@ Image::Image(const uint8* data, const u32 width, const u32 height, const u8 chan
 		this->channels = 1;
 		this->fallback = true;
 
-		this->data = new uint8[sizeof(Image::FALLBACK_IMAGE)];
+		this->data = new u8[sizeof(Image::FALLBACK_IMAGE)];
 		std::memcpy(this->data, Image::FALLBACK_IMAGE, sizeof(Image::FALLBACK_IMAGE));
 		return;
 	}
 
 	const size_t bytes = width * height * channels;
-	this->data = new uint8[bytes];
+	this->data = new u8[bytes];
 	std::memcpy(this->data, data, bytes);
 }
 
-Image::Image(const uint8* data, const int size) noexcept {
+Image::Image(const u8* data, const int size) noexcept {
 	if(data != nullptr) this->data = stbi_load_from_memory(data, (int)size, &this->width, &this->height, &this->channels, 0);
 	if(this->data == nullptr) {
 		logger::log(logger::Error, "Image data is invalid!", path);
@@ -52,7 +52,7 @@ Image::Image(const uint8* data, const int size) noexcept {
 		this->channels = 1;
 		this->fallback = true;
 
-		this->data = new uint8[sizeof(Image::FALLBACK_IMAGE)];
+		this->data = new u8[sizeof(Image::FALLBACK_IMAGE)];
 		std::memcpy(this->data, Image::FALLBACK_IMAGE, sizeof(Image::FALLBACK_IMAGE));
 	}
 }

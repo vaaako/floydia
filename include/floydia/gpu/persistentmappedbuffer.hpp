@@ -25,7 +25,7 @@ class PersistentMappedBuffer {
 		// Number of frame regions (ring buffer sizze)
 		static constexpr uint32_t FRAMES_IN_FLIGHT = 3;
 		// Persistent Mapper buffer type
-		enum BufferType : uint8 {
+		enum BufferType : u8 {
 			SHADER_STORAGE_BUFFER,
 			UNIFORM_BUFFER
 		};
@@ -34,10 +34,10 @@ class PersistentMappedBuffer {
 		// Creates a persistently mapped buffer divided into N frame regions.
 		// 'binding' is the shader binding point 'layout(binding = X)'.
 		// 'perframesize' is aligned internally to meet OpenGL offset requirements
-		PersistentMappedBuffer(const BufferType type, const uint32 binding, const size_t perframesize) noexcept;
+		PersistentMappedBuffer(const BufferType type, const u32 binding, const size_t perframesize) noexcept;
 		~PersistentMappedBuffer() noexcept;
 
-		inline uint32 id() const noexcept { return this->buffer; };
+		inline u32 id() const noexcept { return this->buffer; };
 		inline size_t perframesize() const noexcept { return this->_perframesize; };
 
 		// Copies CPU data directly into mapped GPU memory at given offset
@@ -65,7 +65,7 @@ class PersistentMappedBuffer {
 
 		// Block the CPU until the GPU has finished reading this frame's buffer slot.
 		// Must be called before writing to the slot to avoid overwriting data still in use
-		void wait(const uint32 frameindex) noexcept {
+		void wait(const u32 frameindex) noexcept {
 			GLsync& fence = this->fences[frameindex];
 			if(!fence) return;
 			glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
@@ -75,7 +75,7 @@ class PersistentMappedBuffer {
 
 		// Insert a fence after draw calls are issued for this frame.
 		// Signals to future wait() calls when it is safe to reuse this buffer slot
-		void lock(const uint32 frameindex) noexcept {
+		void lock(const u32 frameindex) noexcept {
 			if(this->fences[frameindex]) glDeleteSync(this->fences[frameindex]);
 			this->fences[frameindex] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 		}
@@ -83,7 +83,7 @@ class PersistentMappedBuffer {
 
 		// Returns byte offset for the given frame's region.
 		// Ensures each frame writes to a separate memory slice (avoids CPU/GPU overlap)
-		inline size_t frame_offset(const uint32 frameindex) const noexcept {
+		inline size_t frame_offset(const u32 frameindex) const noexcept {
 			if(frameindex > FRAMES_IN_FLIGHT) {
 				TRACELOG(logger::Error,
 					"'frameindex' (%zu) out of ring buffer range (%d)",
@@ -98,7 +98,7 @@ class PersistentMappedBuffer {
 		void* mapped = nullptr;
 		size_t _perframesize = 0; // Size of one frame region
 		size_t capacity = 0; // Total buffer size
-		const uint32 binding;
+		const u32 binding;
 		GLuint buffer = 0;
 		GLint alignment = 0;
 		const BufferType btype;

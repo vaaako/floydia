@@ -37,7 +37,7 @@ class Text : protected Sprite {
 		};
 
 	public:
-		Text(const char* path, const uint32 size);
+		Text(const char* path, const u32 size);
 		~Text() noexcept;
 
 		inline const Texture* atlas() { return this->atlas_texture.get(); }
@@ -46,12 +46,12 @@ class Text : protected Sprite {
 
 		// Get stored Glyph from codepoint.
 		// Fallback to space character if not found
-		Glyph glyph(const uint32 codepoint, const float scale) const noexcept;
+		Glyph glyph(const u32 codepoint, const float scale) const noexcept;
 		// Simplified UTF-8 decoder
 		// Remove control bits from UTF-8 (1-4 bytes)
 		// https://datatracker.ietf.org/doc/html/rfc3629
-		uint32 utf8_next(const uint8*& p) const noexcept;
-		// const uint8*&: Advance caller's pointer
+		u32 utf8_next(const u8*& p) const noexcept;
+		// const u8*&: Advance caller's pointer
 
 		// Bake text to a texture
 		// std::shared_ptr<Texture> bake_texture(const std::string& text) const noexcept;
@@ -78,13 +78,13 @@ class Text : protected Sprite {
 		float base_ascent = 0.0f;
 
 		// ASCII + Common latin characters
-		static constexpr uint32 ATLAS_WIDTH  = 512;
-		static constexpr uint32 ATLAS_HEIGHT = 512;
-		static constexpr uint32 ATLAS_SIZE = ATLAS_WIDTH * ATLAS_HEIGHT;
-		static constexpr uint32 CHARSET_BEGIN = 32;
-		static constexpr uint32 CHARSET_END = 255; // latin-1 supplement
-		// static constexpr uint32 CHARSET_END   = 383; // Latin Extended-A
-		// static constexpr uint32 CHARSET_END   = 1279; // Latin Ext-B + Cyrillic
+		static constexpr u32 ATLAS_WIDTH  = 512;
+		static constexpr u32 ATLAS_HEIGHT = 512;
+		static constexpr u32 ATLAS_SIZE = ATLAS_WIDTH * ATLAS_HEIGHT;
+		static constexpr u32 CHARSET_BEGIN = 32;
+		static constexpr u32 CHARSET_END = 255; // latin-1 supplement
+		// static constexpr u32 CHARSET_END   = 383; // Latin Extended-A
+		// static constexpr u32 CHARSET_END   = 1279; // Latin Ext-B + Cyrillic
 
 	private:
 		// Measure width of a text

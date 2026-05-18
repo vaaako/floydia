@@ -41,13 +41,13 @@ Renderer::Renderer() noexcept :
 	this->ppipeline.bind();
 }
 
-void Renderer::update_viewport(const uint32 width, const uint32 height) noexcept {
+void Renderer::update_viewport(const u32 width, const u32 height) noexcept {
 	this->win_width = width;
 	this->win_height = height;
 	assets().defaults.PROG_VERT_TEXT->set_uniform_vec2f("u_screen_size", { this->win_width, this->win_height });
 }
 
-void Renderer::set_clear_color(const vec4<uint8>& color) noexcept {
+void Renderer::set_clear_color(const vec4<u8>& color) noexcept {
 	this->clear_color[0] = color.x / 255.0f;
 	this->clear_color[1] = color.y / 255.0f;
 	this->clear_color[2] = color.z / 255.0f;
@@ -175,12 +175,12 @@ void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const 
 	}
 
 	const float ascent = font->ascent();
-	const uint8* p = reinterpret_cast<const uint8*>(text.c_str());
+	const u8* p = reinterpret_cast<const u8*>(text.c_str());
 	float pen_x = pos.x;
 	float pen_y = pos.y;
 
 	while(*p) {
-		const uint32 codepoint = font->utf8_next(p);
+		const u32 codepoint = font->utf8_next(p);
 		if(codepoint == '\n') {
 			pen_x  = pos.x;
 			pen_y += font->line_height() * scale;
@@ -259,7 +259,7 @@ void Renderer::flush() noexcept {
 	if(!this->lights.empty() || this->persistent_ssbo_light_dirty > 0) {
 		if(!this->lights.empty()) {
 			Light::LightBuffer header;
-			header.count = static_cast<uint32>(this->lights.size());
+			header.count = static_cast<u32>(this->lights.size());
 			const size_t header_size = sizeof(Light::LightBuffer);
 			const size_t data_size = this->lights.size() * sizeof(Light::LightData);
 

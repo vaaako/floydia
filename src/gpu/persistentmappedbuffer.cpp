@@ -4,7 +4,7 @@
 
 namespace floyd {
 
-PersistentMappedBuffer::PersistentMappedBuffer(const BufferType type, const uint32 binding, const size_t perframesize) noexcept
+PersistentMappedBuffer::PersistentMappedBuffer(const BufferType type, const u32 binding, const size_t perframesize) noexcept
 	: binding(binding), btype(type) {
 	// Query required aligment for buffers offsets
 	glGetIntegerv(
@@ -87,7 +87,7 @@ void PersistentMappedBuffer::make_buffer(const size_t perframesize) noexcept {
 
 void PersistentMappedBuffer::delete_fences() noexcept {
 	// Wait and delete all pending fences first
-	for(uint32 i = 0; i < FRAMES_IN_FLIGHT; i++) {
+	for(u32 i = 0; i < FRAMES_IN_FLIGHT; i++) {
 		if(this->fences[i]) {
 			GLsync& fence = this->fences[i];
 			glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);

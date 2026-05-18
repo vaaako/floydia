@@ -6,7 +6,7 @@ namespace floyd {
 
 class Light : public Object {
 	public:
-		enum Type : uint32 {
+		enum Type : u32 {
 			// Infinite distance, no position or attenuation
 			Directional = 0,
 			// Point of light
@@ -16,8 +16,8 @@ class Light : public Object {
 		};
 
 		struct alignas(16) LightBuffer {
-			uint32 count;
-			uint32 _pad[3]; // Remove padding warning
+			u32 count;
+			u32 _pad[3]; // Remove padding warning
 		};
 
 		struct alignas(16) LightData {
@@ -27,7 +27,7 @@ class Light : public Object {
 			float range;
 			float inner_angle; // internal cos angle (spot)
 			float outer_angle; // external cos angle (spot)
-			uint32 type; // uint32 for compability
+			u32 type; // u32 for compability
 		};
 
 	public:

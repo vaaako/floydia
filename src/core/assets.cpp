@@ -11,8 +11,8 @@
 namespace floyd {
 
 Assets::Assets() noexcept {
-	uint8 white[] = { 255, 255, 255, 255 }; // 1x1 RGBA white
-	uint8 blackpurple[16] = {
+	u8 white[] = { 255, 255, 255, 255 }; // 1x1 RGBA white
+	u8 blackpurple[16] = {
 		// Row 0
 		0, 0, 0, 255,  255, 0, 255, 255, // Purple, Black
 		// Row 1
@@ -42,7 +42,7 @@ std::shared_ptr<Texture> Assets::load_texture(const char* path) {
 	return tex;
 }
 
-std::shared_ptr<Texture> Assets::load_texture(uint8* data, const uint32 width, const uint32 height, const uint8 channels) {
+std::shared_ptr<Texture> Assets::load_texture(u8* data, const u32 width, const u32 height, const u8 channels) {
 	if(data == nullptr) throw std::invalid_argument("Texture data is null");
 	const size_t hash = hash::of(data);
 	std::shared_ptr<Texture> tex = this->load<Texture>(hash);
@@ -53,7 +53,7 @@ std::shared_ptr<Texture> Assets::load_texture(uint8* data, const uint32 width, c
 	return tex;
 }
 
-std::shared_ptr<Text> Assets::load_font(const char* path, const uint32 size) {
+std::shared_ptr<Text> Assets::load_font(const char* path, const u32 size) {
 	if(path == nullptr) throw std::invalid_argument("Font path is null");
 	const size_t hash = hash::of(path);
 	std::shared_ptr<Text> text = this->load<Text>(hash);
@@ -130,8 +130,8 @@ std::shared_ptr<Model> Assets::load_model(const char* path) {
 	// Each shape = one SubMesh
 	for (const tinyobj::shape_t& shape : shapes) {
 		std::vector<Vertex> vertices;
-		std::vector<uint32> indices;
-		std::unordered_map<size_t, uint32> uniq_verts; // dedup vertices
+		std::vector<u32> indices;
+		std::unordered_map<size_t, u32> uniq_verts; // dedup vertices
 		
 		for(const tinyobj::index_t& idx : shape.mesh.indices) {
 			Vertex v;
@@ -168,7 +168,7 @@ std::shared_ptr<Model> Assets::load_model(const char* path) {
 				// Duplicated
 				indices.push_back(it->second);
 			} else {
-				uint32 i = (uint32)vertices.size();
+				u32 i = (u32)vertices.size();
 				vertices.push_back(v);
 				indices.push_back(i);
 				uniq_verts[h] = i;
@@ -221,7 +221,7 @@ std::shared_ptr<Mesh> Assets::load_quad_mesh() noexcept {
 			{ { -0.5f,  0.5f,  0.5f },  { 0.0f, 1.0f } }
 		};
 
-		const std::vector<uint8> indices = {
+		const std::vector<u8> indices = {
 			0, 1, 2,
 			2, 3, 0,
 		};
@@ -244,7 +244,7 @@ std::shared_ptr<Mesh> Assets::load_quad3d_mesh() noexcept {
 			{ {  0.5f,  0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
 			{ { -0.5f,  0.5f,  0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } }
 		};
-		const std::vector<uint8> indices = { 0, 1, 2, 2, 3, 0 };
+		const std::vector<u8> indices = { 0, 1, 2, 2, 3, 0 };
 
 		VertexLayout layout;
 		layout.add<float>(3); // position
@@ -296,7 +296,7 @@ std::shared_ptr<Mesh> Assets::load_cube_mesh() noexcept {
 			{ { -0.5f,  0.5f, -0.5f },  { 0.0f,  1.0f,  0.0f },  { 0.0f, 0.0f } }
 		};
 
-		std::vector<uint8> indices = {
+		std::vector<u8> indices = {
 			// Front face
 			0, 1, 2,
 			2, 3, 0,

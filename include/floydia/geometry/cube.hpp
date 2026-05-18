@@ -8,7 +8,7 @@ namespace floyd {
 class Cube : public Renderable {
 	public:
 		// Used to define the faces to render
-		enum Face : uint8 {
+		enum Face : u8 {
 			FRONT  = 1 << 0, // -Z
 			BACK   = 1 << 1, // +Z
 			TOP    = 1 << 2, // +Y
@@ -20,7 +20,7 @@ class Cube : public Renderable {
 		// TODO: not complete
 
 		// Render all faces by default
-		// Cube(const uint8 face_mask = 0b111111) noexcept;
+		// Cube(const u8 face_mask = 0b111111) noexcept;
 
 		Cube() noexcept;
 

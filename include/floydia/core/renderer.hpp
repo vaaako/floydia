@@ -26,9 +26,9 @@ class Renderer final {
 		~Renderer() = default;
 
 		// Update stored width and height values
-		void update_viewport(const uint32 width, const uint32 height) noexcept;
+		void update_viewport(const u32 width, const u32 height) noexcept;
 		// Changes the clear color
-		void set_clear_color(const vec4<uint8>& color) noexcept;
+		void set_clear_color(const vec4<u8>& color) noexcept;
 		// Clear the screen
 		void clear() const noexcept;
 
@@ -74,9 +74,9 @@ class Renderer final {
 			MaterialInstance* matinst;
 			std::vector<Renderable::InstanceData> instances;
 			// Start index in SSBO
-			uint32 instance_index; // start offset into the instance buffer
+			u32 instance_index; // start offset into the instance buffer
 			// Number of instances for this mesh
-			uint32 instance_count;
+			u32 instance_count;
 		};
 
 		struct TextBatch {
@@ -154,13 +154,13 @@ class Renderer final {
 		GLuint text_vao; // empty vao to satisfy core profile
 		
 		// Cache if necessary
-		uint32 win_width;
-		uint32 win_height;
-		uint32 frameindex = 0;
+		u32 win_width;
+		u32 win_height;
+		u32 frameindex = 0;
 		// Counts down from FRAMES_IN_FLIGHT to ensure persistent data
 		// is uploaded to every buffer slot after a change
-		uint32 persistent_ssbo_objs_dirty;
-		uint32 persistent_ssbo_light_dirty;
+		u32 persistent_ssbo_objs_dirty;
+		u32 persistent_ssbo_light_dirty;
 		int pass_index = -1; // Tracks the current pass within a frame. Incremented on each begin_draw call
 							 // Used to offset the camera UBO so eac pass has its own camera slot without overwriting others
 		bool camera_dirty = true; // Check if camera moved

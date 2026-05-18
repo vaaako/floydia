@@ -14,7 +14,7 @@ namespace opengl {
 		}, nullptr);
 	}
 
-	GLuint channel_to_format(const uint8 channels, const bool internal) {
+	GLuint channel_to_format(const u8 channels, const bool internal) {
 		switch(channels) {
 			case 1:
 				return (internal) ? GL_R8 : GL_RED;

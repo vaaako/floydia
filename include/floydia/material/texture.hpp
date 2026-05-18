@@ -9,7 +9,7 @@ class Texture final {
 	public:
 		// Texture filters.
 		// Linear and Repeat are added by default
-		enum class Filter : uint32 {
+		enum class Filter : u32 {
 			Nearest = GL_NEAREST,
 			Linear = GL_LINEAR,
 
@@ -21,7 +21,7 @@ class Texture final {
 	public:
 		Texture();
 		Texture(const char* path);
-		Texture(uint8* data, const uint32 width, const uint32 height, const uint8 channels = 4);
+		Texture(u8* data, const u32 width, const u32 height, const u8 channels = 4);
 		~Texture() noexcept;
 		// No copy
 		Texture(const Texture&) = delete;
@@ -31,15 +31,15 @@ class Texture final {
 		Texture& operator=(Texture&&) = default;
 
 		// Bind to a slot
-		inline void bind(const uint32 slot) const noexcept { glBindTextureUnit(slot, this->tex); }
+		inline void bind(const u32 slot) const noexcept { glBindTextureUnit(slot, this->tex); }
 		// Set a texture filter
 		void set_filter(const Texture::Filter filter) const noexcept;
 
-		void bake_texture(const uint8* data, const uint8 channels);
+		void bake_texture(const u8* data, const u8 channels);
 
-		inline uint32 id() const noexcept { return this->tex; }
-		inline uint32 width() const noexcept { return this->_width; }
-		inline uint32 height() const noexcept { return this->_height; }
+		inline u32 id() const noexcept { return this->tex; }
+		inline u32 width() const noexcept { return this->_width; }
+		inline u32 height() const noexcept { return this->_height; }
 
 	private:
 		GLuint tex = 0;

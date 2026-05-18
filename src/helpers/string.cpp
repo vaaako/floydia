@@ -4,7 +4,7 @@
 
 namespace floyd {
 namespace string {
-	std::vector<uint8> read_file_bytes(const char* path) noexcept {
+	std::vector<u8> read_file_bytes(const char* path) noexcept {
 		if(path == nullptr) return {};
 		if(!std::filesystem::exists(path)) return {};
 
@@ -12,7 +12,7 @@ namespace string {
 		std::streamsize size = file.tellg(); // File size
 		file.seekg(0, std::ios::beg);
 		// Read file into buffer
-		std::vector<uint8> buffer = std::vector<uint8>(static_cast<size_t>(size));
+		std::vector<u8> buffer = std::vector<u8>(static_cast<size_t>(size));
 		if(!file.read(reinterpret_cast<char*>(buffer.data()), size)) return {};
 		return buffer;
 	}

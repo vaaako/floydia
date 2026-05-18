@@ -17,7 +17,7 @@ Texture::Texture(const char* path) {
 	glGenerateTextureMipmap(this->tex);
 }
 
-Texture::Texture(uint8* data, const uint32 width, const uint32 height, const uint8 channels)
+Texture::Texture(u8* data, const u32 width, const u32 height, const u8 channels)
 	: _width(width), _height(height) {
 
 	Image img = Image(data, width, height, channels);
@@ -36,7 +36,7 @@ Texture::~Texture() noexcept {
 	glDeleteTextures(1, &this->tex);
 }
 
-void Texture::bake_texture(const uint8* data, const uint8 channels) {
+void Texture::bake_texture(const u8* data, const u8 channels) {
 	glCreateTextures(GL_TEXTURE_2D, 1, &this->tex);
 	glTextureStorage2D(this->tex, 1, opengl::channel_to_format(channels, true), this->_width, this->_height);
 	glTextureSubImage2D(this->tex,

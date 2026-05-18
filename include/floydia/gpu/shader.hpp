@@ -20,7 +20,7 @@ class Shader {
 		Shader(const char* source, const Shader::Type type);
 		~Shader() noexcept;
 
-		inline uint32 id() const noexcept { return this->shader; }
+		inline u32 id() const noexcept { return this->shader; }
 		// Extracts Shader's Id and takes ownership
 		GLuint release() noexcept;
 

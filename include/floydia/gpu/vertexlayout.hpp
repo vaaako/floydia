@@ -12,9 +12,9 @@ class VertexLayout final {
 			// The offset of this attribute within a vertex
 			size_t offset;
 			// The index of the vertex attribute in the shader
-			uint32 index;
+			u32 index;
 			// The number of components per attribute (e.g., 3 for a vec3)
-			uint32 count;
+			u32 count;
 			// Type of the indices
 			GLenum type;
 			// Wheter to normalize the data
@@ -23,7 +23,7 @@ class VertexLayout final {
 
 		// Automatically deals with offset and other values when adding a new attribute
 		template <typename T>
-		void add(const uint32 count, const bool normalized = false) noexcept;
+		void add(const u32 count, const bool normalized = false) noexcept;
 
 		const std::vector<Attribute>& get() const noexcept {
 			return this->attributes;
@@ -35,12 +35,12 @@ class VertexLayout final {
 
 	private:
 		std::vector<Attribute> attributes;
-		uint32 index = 0;
-		uint32 stride = 0;
+		u32 index = 0;
+		u32 stride = 0;
 };
 
 template <typename T>
-void VertexLayout::add(const uint32 count, const bool normalized) noexcept {
+void VertexLayout::add(const u32 count, const bool normalized) noexcept {
 	static_assert(std::is_arithmetic_v<T>, "Type must be arithmetic");
 
 	this->attributes.push_back({

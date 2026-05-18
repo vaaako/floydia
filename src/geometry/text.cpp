@@ -17,11 +17,11 @@ struct Text::impl {
 	stbtt_fontinfo info; // Does not need free
 };
 
-Text::Text(const char* path, const uint32 size)
+Text::Text(const char* path, const u32 size)
 	: Sprite(), pimpl(std::make_unique<impl>()) {
 
 	if(path == nullptr) throw std::runtime_error(string::format("Font path is null", path));
-	const std::vector<uint8> file_buf = string::read_file_bytes(path);
+	const std::vector<u8> file_buf = string::read_file_bytes(path);
 	if(file_buf.empty()) throw std::runtime_error(string::format("Font \"%s\" failed to load", path));
 	if(!stbtt_InitFont(&pimpl->info, file_buf.data(), 0)) throw std::runtime_error(string::format("Font \"%s\" failed to init", path));
 
@@ -107,7 +107,7 @@ Text::Text(const char* path, const uint32 size)
 // Needed for 'impl'
 Text::~Text() noexcept {}
 
-Text::Glyph Text::glyph(const uint32 codepoint, const float scale) const noexcept {
+Text::Glyph Text::glyph(const u32 codepoint, const float scale) const noexcept {
 	auto it = this->glyphs.find(codepoint);
 	if(it == this->glyphs.end()) {
 		it = this->glyphs.find(' '); // Try space as fallback
@@ -128,16 +128,16 @@ Text::Glyph Text::glyph(const uint32 codepoint, const float scale) const noexcep
 
 float Text::measure(const char* text, const float scale) const noexcept {
 	float width = 0;
-	const uint8* p = (const uint8*)text;
+	const u8* p = (const u8*)text;
 	while(*p) {
-		const uint32 cp = this->utf8_next(p); // Extract unicode codepoint
+		const u32 cp = this->utf8_next(p); // Extract unicode codepoint
 		Glyph g = this->glyph(cp, scale);
 		width += g.advance * scale; // Sum widths
 	}
 	return width;
 }
 
-uint32 Text::utf8_next(const uint8*& p) const noexcept {
+u32 Text::utf8_next(const u8*& p) const noexcept {
 	uint8_t c = (uint8_t)*p++; // Read first byte and advance caller's pointer
 	// ASCII = 0xxxxxxx
 	// Single-byte UTF-8 directly matches unicode value

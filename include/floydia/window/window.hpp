@@ -20,8 +20,8 @@ namespace floyd {
 class Window final {
 	public:
 		struct Settings {
-			uint32 width;
-			uint32 height;
+			u32 width;
+			u32 height;
 			std::string title;
 			// NOT IMPLEMENTED YET
 			bool fullscreen = false;
@@ -32,13 +32,13 @@ class Window final {
 		~Window();
 
 		// Window current width
-		inline uint32 width() const noexcept { return this->_width; }
+		inline u32 width() const noexcept { return this->_width; }
 		// Window current height
-		inline uint32 height() const noexcept { return this->_height; }
+		inline u32 height() const noexcept { return this->_height; }
 		// Window current size
-		vec2<uint32> sttc_size() noexcept;
+		vec2<u32> sttc_size() noexcept;
 		// Window current size
-		vec2<uint32> size() const noexcept;
+		vec2<u32> size() const noexcept;
 
 		// Check if the window is open
 		bool is_open() const noexcept;
@@ -85,14 +85,14 @@ class Window final {
 		// Fullscreen mode for the window
 		void set_fullscreen(const bool state) noexcept;
 		// Sets the opacity level of the window
-		void set_opacity(const uint8 opacity) noexcept;
+		void set_opacity(const u8 opacity) noexcept;
 
 		// Sets the minimum size of the window
-		void set_min_size(const uint32 width, const uint32 height) noexcept;
+		void set_min_size(const u32 width, const u32 height) noexcept;
 		// Sets the maximum size of the window
-		void set_max_size(const uint32 width, const uint32 height) noexcept;
+		void set_max_size(const u32 width, const u32 height) noexcept;
 		// Resizes the window viewport to the given dimensions
-		void update_viewport(const uint32 width, const uint32 height) noexcept;
+		void update_viewport(const u32 width, const u32 height) noexcept;
 
 		// Returns true if mouse is grabbed
 		bool is_mouse_grabbed() const noexcept;
@@ -169,8 +169,8 @@ class Window final {
 		Clock clock = Clock();
 
 		std::string title;
-		uint32 _width;
-		uint32 _height;
+		u32 _width;
+		u32 _height;
 
 		int mouse_x = 0;
 		int mouse_y = 0;
