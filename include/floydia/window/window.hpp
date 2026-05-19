@@ -97,9 +97,12 @@ class Window final {
 		// Returns true if mouse is grabbed
 		bool is_mouse_grabbed() const noexcept;
 
+		// Casts a ray from the mouse position and returns the closest visible object hit.
+		// Returns nullptr if nothing was hit.
+		// Call AFTER 'begin_frame()', otherwise dynamic objects won't be included
+		Renderable* pick(const PerspectiveCamera& camera, const vec2<u32>& mouse_pos) const noexcept { return renderer->pick(camera, mouse_pos, this->size()); }
 		// Clears screen
 		inline void clear() const { renderer->clear(); }
-
 		// Advances 'frameindex' and waits for the GPU to finish reading
 		// the current frame's buffer slots before the CPU writes new data
 		void begin_frame() noexcept { renderer->begin_frame(); }
@@ -108,8 +111,7 @@ class Window final {
 		void end_frame() noexcept { renderer->end_frame(); }
 		// Advances the frame index, syncs GPU fences, updates camera UBO,
 		// updates the frustum, and rebuilds persistent batches if dirty
-		inline void begin_draw(const Camera& camera) const noexcept { renderer->begin_draw(*this, camera); }
-		
+		inline void begin_draw(const Camera& camera) const noexcept { renderer->begin_draw(camera); }
 		// Includes persistent objects in the current pass.
 		// Must be called after 'begin_draw()' and before 'flush()'.
 		// Persistent objects are only rebuilt when dirty (i.e. when 'add()' is called).
@@ -119,7 +121,7 @@ class Window final {
 		inline void draw(Renderable& obj) const noexcept { renderer->draw(obj); }
 		// Submit a persistent object. Batched once and reused every frame.
 		// Skips per-frame frustum culling
-		inline void add(const Renderable& obj) const noexcept { renderer->add(obj); }
+		inline void add(Renderable& obj) const noexcept { renderer->add(obj); }
 		// Submit a dynamic light object for this frame
 		inline void draw(const Light& light) const noexcept { renderer->draw(light); }
 		// Submit a persistent light object
@@ -150,7 +152,7 @@ class Window final {
 		// Outputs the delta x, y position of the mouse inside the window
 		vec2<float> mouse_vector() const noexcept;
 		// Outputs the current x, y position of the mouse inside the window
-		vec2<int> mouse_pos() const noexcept;
+		vec2<u32> mouse_pos() const noexcept;
 
 		// Make this window renderable
 		void enable_ctx() const noexcept;

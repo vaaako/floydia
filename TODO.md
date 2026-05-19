@@ -118,8 +118,9 @@ I wrote most of the things here very tired, sorry for any english mistake
 - [x] Light. Blinn-Phong
 - [x] Metallic / Roughness
 - [x] Store persistent instances and append to final instances
-
 - [ ] Discord RPC support?
+- [ ] Faster billboard
+	+ Remove `final_matrix`
 - [ ] Click on shape makes a raycast to change object
 	- [ ] Scene storage
 - [ ] scarablib stuff

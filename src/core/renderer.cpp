@@ -1,3 +1,4 @@
+#include "floydia/physics/ray.hpp"
 #include "floydia/window/window.hpp"
 #include <floydia/core/core.hpp>
 #include <floydia/gpu/shader.hpp>
@@ -41,6 +42,37 @@ Renderer::Renderer() noexcept :
 	this->ppipeline.bind();
 }
 
+Renderable* Renderer::pick(const PerspectiveCamera& camera, const vec2<u32>& mouse_pos, const vec2<u32>& win_size) const noexcept {
+	Ray ray = Ray::screen_to_ray(camera, mouse_pos, win_size);
+	Renderable* obj = nullptr;
+	float obj_t = std::numeric_limits<float>::max();
+
+	auto test = [&](Renderable* r) {
+		if(r == nullptr || !r->visible) return;
+		const float t = ray.test_aabb(r->world_aabb());
+		if(t >= 0.0f) {
+        logger::log(logger::Debug, "Hit candidate UUID: %d | t: %.4f | aabb min: %.2f %.2f %.2f",
+            r->uuid(), t, r->world_aabb().min.x, r->world_aabb().min.y, r->world_aabb().min.z);
+		}
+		if(t >= 0.0f && t < obj_t) {
+			obj_t = t;
+			obj = r;
+		}
+	};
+
+	for(Renderable* r : this->persistent_objs) {
+		test(r);
+	}
+
+	// Mostly dynamic objs
+	// May contain persistent objects, if "persistent_dirty" this frame
+	for(Renderable* r : this->pickables) {
+		test(r);
+	}
+
+	return obj;
+}
+
 void Renderer::update_viewport(const u32 width, const u32 height) noexcept {
 	this->win_width = width;
 	this->win_height = height;
@@ -68,6 +100,8 @@ void Renderer::begin_frame() noexcept {
 	this->ssbo_objs.wait(this->frameindex);
 	this->ssbo_lights.wait(this->frameindex);
 	this->ssbo_glyphs.wait(this->frameindex);
+
+	this->pickables.clear();
 }
 
 void Renderer::end_frame() noexcept {
@@ -78,7 +112,7 @@ void Renderer::end_frame() noexcept {
 	this->ssbo_glyphs.lock(this->frameindex);
 }
 
-void Renderer::begin_draw(const Window& window, const Camera& camera) noexcept {
+void Renderer::begin_draw(const Camera& camera) noexcept {
 	this->pass_index++;
 	// Clear previous frame
 	this->dynamic_batches.clear();
@@ -102,7 +136,7 @@ void Renderer::begin_draw(const Window& window, const Camera& camera) noexcept {
 	// Rebuild persistent batch cache only when dirty
 	if(this->persistent_dirty) {
 		this->persistent_batches.clear();
-		for(const Renderable* obj : this->persistent_objs) {
+		for(Renderable* obj : this->persistent_objs) {
 			if(!obj) continue;
 			this->add_batch(*obj, this->persistent_batches);
 		}
@@ -133,16 +167,16 @@ void Renderer::draw_persistent() noexcept {
 void Renderer::draw(Renderable& obj) noexcept {
 	// Only cull if obj changed or camera moved
 	if(obj.transform.isdirty()) {
-		obj.rebuild_world_aabb();
-		obj.visible = this->frustum.test(obj.world_aabb);
+		obj.visible = this->frustum.test(obj.world_aabb());
 	} else if(this->camera_dirty) {
-		obj.visible = this->frustum.test(obj.world_aabb);
+		obj.visible = this->frustum.test(obj.world_aabb());
 	}
 	if(!obj.visible) return;
 	this->add_batch(obj, this->dynamic_batches);
+	this->pickables.push_back(&obj); // For Ray picking
 }
 
-size_t Renderer::add(const Renderable& obj) noexcept {
+size_t Renderer::add(Renderable& obj) noexcept {
 	this->persistent_objs.push_back(&obj);
 	this->persistent_dirty = true;
 	this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
@@ -285,12 +319,13 @@ bool Renderer::camera_moved(const glm::mat4& vp) noexcept {
 	return false;
 }
 
-void Renderer::add_batch(const Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept {
+void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept {
 	// NOTE: Culling for both types of objects may cause problems.
 	// If Persistent Object was added not visible, it is likely to never be visible
 	// (excepts a new object is added when it is visible)
 	const glm::mat4& mmatrix = obj.final_matrix(this->cached_view); // this updates model matrix
 	Renderable::InstanceData data = { mmatrix, obj.color_norm() };
+
 	// Create draw commands with instance index
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
 		// Cull sub meshes
@@ -315,12 +350,9 @@ void Renderer::add_batch(const Renderable& obj, std::unordered_map<BatchKey, Dra
 		#endif
 			batch.mesh = sub.mesh.get();
 			batch.matinst = sub.material.get();
-			// batch.instance_count = 1;
-			// batch.instances.push_back(data);
 		}
 		batch.instance_count++;
 		batch.instances.push_back(data);
-
 		// NOTE: If 'instances' were appended here
 		// the layout would follow this order:
 		// - Mesh A: [A0]

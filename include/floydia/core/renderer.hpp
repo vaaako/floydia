@@ -1,5 +1,6 @@
 #pragma once
 
+#include "floydia/camera/perspectivecamera.hpp"
 #include "floydia/geometry/text.hpp"
 #include <floydia/rendering/light.hpp>
 #include <floydia/gpu/programpipeline.hpp>
@@ -25,10 +26,15 @@ class Renderer final {
 		Renderer() noexcept;
 		~Renderer() = default;
 
+		// Casts a ray from the mouse position and returns the closest visible object hit.
+		// Returns nullptr if nothing was hit.
+		// Call AFTER 'begin_frame()', otherwise dynamic objects won't be included
+		Renderable* pick(const PerspectiveCamera& camera, const vec2<u32>& mouse_pos, const vec2<u32>& win_size) const noexcept;
 		// Update stored width and height values
 		void update_viewport(const u32 width, const u32 height) noexcept;
 		// Changes the clear color
 		void set_clear_color(const vec4<u8>& color) noexcept;
+
 		// Clear the screen
 		void clear() const noexcept;
 
@@ -42,7 +48,7 @@ class Renderer final {
 
 		// Advances the frame index, syncs GPU fences, updates camera UBO,
 		// updates the frustum, and rebuilds persistent batches if dirty
-		void begin_draw(const Window& window, const Camera& camera) noexcept;
+		void begin_draw(const Camera& camera) noexcept;
 
 		// Includes persistent objects in the current pass.
 		// Must be called after 'begin_draw()' and before 'flush()'.
@@ -53,7 +59,7 @@ class Renderer final {
 		void draw(Renderable& obj) noexcept;
 		// Submit a persistent object. Batched once and reused every frame.
 		// Skips per-frame frustum culling
-		size_t add(const Renderable& obj) noexcept;
+		size_t add(Renderable& obj) noexcept;
 		// Submit a dynamic object for this frame
 		void draw(const Light& light) noexcept;
 		// Submit a persistent light object
@@ -72,6 +78,7 @@ class Renderer final {
 			// MaterialInstance holds textures + points to cached Material (Shaders)
 			// BatchKey uses GPU IDs so different instances with same state share a batch
 			MaterialInstance* matinst;
+			// To send to SSBO
 			std::vector<Renderable::InstanceData> instances;
 			// Start index in SSBO
 			u32 instance_index; // start offset into the instance buffer
@@ -125,7 +132,9 @@ class Renderer final {
 		std::vector<Renderable::InstanceData> instances;
 		std::vector<Renderable::InstanceData> persistent_instances;
 		// Persistent object pointers, stored by pointer to avoid copies
-		std::vector<const Renderable*> persistent_objs;
+		std::vector<Renderable*> persistent_objs;
+		// For ray picking only. Cleared on 'begin_frame'
+		std::vector<Renderable*> pickables;
 
 		// All instance data, uploaded to the SSBO each frame
 		std::vector<Light::LightData> lights;
@@ -171,7 +180,7 @@ class Renderer final {
 
 	private:
 		bool camera_moved(const glm::mat4& vp) noexcept;
-		void add_batch(const Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
+		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
 		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept;
 		void draw_text_batches() noexcept;
 };

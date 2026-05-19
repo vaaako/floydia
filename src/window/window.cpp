@@ -172,10 +172,10 @@ vec2<float> Window::mouse_vector() const noexcept {
 	return output;
 }
 
-vec2<int> Window::mouse_pos() const noexcept {
-	vec2<int> output;
-	RGFW_window_getMouse(pimpl->window, &output.x, &output.y);
-	return output;
+vec2<u32> Window::mouse_pos() const noexcept {
+	int x, y;
+	RGFW_window_getMouse(pimpl->window, &x, &y);
+	return { x, y };
 }
 
 void Window::enable_ctx() const noexcept  { RGFW_window_makeCurrentContext_OpenGL(pimpl->window); }

@@ -8,7 +8,7 @@ namespace floyd {
 Billboard::Billboard() noexcept : Renderable(Billboard::create_model()) {}
 
 glm::mat4 Billboard::final_matrix(const glm::mat4& view) const noexcept {
-	glm::mat4 model = this->transform.model_matrix();
+	const glm::mat4 model = this->transform.model_matrix();
 	glm::mat4 mv    = view * model;
 
 	if(this->type == Billboard::Full) {
