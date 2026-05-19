@@ -48,13 +48,10 @@ Renderable* Renderer::pick(const PerspectiveCamera& camera, const vec2<u32>& mou
 	float obj_t = std::numeric_limits<float>::max();
 
 	auto test = [&](Renderable* r) {
-		if(r == nullptr || !r->visible) return;
+		if(r == nullptr || !r->visible || !r->world_aabb().valid) return;
 		const float t = ray.test_aabb(r->world_aabb());
-		if(t >= 0.0f) {
-        logger::log(logger::Debug, "Hit candidate UUID: %d | t: %.4f | aabb min: %.2f %.2f %.2f",
-            r->uuid(), t, r->world_aabb().min.x, r->world_aabb().min.y, r->world_aabb().min.z);
-		}
-		if(t >= 0.0f && t < obj_t) {
+		// 100.0f here is the max distance
+		if(t >= 0.0f && t < 100.0f && t < obj_t) {
 			obj_t = t;
 			obj = r;
 		}

@@ -20,12 +20,7 @@ struct AABB {
 
 	// Merge another AABB into this one.
 	// Used by 'Model' to wrap all submeshes
-	inline void merge(const AABB& other) {
-		if(!other.valid) return;
-		this->min = glm::min(this->min, other.min);
-		this->max = glm::max(this->max, other.max);
-		this->valid = true;
-	}
+	void merge(const AABB& other) noexcept;
 
 	// Midpoint of box
 	inline vec3<float> center() const noexcept {

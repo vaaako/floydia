@@ -12,6 +12,7 @@ void AABB::compute_local_aabb(const std::vector<Vertex>& vertices) noexcept {
 }
 
 AABB AABB::to_world(const glm::mat4& model) const noexcept {
+	if(!this->valid) return {};
 	// Transform all 8 corners, re-fit a new AABB around them
 	// THis is correct even with non-uniform scale or rotation
 	const vec3<float> corners[8] = {
@@ -31,6 +32,13 @@ AABB AABB::to_world(const glm::mat4& model) const noexcept {
 	}
 	world.valid = true;
 	return world;
+}
+
+void AABB::merge(const AABB& other) noexcept {
+	if(!other.valid) return;
+	this->min = glm::min(this->min, other.min);
+	this->max = glm::max(this->max, other.max);
+	this->valid = true;
 }
 
 } // namespace floyd

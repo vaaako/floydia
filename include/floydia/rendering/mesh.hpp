@@ -29,7 +29,8 @@ class Mesh final {
 			const std::vector<T>& vertices,
 			const std::vector<U>& indices,
 			const VertexLayout& layout,
-			const bool dynamic = false
+			const bool dynamic = false,
+			const bool make_aabb = true
 		);
 		~Mesh() noexcept;
 
@@ -59,7 +60,13 @@ class Mesh final {
 };
 
 template <typename T, typename U>
-Mesh::Mesh(const std::vector<T>& vertices, const std::vector<U>& indices, const VertexLayout& layout, const bool dynamic)
+Mesh::Mesh(
+	const std::vector<T>& vertices,
+	const std::vector<U>& indices,
+	const VertexLayout& layout,
+	const bool dynamic,
+	const bool make_aabb
+)
 	: capacity(vertices.size()),
 	vertex_type_size(sizeof(T)),
 	index_count(indices.size()),
@@ -120,7 +127,9 @@ Mesh::Mesh(const std::vector<T>& vertices, const std::vector<U>& indices, const 
 	}
 
 	// Compute AABB
-	if constexpr (std::is_same_v<T, Vertex>) this->aabb.compute_local_aabb(vertices);
+	if constexpr (std::is_same_v<T, Vertex>) {
+		if(make_aabb) this->aabb.compute_local_aabb(vertices);
+	}
 }
 
 } // namespace floyd

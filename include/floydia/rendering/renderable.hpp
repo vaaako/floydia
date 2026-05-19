@@ -26,8 +26,10 @@ class Renderable : public Object {
 
 
 		// Returns world AABB
-		inline AABB world_aabb() noexcept {
-			this->_world_aabb = this->_model->aabb.to_world(this->transform.model_matrix());
+		virtual inline AABB world_aabb() noexcept {
+			// Also check for valid world_abb, so it is initialized the first time
+			if(this->transform.isdirty() || !this->_world_aabb.valid)
+				this->_world_aabb = this->_model->aabb.to_world(this->transform.model_matrix());
 			return this->_world_aabb;
 		}
 
