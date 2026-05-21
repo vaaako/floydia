@@ -68,7 +68,6 @@ class PerspectiveCamera final : public Camera {
 
 	private:
 		vec3<float> up      = vec3<float>(0.0f, 1.0f,  0.0f);
-		vec3<float> forward = vec3<float>(0.0f, 0.0f, -1.0f);
 		vec3<float> right   = vec3<float>(1.0f, 0.0f,  0.0f);
 
 		float fov;

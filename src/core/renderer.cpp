@@ -1,5 +1,4 @@
 #include "floydia/physics/ray.hpp"
-#include "floydia/window/window.hpp"
 #include <floydia/core/core.hpp>
 #include <floydia/gpu/shader.hpp>
 #include <floydia/core/renderer.hpp>
@@ -26,7 +25,7 @@ Renderer::Renderer() noexcept :
 	ubo_camera(0, sizeof(Camera::CameraData)),
 	ssbo_objs(1, sizeof(Renderable::InstanceData) * 128),
 	ssbo_lights(2, sizeof(Light::LightData) * 10),
-	ssbo_glyphs(3, sizeof(Text::GlyphData) * 128),
+	ssbo_glyphs(3, sizeof(Text::GlyphData) * 256),
 	ppipeline(ProgramPipeline())
 	{
 
@@ -123,16 +122,16 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 	// Update Camera and Camera Uniform Buffer
 	this->cached_view = camera.view();
 	this->cached_proj = camera.projection();
-	this->camerapos = camera.position;
 
 	// Update frustum once per frame
-	glm::mat4 vp = this->cached_proj * this->cached_view;
+	const glm::mat4 vp = this->cached_proj * this->cached_view;
 	this->frustum.update(vp);
-	this->camera_dirty = this->camera_moved(vp);
+	this->camera_dirty = this->camera_moved(camera.position, camera.forward); // this->campos set here
 
 	// Rebuild persistent batch cache only when dirty
 	if(this->persistent_dirty) {
 		this->persistent_batches.clear();
+		this->persistent_instances.clear();
 		for(Renderable* obj : this->persistent_objs) {
 			if(!obj) continue;
 			this->add_batch(*obj, this->persistent_batches);
@@ -193,17 +192,14 @@ size_t Renderer::add(const Light& light) noexcept {
 void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font, const float scale, const vec4<float>& color) noexcept {
 	if(text.empty() || !font) return;
 
-	// TODO: not a good search
-	// unordered_map<Text*, TextBatch*>
-	TextBatch* batch = nullptr;
-	for(TextBatch& b : this->text_batches) {
-		if(b.font == font.get()) { batch = &b; break; }
-	}
-
-	if(batch == nullptr) {
-		this->text_batches.push_back({ font.get(), this->total_text_instances, 0 });
-		batch = &this->text_batches.back();
-	}
+	auto [it, inserted] = this->text_batches.try_emplace(font.get(),
+		TextBatch {
+			font.get(),
+			this->total_text_instances,
+			0,
+		}
+	);
+	TextBatch* batch = &it->second;
 
 	const float ascent = font->ascent();
 	const u8* p = reinterpret_cast<const u8*>(text.c_str());
@@ -240,7 +236,7 @@ void Renderer::flush() noexcept {
 	// Skip if no object
 	if(!this->dynamic_batches.empty() || !this->persistent_batches.empty()) {
 		// Update camera here so 'lights' is updated
-		const Camera::CameraData cam = { this->cached_view, this->cached_proj, glm::vec4(this->camerapos, 1.0f) };
+		const Camera::CameraData cam = { this->cached_view, this->cached_proj, glm::vec4(this->campos, 1.0f) };
 	
 		const size_t offset = this->ubo_camera.frame_offset(frameindex) 
 			+ this->pass_index * sizeof(Camera::CameraData);
@@ -308,13 +304,9 @@ void Renderer::flush() noexcept {
 	// Render all objects
 	if(this->persistent_included) this->draw_map(this->persistent_batches);
 	this->draw_map(this->dynamic_batches);
-	this->draw_text_batches();
+	if(!this->text_batches.empty() || !this->glyphs.empty()) this->draw_text_batches();
 }
 
-bool Renderer::camera_moved(const glm::mat4& vp) noexcept {
-	if(vp != this->last_vp) { this->last_vp = vp; return true; }
-	return false;
-}
 
 void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept {
 	// NOTE: Culling for both types of objects may cause problems.
@@ -404,8 +396,6 @@ void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHa
 }
 
 void Renderer::draw_text_batches() noexcept {
-	if(this->text_batches.empty() || this->glyphs.empty()) return;
-
 	// Upload all glyphs at once
 	const size_t size = this->glyphs.size() * sizeof(Text::GlyphData);
 	if(size > this->ssbo_glyphs.perframesize()) this->ssbo_glyphs.resize(size);
@@ -421,7 +411,7 @@ void Renderer::draw_text_batches() noexcept {
 	glBindVertexArray(this->text_vao);
 	glDepthMask(GL_FALSE);
 
-	for(const TextBatch& batch : this->text_batches) {
+	for(const auto& [_, batch] : this->text_batches) {
 		if(batch.glyph_count == 0) continue;
 		batch.font->atlas()->bind(0);
 
@@ -438,5 +428,15 @@ void Renderer::draw_text_batches() noexcept {
 	glBindVertexArray(0);
 }
 
+bool Renderer::camera_moved(const vec3<float>& campos, const vec3<float>& forward) noexcept {
+	if(campos != this->campos || forward != this->camforward) {
+		this->campos = campos;
+		this->camforward = forward;
+		return true;
+	}
+	return false;
+}
+
 } // namespace floyd
+
 

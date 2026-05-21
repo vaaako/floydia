@@ -14,6 +14,8 @@ class Camera {
 
 	public:
 		vec3<float> position = vec3<float>(0.0f);
+		vec3<float> forward = vec3<float>(0.0f, 0.0f, -1.0f); // Only used to cheap check when camera moved
+	
 	public:
 		Camera(const float width, const float height) noexcept;
 

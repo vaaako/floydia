@@ -141,14 +141,14 @@ class Renderer final {
 		// Persistent light pointers, stored by pointer to avoid copies
 		std::vector<const Light*> persistent_lights;
 
-		std::vector<TextBatch> text_batches;
+		std::unordered_map<Text*, TextBatch> text_batches;
 		std::vector<Text::GlyphData> glyphs;
 
 
 		glm::mat4 cached_view;
 		glm::mat4 cached_proj;
-		glm::mat4 last_vp;
-		vec3<float> camerapos;
+		vec3<float> campos;
+		vec3<float> camforward; // Cheap check when camera moved
 
 		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
 
@@ -179,7 +179,7 @@ class Renderer final {
 										  // values, corrupting the SSBO reads for dynamic objects
 
 	private:
-		bool camera_moved(const glm::mat4& vp) noexcept;
+		bool camera_moved(const vec3<float>& campos, const vec3<float>& forward) noexcept;
 		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
 		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept;
 		void draw_text_batches() noexcept;
