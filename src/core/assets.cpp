@@ -229,7 +229,7 @@ std::shared_ptr<Mesh> Assets::load_quad_mesh() noexcept {
 		VertexLayout layout;
 		layout.add<float>(3); // position
 		layout.add<float>(2); // texuv
-		return std::make_shared<Mesh>(vertices, indices, layout, false, false);
+		return std::make_shared<Mesh>(vertices, indices, layout);
 	}();
 	return mesh;
 }

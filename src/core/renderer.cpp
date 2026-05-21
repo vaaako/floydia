@@ -47,7 +47,7 @@ Renderable* Renderer::pick(const PerspectiveCamera& camera, const vec2<u32>& mou
 	float obj_t = std::numeric_limits<float>::max();
 
 	auto test = [&](Renderable* r) {
-		if(r == nullptr || !r->visible || !r->world_aabb().valid) return;
+		if(r == nullptr || !r->visible || r->world_aabb().is_2d) return;
 		const float t = ray.test_aabb(r->world_aabb());
 		// 100.0f here is the max distance
 		if(t >= 0.0f && t < 100.0f && t < obj_t) {
@@ -60,8 +60,6 @@ Renderable* Renderer::pick(const PerspectiveCamera& camera, const vec2<u32>& mou
 		test(r);
 	}
 
-	// Mostly dynamic objs
-	// May contain persistent objects, if "persistent_dirty" this frame
 	for(Renderable* r : this->pickables) {
 		test(r);
 	}

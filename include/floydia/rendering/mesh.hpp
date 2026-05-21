@@ -29,8 +29,7 @@ class Mesh final {
 			const std::vector<T>& vertices,
 			const std::vector<U>& indices,
 			const VertexLayout& layout,
-			const bool dynamic = false,
-			const bool make_aabb = true
+			const bool dynamic = false
 		);
 		~Mesh() noexcept;
 
@@ -64,8 +63,7 @@ Mesh::Mesh(
 	const std::vector<T>& vertices,
 	const std::vector<U>& indices,
 	const VertexLayout& layout,
-	const bool dynamic,
-	const bool make_aabb
+	const bool dynamic
 )
 	: capacity(vertices.size()),
 	vertex_type_size(sizeof(T)),
@@ -128,7 +126,7 @@ Mesh::Mesh(
 
 	// Compute AABB
 	if constexpr (std::is_same_v<T, Vertex>) {
-		if(make_aabb) this->aabb.compute_local_aabb(vertices);
+		this->aabb = AABB(vertices);
 	}
 }
 

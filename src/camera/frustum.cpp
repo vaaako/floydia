@@ -5,31 +5,36 @@ namespace floyd {
 void Frustum::update(const glm::mat4& vp) noexcept {
 	const glm::mat4& m = vp; // Frustum
 
-	this->planes[0] = vec4<float>( // left
+	// left
+	this->planes[0] = vec4<float>(
 		m[0][3] + m[0][0],
 		m[1][3] + m[1][0],
 		m[2][3] + m[2][0],
 		m[3][3] + m[3][0]
 	);
-	this->planes[1] = vec4<float>( // right
+	// right
+	this->planes[1] = vec4<float>(
 		m[0][3] - m[0][0],
 		m[1][3] - m[1][0],
 		m[2][3] - m[2][0],
 		m[3][3] - m[3][0]
 	);
-	this->planes[2] = vec4<float>( // bottom
+	// bottom
+	this->planes[2] = vec4<float>(
 		m[0][3] + m[0][1],
 		m[1][3] + m[1][1],
 		m[2][3] + m[2][1],
 		m[3][3] + m[3][1]
 	);
-	this->planes[3] = vec4<float>( // top
+	// top
+	this->planes[3] = vec4<float>(
 		m[0][3] - m[0][1],
 		m[1][3] - m[1][1],
 		m[2][3] - m[2][1],
 		m[3][3] - m[3][1]
 	);
-	this->planes[4] = vec4<float>( // near
+	// near
+	this->planes[4] = vec4<float>(
 		m[0][3] + m[0][2],
 		m[1][3] + m[1][2],
 		m[2][3] + m[2][2],
@@ -52,6 +57,7 @@ void Frustum::update(const glm::mat4& vp) noexcept {
 
 bool Frustum::test(const AABB& aabb, const glm::mat4& model) const noexcept {
 	if(!aabb.valid) return true; // No AABB data, assume visible
+	if(aabb.is_2d) return true;
 	// Compute world-space AABB by transforming local AABB with model matrix
 	// Instead of all 8 corners, use the positive vertex trick:
 	// for each plane normal, pick the corner most in that direction
@@ -73,6 +79,7 @@ bool Frustum::test(const AABB& aabb, const glm::mat4& model) const noexcept {
 
 bool Frustum::test(const AABB& aabb) const noexcept {
 	if(!aabb.valid) return true; // No AABB data, assume visible
+	if(aabb.is_2d) return true;
 	for(const vec4<float>& plane : this->planes) {
 		const vec3<float> normal = vec3<float>(plane);
 		// Pick the positive vertex, the corner maximally aligned with the plane normal
