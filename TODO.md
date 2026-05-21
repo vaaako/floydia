@@ -122,6 +122,7 @@ I wrote most of the things here very tired, sorry for any english mistake
 - [ ] Faster billboard
 	+ Remove `final_matrix`
 - [ ] Frustum Culling for 2D shapes
+- [ ] Peristent object for 2D shapes
 - [ ] Click on shape makes a raycast to change object
 	- [ ] Scene storage
 - [ ] scarablib stuff

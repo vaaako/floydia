@@ -1,15 +1,21 @@
 # Floydia 🪲 v1.0
-**Floydia** is a C++ OpenGL 4.5 graphics library designed to simplify 2D and 3D development. It provides an easy-to-use, beginner-friendly API while still offering powerful features like resource management, lighting, batch rendering, and more
+**Floydia** is a C++ OpenGL 4.6 graphics library designed to simplify 2D and 3D development. It provides an easy-to-use, beginner-friendly API while still offering powerful features like resource management, lighting, batch rendering, and more
 
 > ⚠️ Floydia is a **hobby project** and still under active development
 
 Contact me on discord: **vakothebat**
 
-Orbiting cubes, Wavefront model, Plane and the Skybox
-![showcase gif](medias/showcase.gif)
+**Teapot with point light source**
+![teapot with lamp light](medias/teapot.gif)
 
-Billboard, Cube, Two Crossed Planes and the Skybox
-![showcase image](medias/showcase.png)
+**Directional light**
+![directional light](medias/directional_light.png)
+
+**Spotlight**
+![point light](medias/spotlight.png)
+
+**Metallic material**
+![metallic material](medias/metallic_cubes.png)
 
 ---
 
@@ -52,9 +58,141 @@ Only `GLAD` and `glm` headers are required
 ---
 
 # Example: Rotating Cube
-This example creates a single 3D scene with a rotating cube
-```cpp
+![cube example](medias/cube_example.gif)
 
+```cpp
+using namespace floyd;
+
+void move_camera(const Window &window, PerspectiveCamera &camera);
+
+int main() {
+	Window window = Window({
+		.width = 800,
+		.height = 600,
+		.title = "Hello world from Floydia",
+		.resizable = true,
+	});
+	window.set_vsync(false);
+
+	PerspectiveCamera camera = PerspectiveCamera(90.0f, 800.0f, 600.0f);
+	camera.sensitivity = 0.2f;
+
+	// Set up cube
+	Cube cube = Cube();
+	cube.transform.set_position({ 0.0f, 0.0f, 0.0f });
+	cube.set_color({ 202, 23, 115, 255 });
+	cube.material()->metallic = 1.0f;
+	cube.material()->roughness = 0.0f; // Maximum shine
+
+	// Set up light source
+	Light lamp = Light(Light::Type::Point);
+	lamp.transform.set_position({ 0.0f, 3.0f, 10.0f });
+	lamp.intensity = 2.0f;
+	lamp.range     = 15.0f;
+	// To see the light source
+	Cube debug_lamp = Cube();
+	debug_lamp.transform.set_scale({ 0.2f, 0.2f, 0.2f });
+
+	// Update viewport for dynamic resize
+	window.on_event(Event::WINDOW_RESIZED, [&](){
+		const vec2<u32> new_size = window.size();
+		window.update_viewport(new_size.x, new_size.y);
+		camera.update_viewport(new_size.x, new_size.y);
+	});
+
+	float rotation = 0.0f;
+
+	while(window.is_open()) {
+		window.clear();
+	
+		window.poll_events();
+
+		if (window.has_event(Event::WINDOW_QUIT) || window.keypressed(Keycode::ESCAPE)) {
+			window.close();
+		}
+
+		if(window.mousedown(MouseButton::LEFT)) {
+			window.set_grab_mouse(true);
+			window.set_hide_mouse(true);
+		}
+
+		if(window.keypressed(Keycode::TAB)) {
+			window.set_grab_mouse(false);
+			window.set_hide_mouse(false);
+		}
+
+		move_camera(window, camera);
+
+		window.begin_frame();
+			// 3D dynamic shapes
+			window.begin_draw(camera);
+				window.draw(lamp);
+				window.draw(cube);
+				window.draw(debug_lamp);
+			window.flush();
+		window.end_frame();
+
+		// Rotate cube on Y axis
+		cube.transform.set_rotation({ 0.0f, rotation, 0.0f });
+		// Orbitate lamp around cube
+		lamp.transform.set_position(
+			math::orbitate_sphere(
+				cube.transform.position(),
+				rotation * 60.0f, // Horizontal speed
+				rotation * 30.0f, // Vertical speed
+				2.0f // Radius
+			)
+		);
+		debug_lamp.transform.set_position(lamp.transform.position());
+
+		// Update rotation
+		rotation += 1.0f * window.dt();
+		if (rotation >= 360.0f) {
+			rotation = 0.0f;
+		}
+
+		window.swap_buffers();
+	}
+}
+
+void move_camera(const Window &window, PerspectiveCamera &camera) {
+	constexpr float speed = 5.0f;
+	float velocity = speed * window.dt();
+
+	vec3<float> dir = vec3<float>(0.0f);
+
+	// Forward and backward
+	if(window.keydown(Keycode::W)) {
+		dir.z = -1;
+	} else if(window.keydown(Keycode::S)) {
+		dir.z = 1;
+	}
+
+	// Left and right
+	if(window.keydown(Keycode::A)) {
+		dir.x = -1;
+	} else if(window.keydown(Keycode::D)) {
+		dir.x = 1;
+	}
+
+	// Up and down
+	if(window.keydown(Keycode::Q)) {
+		dir.y = 1;
+	} else if(window.keydown(Keycode::E)) {
+		dir.y = -1;
+	}
+
+	// Speed up
+	if(window.keydown(Keycode::LSHIFT)) {
+		velocity *= 5.0f;
+	}
+
+	// Rotate camera
+	camera.move(dir, velocity);
+	if(window.is_mouse_grabbed()) {
+		camera.rotate(window.mouse_vector());
+	}
+}
 ```
 
 ---
@@ -73,6 +211,9 @@ With debug flags:
 make debug vars
 ```
 
+> The "debug" flag removes compile otimization
+
+
 ## Debug Macros
 | Macro                       | Description                             |
 |-----------------------------|-----------------------------------------|
@@ -81,6 +222,7 @@ make debug vars
 | `FLOYD_DEBUG_TEXT`          | Generates an image of the atlas         |
 
 
+<!--
 ## Using the Library
 To use the provided [Makefile](examples/Makefile), follow this project structure:
 ```py
@@ -98,6 +240,7 @@ Then run:
 ```sh
 make
 ```
+-->
 
 ---
 
