@@ -1,11 +1,10 @@
 #include "floydia/helpers/logger.hpp"
-#include <floydia/window/window.hpp>
+#include "floydia/window/window.hpp"
+#include "floydia/core/core.hpp"
 
-#include <floydia/core/core.hpp>
-
-#include <floydia/libsimpl.hpp>
 #include <mutex>
 
+#include "floydia/rgfwimpl.hpp"
 
 // https://github.com/ColleagueRiley/RGFW/blob/main/examples/multi-window/multi-window.c
 

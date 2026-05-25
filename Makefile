@@ -1,22 +1,33 @@
 # Compiler flags
 CXX = g++
-INCLUDE_DIRS = -Iinclude -Iinclude/external
+INCLUDE_DIRS = -Iinclude -Iinclude/external -Iinclude/external/imgui
 CXXFLAGS = $(INCLUDE_DIRS) -std=c++17 -fPIC
 # Linking flags
 LDLIBS = -lX11 -lGL -lXrandr
 
 # Directories
-SRC_DIR = src
+SRC_DIR   = src
+LIB_DIR   = lib
 BUILD_DIR = build
-OBJ_DIR = $(BUILD_DIR)/obj
+OBJ_DIR   = $(BUILD_DIR)/obj
 
 LIB_NAME := floydia
 
-SOURCES = $(wildcard $(SRC_DIR)/*/*.cpp) $(SRC_DIR)/libsimpl.c $(SRC_DIR)/glad.c
-# Generate object file names from source files
-OBJECTS = $(patsubst $(SRC_DIR)/%, $(OBJ_DIR)/%, $(SOURCES))
-OBJECTS := $(OBJECTS:.cpp=.o)
-OBJECTS := $(OBJECTS:.c=.o)
+SRC       := $(wildcard $(SRC_DIR)/*.cpp $(SRC_DIR)/*/*.cpp)
+RGFW_SRC  := $(SRC_DIR)/rgfwimpl.c
+GLAD_SRC  := $(LIB_DIR)/glad/glad.c
+IMGUI_SRC := $(LIB_DIR)/imgui/imgui.cpp \
+             $(LIB_DIR)/imgui/imgui_draw.cpp \
+             $(LIB_DIR)/imgui/imgui_tables.cpp \
+             $(LIB_DIR)/imgui/imgui_impl_opengl3.cpp \
+             $(LIB_DIR)/imgui/imgui_widgets.cpp
+SOURCES = $(SRC) $(RGFW_SRC) $(GLAD_SRC) $(IMGUI_SRC)
+
+# Map every source file to OBJ_DIR/<path>.o
+# OBJECTS := $(patsubst %, $(OBJ_DIR)/%.o,$(SOURCES))
+# OBJECTS := $(OBJECTS:.cpp.o=.o)
+# OBJECTS := $(OBJECTS:.c.o=.o)
+OBJECTS := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(basename $(SOURCES))))
 
 
 # Libraries
@@ -40,33 +51,40 @@ $(STATIC_LIB): $(OBJECTS)
 $(SHARED_LIB): $(OBJECTS)
 	$(CXX) -shared -o $@ $^ $(LDLIBS)
 
-# compile source files
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+# src/**/*.cpp
+$(OBJ_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+# lib/**/*.cpp (imgui)
+$(OBJ_DIR)/$(LIB_DIR)/%.o: $(LIB_DIR)/%.cpp
 	@mkdir -p $(dir $@)
-	gcc -fPIC -Iinclude/ -Iinclude/external -MMD -MP -c $< -o $@
+	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+
+# lib/**/*.c (glad)
+$(OBJ_DIR)/$(LIB_DIR)/%.o: $(LIB_DIR)/%.c
+	@mkdir -p $(dir $@)
+	gcc -fPIC $(INCLUDE_DIRS) -MMD -MP -c $< -o $@
+
+# src/*.c (RGFW)
+$(OBJ_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
+	gcc -fPIC $(INCLUDE_DIRS) -MMD -MP -c $< -o $@
 
 
 # ----------
 
-
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all clean dirs debug release
-
 # Debug build
 # -Wpadded
-# debug: CXXFLAGS += -O0 -fsanitize=address -g -Wall -Wextra -Wuninitialized -Wunreachable-code
 debug: CXXFLAGS += -O0 -DFLOYD_DEBUG_MAPPED_BUFFER -DFLOYD_DEBUG_TEXT -g -Wall -Wextra -Wuninitialized -Wunreachable-code -Wpadded
 debug: all
 
 # Release build
-# -march=native -> Optimize for current CPU (may not work on all CPUs)
-# -flto -> Program analysis at link time
+# -march=native: Optimize for current CPU (may not work on all CPUs)
+# -flto: Program analysis at link time
 release: CXXFLAGS += -O3 -march=native -ffast-math -DNDEBUG -funroll-loops
 release: LDFLAGS += -flto
 release: all
@@ -78,7 +96,9 @@ vars:
 	@echo "OBJECTS: $(OBJECTS)"
 	@echo "TARGET: $(LIB_NAME)"
 
-DEPS := $(OBJECTS:.o=.d)
 # No error if .d files dont exist yet
 # After first build dependencies are tracked
+DEPS := $(OBJECTS:.o=.d)
 -include $(DEPS)
+
+.PHONY: all clean dirs debug release vars
