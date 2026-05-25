@@ -24,10 +24,9 @@ IMGUI_SRC := $(LIB_DIR)/imgui/imgui.cpp \
 SOURCES = $(SRC) $(RGFW_SRC) $(GLAD_SRC) $(IMGUI_SRC)
 
 # Map every source file to OBJ_DIR/<path>.o
-# OBJECTS := $(patsubst %, $(OBJ_DIR)/%.o,$(SOURCES))
-# OBJECTS := $(OBJECTS:.cpp.o=.o)
-# OBJECTS := $(OBJECTS:.c.o=.o)
-OBJECTS := $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(basename $(SOURCES))))
+OBJECTS := $(patsubst %, $(OBJ_DIR)/%.o,$(SOURCES))
+OBJECTS := $(OBJECTS:.cpp.o=.o)
+OBJECTS := $(OBJECTS:.c.o=.o)
 
 
 # Libraries
@@ -79,7 +78,7 @@ clean:
 
 # Debug build
 # -Wpadded
-debug: CXXFLAGS += -O0 -DFLOYD_DEBUG_MAPPED_BUFFER -DFLOYD_DEBUG_TEXT -g -Wall -Wextra -Wuninitialized -Wunreachable-code -Wpadded
+debug: CXXFLAGS += -O0 -DRGFW_DEBUG -DFLOYD_DEBUG_MAPPED_BUFFER -DFLOYD_DEBUG_TEXT -g -Wall -Wextra -Wuninitialized -Wunreachable-code -Wpadded
 debug: all
 
 # Release build
