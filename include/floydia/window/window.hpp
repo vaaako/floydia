@@ -15,6 +15,8 @@
 #include <floydia/geometry/cube.hpp>
 #include <floydia/core/core.hpp>
 
+#include "imgui/imgui.h"
+
 namespace floyd {
 
 class Window final {
@@ -102,7 +104,7 @@ class Window final {
 		// Casts a ray from the mouse position and returns the closest visible object hit.
 		// Returns nullptr if nothing was hit.
 		// Call AFTER 'begin_frame()', otherwise dynamic objects won't be included
-		Renderable* pick(const PerspectiveCamera& camera, const vec2<u32>& mouse_pos) const noexcept { return renderer->pick(camera, mouse_pos, this->size()); }
+		Renderable* pick(const PerspectiveCamera& camera) const noexcept { return renderer->pick(camera, this->mouse_pos(), this->size()); }
 		// Clears screen
 		inline void clear() const { renderer->clear(); }
 		// Advances 'frameindex' and waits for the GPU to finish reading
@@ -135,6 +137,8 @@ class Window final {
 		void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font,
 			const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept { renderer->draw_text(text, pos, font, scale, color); }
 
+		// Open an ImGui window to edit a Renderable
+		void editor_panel(Renderable* obj) const noexcept;
 
 		// Returns true if the key is down
 		bool keydown(const Keycode key) const noexcept;

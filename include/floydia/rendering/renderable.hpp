@@ -19,6 +19,7 @@ class Renderable : public Object {
 	public:
 		// Visible on Frustum Culling
 		bool visible = true;
+		bool is_persitent = false; // Used by Renderer to mark persistent objects
 
 	public:
 		Renderable(const std::shared_ptr<Model>& model) noexcept;

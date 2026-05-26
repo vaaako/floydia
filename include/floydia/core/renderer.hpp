@@ -34,6 +34,8 @@ class Renderer final {
 		void update_viewport(const u32 width, const u32 height) noexcept;
 		// Changes the clear color
 		void set_clear_color(const vec4<u8>& color) noexcept;
+		// Mark persistent objects as dirty
+		void mark_dirty() noexcept;
 
 		// Clear the screen
 		void clear() const noexcept;

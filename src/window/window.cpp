@@ -4,6 +4,7 @@
 
 #include <mutex>
 
+#include "floydia/helpers/ui.hpp"
 #include "floydia/rgfwimpl.hpp"
 
 #if !defined(FLOYD_RELEASE)
@@ -41,8 +42,9 @@ Window::Window(const Settings& settings)
 
 	// Initialize Window
 	pimpl->window = RGFW_createWindow(
-			settings.title.c_str(), 0, 0, settings.width, settings.height,
-			RGFW_windowCenter | RGFW_windowOpenGL);
+		settings.title.c_str(), 0, 0, settings.width, settings.height,
+		RGFW_windowCenter | RGFW_windowOpenGL
+	);
 
 	if(pimpl->window == NULL) {
 		TRACELOG(logger::Error, "Failed to create window!");
@@ -90,13 +92,12 @@ Window::~Window() {
 		TRACELOG(logger::Info, "Closing window: %p (%d remaining)", (void*)pimpl->window, --wincount);
 		if(wincount == 0) {
 			TRACELOG(logger::Info, "Closing OpenGL context");
-			this->enable_ctx();
+			// this->enable_ctx();
 			this->disable_ctx();
 			shared_context = nullptr;
 			// Delete ImGui
 			TRACELOG(logger::Info, "Closing ImGui");
 			ImGui_ImplOpenGL3_Shutdown();
-			// ImGui_ImplRgfw_Shutdown();
 			ImGui::DestroyContext();
 		}
 		RGFW_window_close(pimpl->window); // Automatically calls RGFW_window_deleteContext_OpenGL
@@ -127,6 +128,11 @@ void Window::poll_events() noexcept {
 	this->clock.mark();
 	// Poll events
 	RGFW_event event;
+
+#if !defined(FLOYD_RELEASE)
+	ImGuiIO& io = ImGui::GetIO();
+#endif
+
 	while(RGFW_window_checkEvent(pimpl->window, &event)) {
 		this->events.emplace(static_cast<Event>(event.type));
 
@@ -137,20 +143,36 @@ void Window::poll_events() noexcept {
 				it->second();
 			}
 		}
+
+	// Update keyboard
+	#if !defined(FLOYD_RELEASE)
+		if(event.type == RGFW_keyPressed) {
+			io.AddKeyEvent(ui::KeyToImGuiKey(event.key.value), true);
+			io.AddInputCharacter(event.key.sym);
+
+			io.AddKeyEvent(ImGuiMod_Shift, RGFW_isKeyDown(RGFW_shiftL) || RGFW_isKeyDown(RGFW_shiftR));
+			io.AddKeyEvent(ImGuiMod_Ctrl,  RGFW_isKeyDown(RGFW_controlL) || RGFW_isKeyDown(RGFW_controlR));
+			io.AddKeyEvent(ImGuiMod_Alt,   RGFW_isKeyDown(RGFW_altL) || RGFW_isKeyDown(RGFW_altR));
+		} else if(event.type == RGFW_keyReleased) {
+			io.AddKeyEvent(ui::KeyToImGuiKey(event.key.value), false);
+		}
+	#endif
 	}
 
+// Update mouse
 #if !defined(FLOYD_RELEASE)
 	ImGui_ImplOpenGL3_NewFrame();
 
-	// Update backend for this frame
-	ImGuiIO& io = ImGui::GetIO();
-	vec2<u32> s = this->size();
+	const vec2<u32> s = this->size();
+	const vec2<u32> mp = this->mouse_pos();
+	const vec2<float> scroll = this->mouse_scroll();
+
 	io.DisplaySize = ImVec2(s.x, s.y);
 	io.DeltaTime = this->clock.delta();
-	vec2<u32> mp = this->mouse_pos();
 	io.AddMousePosEvent(mp.x, mp.y);
 	io.AddMouseButtonEvent(0, this->mousedown(MouseButton::LEFT));
 	io.AddMouseButtonEvent(1, this->mousedown(MouseButton::RIGHT));
+	io.AddMouseWheelEvent(scroll.x, scroll.y);
 
 	ImGui::NewFrame();
 #endif
@@ -158,11 +180,6 @@ void Window::poll_events() noexcept {
 
 void Window::swap_buffers() const noexcept {
 #if !defined(FLOYD_RELEASE)
-	ImGui::Begin("Test");
-	ImGui::Text("FPS: %.1f", this->fps());
-	ImGui::End();
-
-
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 #endif
@@ -202,6 +219,58 @@ bool Window::is_ui_focused() const noexcept {
 }
 bool Window::is_mouse_grabbed() const noexcept { return RGFW_window_isHoldingMouse(pimpl->window); }
 
+// -- Editor Panel
+
+void Window::editor_panel(Renderable* obj) const noexcept {
+#if defined(FLOYD_RELEASE)
+	return;
+#else
+	bool has_changed = false; // Avoid to mark dirty while window is open
+
+	ImGui::Begin("Properties");
+	if(obj == nullptr) {
+		ImGui::TextDisabled("No object selected");
+		ImGui::End();
+		return;
+	}
+
+	ImGui::Text("UUID: %lu", obj->uuid());
+	if(!obj->name.empty()) ImGui::Text("Name: %s", obj->name.c_str());
+	ImGui::Separator();
+
+	// Color
+	if(ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const vec4<float> color = obj->color_norm();
+		float c[4] = { color.x, color.y, color.z, color.w };
+		if(ui::color_edit_scroll4("Color", c)) { obj->set_color_norm({ c[0], c[1], c[2], c[3] }); has_changed = true; }
+
+		MaterialInstance& mat = *obj->material(); // cache
+		float metallic = mat.metallic;
+		float roughness = mat.roughness;
+		if(ui::drag_scroll_float("Metallic", &metallic, 0.1f, 0.0f, 1.0f)) { mat.metallic = metallic; has_changed = true; }
+		if(ui::drag_scroll_float("Roughness", &roughness, 0.1f, 0.0f, 1.0f)) { mat.roughness = roughness; has_changed = true; }
+	}
+	
+	ImGui::Separator();
+
+	// Transform
+	if(ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const vec3<float> pos = obj->transform.position();
+		float p[3] = { pos.x, pos.y, pos.z };
+		if(ui::drag_scroll_float3("Position", p, 0.1f, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max())) { obj->transform.set_position({ p[0], p[1], p[2] }); has_changed = true; }
+
+		// Euler to rotation
+		const vec3<float> euler = obj->transform.euler_degrees();
+		float r[3] = { euler.x, euler.y, euler.z };
+		if(ui::drag_scroll_float3("Rotation", r, 0.25f, -360.0f, 360.0f)) { obj->transform.set_rotation({ r[0], r[1], r[2] }); has_changed = true; }
+	}
+
+	if(has_changed && obj->is_persitent) renderer->mark_dirty();
+	ImGui::End();
+#endif
+}
+
+
 // -- KEYBOARD
 
 bool Window::keydown(const Keycode key) const noexcept    { return RGFW_isKeyDown(static_cast<u8>(key)); }
@@ -234,9 +303,5 @@ vec2<u32> Window::mouse_pos() const noexcept {
 
 void Window::enable_ctx() const noexcept  { RGFW_window_makeCurrentContext_OpenGL(pimpl->window); }
 void Window::disable_ctx() const noexcept { RGFW_window_makeCurrentContext_OpenGL(nullptr); }
-
-// void Window::mouse_pos_global(int* x, int* y) const noexcept {
-// 	RGFW_getGlobalMouse(x, y);
-// }
 
 } // namespace floyd

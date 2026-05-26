@@ -123,12 +123,14 @@ I wrote most of the things here very tired, sorry for any english mistake
 	+ Remove `final_matrix`
 - [ ] Frustum Culling for 2D shapes
 - [ ] Peristent object for 2D shapes
-- [ ] Click on shape makes a raycast to change object
+- [x] Click on shape makes a raycast to change object
 	- [ ] Scene storage
 - [ ] scarablib stuff
 	+ [ ] Alarm
 	+ [ ] 3D Uniform Grid Collision
 	+ [ ] 2D Color map
+- [ ] ImGui scroll not working
+- [ ] Be able to delete persistent object from renderer
 
 - Entity Scene system
 	+ Objects in scene may have triggers inject to it

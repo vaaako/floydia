@@ -18,6 +18,7 @@ class Transform {
 		inline const vec3<float>& position() const noexcept { return this->_position; }
 		inline const vec3<float>& scale() const noexcept { return this->_scale; }
 		inline const glm::quat& rotation() const noexcept { return this->_rotation; }
+		inline const vec3<float>& euler_degrees() const noexcept { return this->_euler_degrees; }
 		inline bool isdirty() const noexcept { return this->dirty; }
 
 		// Forward position
@@ -30,6 +31,7 @@ class Transform {
 		glm::quat   _rotation = { 1.0f, 0.0f, 0.0f, 0.0f };
 		vec3<float> _position = { 0.0f, 0.0f, 0.0f };
 		vec3<float> _scale    = { 1.0f, 1.0f, 1.0f };
+		vec3<float> _euler_degrees = { 0.0f, 0.0f, 0.0f }; // angles cache
 
 		// NOTE: marked as 'mutable' so the get method can be used on const methods
 		mutable glm::mat4 cached_matrix;

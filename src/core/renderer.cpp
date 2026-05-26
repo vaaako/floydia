@@ -80,6 +80,11 @@ void Renderer::set_clear_color(const vec4<u8>& color) noexcept {
 	this->clear_color[3] = color.w / 255.0f;
 }
 
+void Renderer::mark_dirty() noexcept {
+	this->persistent_dirty = true;
+	this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
+}
+
 void Renderer::clear() const noexcept {
 	glClearColor(this->clear_color[0], this->clear_color[1], this->clear_color[2], this->clear_color[3]);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -174,6 +179,7 @@ size_t Renderer::add(Renderable& obj) noexcept {
 	this->persistent_objs.push_back(&obj);
 	this->persistent_dirty = true;
 	this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
+	obj.is_persitent = true;
 	return this->persistent_objs.size() - 1;
 }
 

@@ -13,7 +13,8 @@ void Transform::set_scale(const vec3<float>& scale) noexcept {
 }
 
 void Transform::set_rotation(const vec3<float>& rotation) noexcept {
-	this->_rotation = rotation;
+	this->_euler_degrees = rotation;
+	this->_rotation = glm::quat(glm::radians((glm::vec3)rotation));
 	this->dirty = true;
 }
 

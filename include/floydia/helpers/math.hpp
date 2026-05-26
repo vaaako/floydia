@@ -45,6 +45,6 @@ namespace math {
 		);
 	}
 	// Return the distance between two positions
-	[[nodiscard]] inline constexpr float distance_between(const vec3<float>& pos, const vec3<float>& pos2) { return glm::length(pos) - glm::length(pos2); }
+	[[nodiscard]] inline float distance_between(const vec3<float>& pos, const vec3<float>& pos2) { return glm::length(pos) - glm::length(pos2); }
 }
 }

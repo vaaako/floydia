@@ -37,13 +37,19 @@ class Object {
 			return (vec4<float>)this->_color * glm::vec4(255.0f);
 		}
 
+		// Normalized color
+		inline const vec4<float>& color_norm() const {
+			return this->_color;
+		}
+
+		// Set color on 0-255 range
 		inline void set_color(const vec4<u8>& c) {
 			this->_color = (vec4<float>)c / glm::vec4(255.0f);
 		}
 
-		// Normalized color
-		inline const vec4<float>& color_norm() const {
-			return this->_color;
+		// Set color on 0-1 range
+		inline void set_color_norm(const vec4<float>& c) {
+			this->_color = c;
 		}
 
 	private:
