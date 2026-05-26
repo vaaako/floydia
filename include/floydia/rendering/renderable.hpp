@@ -1,12 +1,14 @@
 #pragma once
 
-#include <floydia/rendering/model.hpp>
-#include <floydia/rendering/object.hpp>
-#include <floydia/material/material.hpp>
+#include "floydia/rendering/model.hpp"
+#include "floydia/rendering/script.hpp"
+#include "floydia/rendering/object.hpp"
 
 #include <memory>
 
 namespace floyd {
+
+// NOTE: Script is on Renderable so it can access Material
 
 // Renderable object
 class Renderable : public Object {
@@ -23,20 +25,20 @@ class Renderable : public Object {
 
 	public:
 		Renderable(const std::shared_ptr<Model>& model) noexcept;
+		Renderable(const Renderable& other) noexcept;
 		virtual ~Renderable() = default;
 
-
-		// Returns world AABB
-		virtual inline AABB world_aabb() noexcept {
-			// Also check for valid world_abb, so it is initialized the first time
-			if(this->transform.isdirty() || !this->_world_aabb.valid)
-				this->_world_aabb = this->_model->aabb.to_world(this->transform.model_matrix());
-			return this->_world_aabb;
-		}
+		// Attach a script
+		template <typename T, typename... Args>
+		T* attach_script(Args&&... args) noexcept;
+		// Update all attached scripts
+		void update_scripts(const float dt) noexcept;
 
 		// Overridable for Redenderable objects that need aditional math on 'model_matrix'
 		// Remember to update 'world_aabb'
 		virtual glm::mat4 final_matrix(const glm::mat4& view) const noexcept;
+		// Returns world AABB
+		virtual AABB world_aabb() noexcept;
 
 		// Returns Model class
 		inline Model* model() noexcept { return this->_model.get(); }
@@ -66,6 +68,20 @@ class Renderable : public Object {
 	protected:
 		AABB _world_aabb;
 		std::shared_ptr<Model> _model;
+		std::vector<std::unique_ptr<Script>> scripts;
 };
+
+template <typename T, typename... Args>
+T* Renderable::attach_script(Args&&... args) noexcept {
+	static_assert(std::is_base_of_v<Script, T>, "T must derive from Script");
+	
+	std::unique_ptr<T> s = std::make_unique<T>(std::forward<Args>(args)...);
+	s->owner = this;
+	s->on_attach(); // Trigger
+
+	T* ptr = s.get();
+	this->scripts.push_back(std::move(s));
+	return ptr;
+}
 
 } // namespace floyd

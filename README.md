@@ -33,6 +33,7 @@ Contact me on discord: **vakothebat**
 - **Frustum Culling**: Automatic per-object visibility testing against the camera frustum
 - **AABB**: Per-model and per-submesh axis-aligned bounding boxes
 - **Asset Manager**: Automatic caching of meshes, shaders, textures and materials
+- **Script System**: Custom and reusable scripts attachable to Objects
 
 ---
 
@@ -57,13 +58,23 @@ Only `GLAD` and `glm` headers are required
 
 ---
 
-# Example: Rotating Cube
+# Example: Rotating Cube with Script System
 ![cube example](medias/cube_example.gif)
 
+This example uses the Script System
 ```cpp
 using namespace floyd;
 
-void move_camera(const Window &window, PerspectiveCamera &camera);
+// Reusable script
+struct Rotator : public Script {
+	float speed = 50.0f; // Degrees per second
+
+	void update(float dt) noexcept override {
+		owner->transform.rotate({ 0.0f, this->speed * dt, 0.0f });
+	}
+};
+
+void move_camera(const Window& window, PerspectiveCamera& camera);
 
 int main() {
 	Window window = Window({
@@ -74,8 +85,9 @@ int main() {
 	});
 	window.set_vsync(false);
 
+	// FOV, Window width, Window height
 	PerspectiveCamera camera = PerspectiveCamera(90.0f, 800.0f, 600.0f);
-	camera.sensitivity = 0.2f;
+	camera.sensitivity = 0.2f; // Changing camera's sensibility
 
 	// Set up cube
 	Cube cube = Cube();
@@ -83,17 +95,18 @@ int main() {
 	cube.set_color({ 202, 23, 115, 255 });
 	cube.material()->metallic = 1.0f;
 	cube.material()->roughness = 0.0f; // Maximum shine
+	cube.attach_script<Rotator>(); // Attach script
 
 	// Set up light source
 	Light lamp = Light(Light::Type::Point);
 	lamp.transform.set_position({ 0.0f, 3.0f, 10.0f });
 	lamp.intensity = 2.0f;
 	lamp.range     = 15.0f;
-	// To see the light source
+	// View the light source
 	Cube debug_lamp = Cube();
 	debug_lamp.transform.set_scale({ 0.2f, 0.2f, 0.2f });
 
-	// Update viewport for dynamic resize
+	// Update viewport on window resize
 	window.on_event(Event::WINDOW_RESIZED, [&](){
 		const vec2<u32> new_size = window.size();
 		window.update_viewport(new_size.x, new_size.y);
@@ -101,22 +114,24 @@ int main() {
 	});
 
 	float rotation = 0.0f;
-
 	while(window.is_open()) {
 		window.clear();
 	
 		window.poll_events();
 
-		if (window.has_event(Event::WINDOW_QUIT) || window.keypressed(Keycode::ESCAPE)) {
+		// If QUIT event or pressed ESCAPE key and mouse isn't grabbed
+		if (window.has_event(Event::WINDOW_QUIT) ||
+				(!window.is_mouse_grabbed() && window.keypressed(Keycode::ESCAPE))) {
 			window.close();
 		}
 
+		// Capture mouse
 		if(window.mousedown(MouseButton::LEFT)) {
 			window.set_grab_mouse(true);
 			window.set_hide_mouse(true);
 		}
-
-		if(window.keypressed(Keycode::TAB)) {
+		// Release mouse
+		if(window.keypressed(Keycode::ESCAPE)) {
 			window.set_grab_mouse(false);
 			window.set_hide_mouse(false);
 		}
@@ -132,8 +147,7 @@ int main() {
 			window.flush();
 		window.end_frame();
 
-		// Rotate cube on Y axis
-		cube.transform.set_rotation({ 0.0f, rotation, 0.0f });
+		cube.update_scripts(dt); // Update scripts for this Object
 		// Orbitate lamp around cube
 		lamp.transform.set_position(
 			math::orbitate_sphere(
@@ -155,7 +169,7 @@ int main() {
 	}
 }
 
-void move_camera(const Window &window, PerspectiveCamera &camera) {
+void move_camera(const Window& window, PerspectiveCamera& camera) {
 	constexpr float speed = 5.0f;
 	float velocity = speed * window.dt();
 

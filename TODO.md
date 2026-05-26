@@ -131,6 +131,7 @@ I wrote most of the things here very tired, sorry for any english mistake
 	+ [ ] 2D Color map
 - [ ] ImGui scroll not working
 - [ ] Be able to delete persistent object from renderer
+- [ ] Better `Material` handling on `Renderable`
 
 - Entity Scene system
 	+ Objects in scene may have triggers inject to it
