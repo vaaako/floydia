@@ -96,6 +96,8 @@ class Window final {
 
 		// Returns true if mouse is grabbed
 		bool is_mouse_grabbed() const noexcept;
+		// Returns true if mouse is interacting with the UI
+		bool is_ui_focused() const noexcept;
 
 		// Casts a ray from the mouse position and returns the closest visible object hit.
 		// Returns nullptr if nothing was hit.

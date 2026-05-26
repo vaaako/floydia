@@ -6,6 +6,10 @@
 
 #include "floydia/rgfwimpl.hpp"
 
+#if !defined(FLOYD_RELEASE)
+#include "imgui/imgui_impl_opengl3.h"
+#endif
+
 // https://github.com/ColleagueRiley/RGFW/blob/main/examples/multi-window/multi-window.c
 
 namespace floyd {
@@ -56,6 +60,17 @@ Window::Window(const Settings& settings)
 		this->enable_ctx(); // Enable context for this window
 		// Initialize GLAD + Core
 		Core::get().initialize();
+
+	#if !defined(FLOYD_RELEASE)
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		// Initialize backend for this application
+		ImGuiIO& io = ImGui::GetIO();
+		io.BackendPlatformName = "floyd_rgfw";
+		// Initialize OpenGL backend
+		ImGui_ImplOpenGL3_Init("#version 460");
+		TRACELOG(logger::Info, "ImGui initialized!");
+	#endif
 	}
 
 	TRACELOG(logger::Info, "Window initialized! (%d total)", ++wincount);
@@ -64,7 +79,7 @@ Window::Window(const Settings& settings)
 	if(wincount > 1) this->disable_ctx();
 	this->renderer = Core::get().renderer.get();
 
-	// Disable VSync
+	// Disable VSync by default
 	RGFW_window_swapInterval_OpenGL(pimpl->window, RGFW_FALSE);
 }
 
@@ -76,9 +91,13 @@ Window::~Window() {
 		if(wincount == 0) {
 			TRACELOG(logger::Info, "Closing OpenGL context");
 			this->enable_ctx();
-			// Core::get().shutdown(); // No need right now
 			this->disable_ctx();
 			shared_context = nullptr;
+			// Delete ImGui
+			TRACELOG(logger::Info, "Closing ImGui");
+			ImGui_ImplOpenGL3_Shutdown();
+			// ImGui_ImplRgfw_Shutdown();
+			ImGui::DestroyContext();
 		}
 		RGFW_window_close(pimpl->window); // Automatically calls RGFW_window_deleteContext_OpenGL
 		pimpl->window = nullptr;
@@ -119,9 +138,37 @@ void Window::poll_events() noexcept {
 			}
 		}
 	}
+
+#if !defined(FLOYD_RELEASE)
+	ImGui_ImplOpenGL3_NewFrame();
+
+	// Update backend for this frame
+	ImGuiIO& io = ImGui::GetIO();
+	vec2<u32> s = this->size();
+	io.DisplaySize = ImVec2(s.x, s.y);
+	io.DeltaTime = this->clock.delta();
+	vec2<u32> mp = this->mouse_pos();
+	io.AddMousePosEvent(mp.x, mp.y);
+	io.AddMouseButtonEvent(0, this->mousedown(MouseButton::LEFT));
+	io.AddMouseButtonEvent(1, this->mousedown(MouseButton::RIGHT));
+
+	ImGui::NewFrame();
+#endif
 }
 
-void Window::swap_buffers() const noexcept { RGFW_window_swapBuffers_OpenGL(pimpl->window); }
+void Window::swap_buffers() const noexcept {
+#if !defined(FLOYD_RELEASE)
+	ImGui::Begin("Test");
+	ImGui::Text("FPS: %.1f", this->fps());
+	ImGui::End();
+
+
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#endif
+	RGFW_window_swapBuffers_OpenGL(pimpl->window);
+
+}
 
 // -- SETTINGS
 
@@ -144,6 +191,14 @@ void Window::update_viewport(const u32 width, const u32 height) noexcept {
 	// 		static_cast<int>(height));
 	glViewport(0, 0, width, height);
 	this->renderer->update_viewport(width, height);
+}
+
+bool Window::is_ui_focused() const noexcept {
+#if !defined(FLOYD_RELEASE)
+	return ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
+#else
+	return false;
+#endif
 }
 bool Window::is_mouse_grabbed() const noexcept { return RGFW_window_isHoldingMouse(pimpl->window); }
 

@@ -66,6 +66,7 @@ $(OBJ_DIR)/$(LIB_DIR)/%.o: $(LIB_DIR)/%.c
 	gcc -fPIC $(INCLUDE_DIRS) -MMD -MP -c $< -o $@
 
 # src/*.c (RGFW)
+# NOTE: RGFW seems to only work when compiled with a C compiler
 $(OBJ_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	gcc -fPIC $(INCLUDE_DIRS) -MMD -MP -c $< -o $@
@@ -78,7 +79,7 @@ clean:
 
 # Debug build
 # -Wpadded
-debug: CXXFLAGS += -O0 -DRGFW_DEBUG -DFLOYD_DEBUG_MAPPED_BUFFER -DFLOYD_DEBUG_TEXT -g -Wall -Wextra -Wuninitialized -Wunreachable-code -Wpadded
+debug: CXXFLAGS += -O0 -DRGFW_DEBUG -DFLOYD_DEBUG_MAPPED_BUFFER -DFLOYD_DEBUG_TEXT -g -Wall -Wextra -Wuninitialized -Wunreachable-code
 debug: all
 
 # Release build
