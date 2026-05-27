@@ -63,14 +63,14 @@ Only `GLAD` and `glm` headers are required
 ---
 
 # Example: Rotating Cube with Script System
-![cube example](medias/cube_example.gif)
-
-This scripts implements:
+This example implements:
 - Rotating cube
 - Orbitating light
 - Camera movement
 - Viewport update on Window resize
 - Script System to rotate the cube
+
+![cube example](medias/cube_example.gif)
 
 ```cpp
 using namespace floyd;
