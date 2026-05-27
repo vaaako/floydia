@@ -7,12 +7,6 @@ namespace floyd {
 
 Renderable::Renderable(const std::shared_ptr<Model>& model) noexcept
 	: _model(std::move(model)) {}
-Renderable::Renderable(const Renderable& other) noexcept
-	: Object(other) , visible(other.visible) , is_persitent(other.is_persitent) , _world_aabb(other._world_aabb) , _model(other._model) {}
-
-void Renderable::update_scripts(const float dt) noexcept {
-	for(auto& s : this->scripts) s->update(dt);
-}
 
 glm::mat4 Renderable::final_matrix(const glm::mat4& view) const noexcept {
 	(void)(view);

@@ -1,9 +1,6 @@
 #pragma once
 
 #include "floydia/rendering/object.hpp"
-#include "floydia/rendering/script.hpp"
-#include <memory>
-#include <vector>
 
 namespace floyd {
 
@@ -56,9 +53,6 @@ class Light : public Object {
 				.type = type
 			};
 		}
-
-	private:
-		std::vector<std::unique_ptr<Script>> scripts;
 };
 
-}
+} // namespace floyd

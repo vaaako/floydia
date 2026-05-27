@@ -61,16 +61,42 @@ Only `GLAD` and `glm` headers are required
 # Example: Rotating Cube with Script System
 ![cube example](medias/cube_example.gif)
 
-This example uses the Script System
+This scripts implements:
+- Rotating cube
+- Orbitating light
+- Camera movement
+- Viewport update on Window resize
+- Script System to rotate the cube
+
 ```cpp
 using namespace floyd;
 
-// Reusable script
+// Y rotation script
 struct Rotator : public Script {
 	float speed = 50.0f; // Degrees per second
 
 	void update(float dt) noexcept override {
 		owner->transform.rotate({ 0.0f, this->speed * dt, 0.0f });
+	}
+};
+
+// Orbit script
+struct Orbiter : public Script {
+	Object* target = nullptr; // Orbit target
+	float radius = 5.0f; // Orbit radius
+	float speed  = 1.0f; // Multiplier
+	float angle  = 0.0f;
+
+	Orbiter(Object* target) : target(target) {}
+
+	void update(const float dt) noexcept override {
+		this->angle += dt * this->speed;
+		owner->transform.set_position(math::orbitate_sphere(
+			target->transform.position(),
+			this->angle * 60.0f, // Horizontal speed
+			this->angle * 30.0f, // Vertical speed
+			this->radius
+		));
 	}
 };
 
@@ -102,9 +128,11 @@ int main() {
 	lamp.transform.set_position({ 0.0f, 3.0f, 10.0f });
 	lamp.intensity = 2.0f;
 	lamp.range     = 15.0f;
+	lamp.attach_script<Orbiter>(&cube); // Attach Orbiter script passing target
 	// View the light source
 	Cube debug_lamp = Cube();
 	debug_lamp.transform.set_scale({ 0.2f, 0.2f, 0.2f });
+	// Cube doesn't the need same script
 
 	// Update viewport on window resize
 	window.on_event(Event::WINDOW_RESIZED, [&](){
@@ -114,10 +142,11 @@ int main() {
 	});
 
 	float rotation = 0.0f;
+	float dt = 0.0f;
 	while(window.is_open()) {
 		window.clear();
-	
 		window.poll_events();
+		dt = window.dt();
 
 		// If QUIT event or pressed ESCAPE key and mouse isn't grabbed
 		if (window.has_event(Event::WINDOW_QUIT) ||
@@ -148,15 +177,8 @@ int main() {
 		window.end_frame();
 
 		cube.update_scripts(dt); // Update scripts for this Object
-		// Orbitate lamp around cube
-		lamp.transform.set_position(
-			math::orbitate_sphere(
-				cube.transform.position(),
-				rotation * 60.0f, // Horizontal speed
-				rotation * 30.0f, // Vertical speed
-				2.0f // Radius
-			)
-		);
+		lamp.update_scripts(dt);
+		// Copy lamp position
 		debug_lamp.transform.set_position(lamp.transform.position());
 
 		// Update rotation

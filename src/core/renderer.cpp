@@ -179,7 +179,6 @@ size_t Renderer::add(Renderable& obj) noexcept {
 	this->persistent_objs.push_back(&obj);
 	this->persistent_dirty = true;
 	this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
-	obj.is_persitent = true;
 	return this->persistent_objs.size() - 1;
 }
 

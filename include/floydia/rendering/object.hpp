@@ -1,8 +1,11 @@
 #pragma once
 
+#include "floydia/rendering/script.hpp"
 #include "floydia/rendering/transform.hpp"
 #include <atomic>
+#include <memory>
 #include <string>
+#include <vector>
 
 namespace floyd {
 
@@ -29,33 +32,29 @@ class Object {
 			return *this;
 		}
 
+		// Attach a script
+		template <typename T, typename... Args>
+		T* attach_script(Args&&... args) noexcept;
+		// Update all attached scripts
+		void update_scripts(const float dt) noexcept;
+
 		// Returns this object UUID
 		inline uint64_t uuid() const noexcept { return _uuid; }
 
 		// Color on 0-255 range
-		inline const vec4<float> color() const {
-			return (vec4<float>)this->_color * glm::vec4(255.0f);
-		}
-
+		inline const vec4<float> color() const { return (vec4<float>)this->_color * glm::vec4(255.0f); }
 		// Normalized color
-		inline const vec4<float>& color_norm() const {
-			return this->_color;
-		}
-
+		inline const vec4<float>& color_norm() const { return this->_color; }
 		// Set color on 0-255 range
-		inline void set_color(const vec4<u8>& c) {
-			this->_color = (vec4<float>)c / glm::vec4(255.0f);
-		}
-
+		inline void set_color(const vec4<u8>& c) { this->_color = (vec4<float>)c / glm::vec4(255.0f); }
 		// Set color on 0-1 range
-		inline void set_color_norm(const vec4<float>& c) {
-			this->_color = c;
-		}
+		inline void set_color_norm(const vec4<float>& c) { this->_color = c; }
 
 	private:
 		// Color is on object because it isn't considered when batching
 		vec4<float> _color = vec4<float>(1.0f);
 		u64 _uuid;
+		std::vector<std::unique_ptr<Script>> scripts;
 
 		static u64 generate_uuid() noexcept {
 			static std::atomic<u64> counter = 1;
@@ -63,6 +62,19 @@ class Object {
 		}
 
 };
+
+template <typename T, typename... Args>
+T* Object::attach_script(Args&&... args) noexcept {
+	static_assert(std::is_base_of_v<Script, T>, "T must derive from Script");
+	
+	std::unique_ptr<T> s = std::make_unique<T>(std::forward<Args>(args)...);
+	s->owner = this;
+	s->on_attach(); // Trigger
+
+	T* ptr = s.get();
+	this->scripts.push_back(std::move(s));
+	return ptr;
+}
 
 } // namespace floyd
 
