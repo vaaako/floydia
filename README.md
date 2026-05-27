@@ -17,6 +17,9 @@ Contact me on discord: **vakothebat**
 **Metallic material**
 ![metallic material](medias/metallic_cubes.png)
 
+**Editor Panel**
+![editor panel](medias/editorpanel.png)
+
 ---
 
 # Features
@@ -34,6 +37,7 @@ Contact me on discord: **vakothebat**
 - **AABB**: Per-model and per-submesh axis-aligned bounding boxes
 - **Asset Manager**: Automatic caching of meshes, shaders, textures and materials
 - **Script System**: Custom and reusable scripts attachable to Objects
+- **Editor Panel**: Built-in editor panel
 
 ---
 

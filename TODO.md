@@ -129,9 +129,10 @@ I wrote most of the things here very tired, sorry for any english mistake
 	+ [ ] Alarm
 	+ [ ] 3D Uniform Grid Collision
 	+ [ ] 2D Color map
-- [ ] ImGui scroll not working
+- [x] ImGui scroll not working
 - [ ] Be able to delete persistent object from renderer
 - [ ] Better `Material` handling on `Renderable`
+- [ ] Error when sprite is not drawn
 
 - Entity Scene system
 	+ Objects in scene may have triggers inject to it

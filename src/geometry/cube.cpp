@@ -11,7 +11,7 @@ std::shared_ptr<Model> Cube::create_model() noexcept {
 	std::shared_ptr<Mesh> mesh = assets().load_cube_mesh();
 	std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(
 		assets().defaults.MAT_3D,
-		assets().load_texture("d_white")
+		assets().load<Texture>(hash::of("d_white"))
 	);
 	std::shared_ptr<Model> model = std::make_shared<Model>();
 	model->add_submesh(mesh, matinst); // use default material

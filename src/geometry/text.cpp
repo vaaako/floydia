@@ -94,7 +94,7 @@ Text::Text(const char* path, const u32 size)
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	this->atlas_texture = assets()
-		.load_texture(atlas_pixels.data(), Text::ATLAS_WIDTH, Text::ATLAS_HEIGHT, 1);
+		.load_texture(atlas_pixels.data(), Text::ATLAS_WIDTH, Text::ATLAS_HEIGHT, 1, path);
 	this->atlas_texture->set_filter(Texture::Filter::Nearest);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 

@@ -75,7 +75,7 @@ Window::Window(const Settings& settings)
 	#endif
 	}
 
-	TRACELOG(logger::Info, "Window initialized! (%d total)", ++wincount);
+	TRACELOG(logger::Info, "Window (%p) initialized! (%d total)", (void*)pimpl->window, ++wincount);
 
 	// Release context (if not first window). User must manually set current context
 	if(wincount > 1) this->disable_ctx();
@@ -89,14 +89,14 @@ Window::~Window() {
 	std::lock_guard<std::mutex> lock(wmutex);
 
 	if(pimpl->window != nullptr) {
-		TRACELOG(logger::Info, "Closing window: %p (%d remaining)", (void*)pimpl->window, --wincount);
+		TRACELOG(logger::Info, "Window (%p) closed! (%d remaining)", (void*)pimpl->window, --wincount);
 		if(wincount == 0) {
-			TRACELOG(logger::Info, "Closing OpenGL context");
+			TRACELOG(logger::Info, "OpenGL context destroyed!");
 			// this->enable_ctx();
 			this->disable_ctx();
 			shared_context = nullptr;
 			// Delete ImGui
-			TRACELOG(logger::Info, "Closing ImGui");
+			TRACELOG(logger::Info, "ImGui destroyed!");
 			ImGui_ImplOpenGL3_Shutdown();
 			ImGui::DestroyContext();
 		}
@@ -146,15 +146,17 @@ void Window::poll_events() noexcept {
 
 	// Update keyboard
 	#if !defined(FLOYD_RELEASE)
-		if(event.type == RGFW_keyPressed) {
-			io.AddKeyEvent(ui::KeyToImGuiKey(event.key.value), true);
-			io.AddInputCharacter(event.key.sym);
+		if(event.type == RGFW_keyPressed || event.type == RGFW_keyReleased) {
+			if(event.type == RGFW_keyPressed) {
+				io.AddKeyEvent(ui::KeyToImGuiKey(event.key.value), true);
+				io.AddInputCharacter(event.key.sym);
+			} else if(event.type == RGFW_keyReleased) {
+				io.AddKeyEvent(ui::KeyToImGuiKey(event.key.value), false);
+			}
 
 			io.AddKeyEvent(ImGuiMod_Shift, RGFW_isKeyDown(RGFW_shiftL) || RGFW_isKeyDown(RGFW_shiftR));
 			io.AddKeyEvent(ImGuiMod_Ctrl,  RGFW_isKeyDown(RGFW_controlL) || RGFW_isKeyDown(RGFW_controlR));
 			io.AddKeyEvent(ImGuiMod_Alt,   RGFW_isKeyDown(RGFW_altL) || RGFW_isKeyDown(RGFW_altR));
-		} else if(event.type == RGFW_keyReleased) {
-			io.AddKeyEvent(ui::KeyToImGuiKey(event.key.value), false);
 		}
 	#endif
 	}
@@ -265,7 +267,42 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 		if(ui::drag_scroll_float3("Rotation", r, 0.25f, -360.0f, 360.0f)) { obj->transform.set_rotation({ r[0], r[1], r[2] }); has_changed = true; }
 	}
 
-	if(has_changed && obj->is_persitent) renderer->mark_dirty();
+	ImGui::Separator();
+
+	if(ImGui::CollapsingHeader("Textures")) {
+		static std::shared_ptr<Texture> selected = nullptr;
+		if(selected == nullptr) selected = obj->material()->albedo;
+
+		for(auto& [_, texentry] : assets().textures) {
+			std::shared_ptr<Texture> tex = texentry.texture; // cache
+
+			ImGui::Image((ImTextureID)(intptr_t)texentry.texture->id(), ImVec2(64, 64),
+				ImVec2(0, 1), ImVec2(1, 0) // Display upside down, which makes correct
+			);
+			if(ImGui::IsItemHovered()) {
+				ImGui::BeginTooltip();
+				ImGui::Text("%s", texentry.path.c_str());
+				ImGui::EndTooltip();
+			}
+			if(ImGui::IsItemClicked()) { selected = tex; obj->material()->albedo = tex; has_changed = true; }
+			ImGui::SameLine();
+		}
+
+		ImGui::Separator();
+		ImGui::Text("Filter:");
+		if(ImGui::Button("Nearest"))  selected->set_filter(Texture::Filter::Nearest);
+		ImGui::SameLine();
+		if(ImGui::Button("Linear"))   selected->set_filter(Texture::Filter::Linear);
+		ImGui::Separator();
+		ImGui::Text("Wrap:");
+		if(ImGui::Button("Repeat"))   selected->set_filter(Texture::Filter::Repeat);
+		ImGui::SameLine();
+		if(ImGui::Button("Clamp"))    selected->set_filter(Texture::Filter::Clamp);
+		ImGui::SameLine();
+		if(ImGui::Button("Mirrored")) selected->set_filter(Texture::Filter::Mirrored);
+	}
+
+	if(has_changed && obj->is_persistent) renderer->mark_dirty();
 	ImGui::End();
 #endif
 }

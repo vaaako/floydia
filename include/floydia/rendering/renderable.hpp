@@ -20,6 +20,8 @@ class Renderable : public Object {
 	public:
 		// Visible on Frustum Culling
 		bool visible = true;
+		// Set by Renderer. Tells if a Object is persistent on Renderer
+		bool is_persistent = true;
 
 	public:
 		Renderable(const std::shared_ptr<Model>& model) noexcept;

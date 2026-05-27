@@ -18,8 +18,8 @@ Assets::Assets() noexcept {
 		// Row 1
 		255, 0, 255, 255,  0, 0, 0, 255 // Black, Purple
 	}; // Here to avoid Error log when library starts
-	this->textures[hash::of("d_white")]    = std::make_shared<Texture>(white, 1, 1);
-	this->textures[hash::of("d_notfound")] = std::make_shared<Texture>(blackpurple, 2, 2);
+	this->textures[hash::of("d_white")]    = { std::make_shared<Texture>(white, 1, 1), "[DEFAULT_TEXTURE]" };
+	this->textures[hash::of("d_notfound")] = { std::make_shared<Texture>(blackpurple, 2, 2), "[DEFAULT_TEXTURE]" };
 
 	this->defaults.PROG_VERT_3D   = this->load_program(Shaders::DEFAULT_VERTEX,    nullptr);
 	this->defaults.PROG_FRAG_3D   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT);
@@ -33,23 +33,25 @@ Assets::Assets() noexcept {
 
 std::shared_ptr<Texture> Assets::load_texture(const char* path) {
 	if(path == nullptr) throw std::invalid_argument("Texture path is null");
+
 	const size_t hash = hash::of(path);
 	std::shared_ptr<Texture> tex = this->load<Texture>(hash);
-	if(tex) return tex;
+	if(tex != nullptr) return tex;
 
 	tex = std::make_shared<Texture>(path);
-	this->textures[hash] = tex;
+	this->textures[hash] = { tex, path };
 	return tex;
 }
 
-std::shared_ptr<Texture> Assets::load_texture(u8* data, const u32 width, const u32 height, const u8 channels) {
+std::shared_ptr<Texture> Assets::load_texture(u8* data, const u32 width, const u32 height, const u8 channels, const char* name) {
 	if(data == nullptr) throw std::invalid_argument("Texture data is null");
+
 	const size_t hash = hash::of(data);
 	std::shared_ptr<Texture> tex = this->load<Texture>(hash);
-	if(tex) return tex;
+	if(tex != nullptr) return tex;
 
 	tex = std::make_shared<Texture>(data, width, height, channels);
-	this->textures[hash] = tex;
+	this->textures[hash] = { tex, name };
 	return tex;
 }
 

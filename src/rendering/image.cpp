@@ -16,7 +16,7 @@ Image::Image(const char* path) noexcept {
 		logger::log(logger::Error, "Image \"%s\" not found!", path);
 		this->width = 2;
 		this->height = 2;
-		this->channels = 1;
+		this->channels = 4;
 		this->fallback = true;
 
 		this->data = new u8[sizeof(Image::FALLBACK_IMAGE)];
@@ -30,7 +30,7 @@ Image::Image(const u8* data, const u32 width, const u32 height, const u8 channel
 		logger::log(logger::Error, "Raw image data is invalid!");
 		this->width = 2;
 		this->height = 2;
-		this->channels = 1;
+		this->channels = 4;
 		this->fallback = true;
 
 		this->data = new u8[sizeof(Image::FALLBACK_IMAGE)];
@@ -49,7 +49,7 @@ Image::Image(const u8* data, const int size) noexcept {
 		logger::log(logger::Error, "Image data is invalid!", path);
 		this->width = 2;
 		this->height = 2;
-		this->channels = 1;
+		this->channels = 4;
 		this->fallback = true;
 
 		this->data = new u8[sizeof(Image::FALLBACK_IMAGE)];

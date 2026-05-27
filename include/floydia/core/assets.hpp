@@ -17,6 +17,12 @@ namespace floyd {
 // May contain repeated Assets if user pushes same asset with different name
 class Assets final {
 	public:
+		struct TextureEntry {
+			std::shared_ptr<Texture> texture;
+			std::string path; // Useful for picking
+		};
+
+	public:
 		// Default assets
 		struct Default {
 			// Shader Program of Shaders::DEFAULT_VERTEX
@@ -41,8 +47,9 @@ class Assets final {
 
 		// Builds a new Texture or returns an existing one
 		std::shared_ptr<Texture> load_texture(const char* path);
-		// Builds a new Texture or returns an existing one
-		std::shared_ptr<Texture> load_texture(u8* data, const u32 width, const u32 height, const u8 channels = 4);
+		// Builds a new Texture or returns an existing one.
+		// 'name' represents the name the texture will be stored with
+		std::shared_ptr<Texture> load_texture(u8* data, const u32 width, const u32 height, const u8 channels = 4, const char* name = "[DATA_TEXTURE]");
 		// Builds a new TTF file or returns an existing one.
 		std::shared_ptr<Text> load_font(const char* path, const u32 size);
 		// Builds a new Shader Program or returns an existing one.
@@ -63,23 +70,20 @@ class Assets final {
 		// Load a Cube mesh
 		std::shared_ptr<Mesh> load_cube_mesh() noexcept;
 
-		// Load an existing Shader Program, Material, Texture or Model
-		template <typename T>
-		std::shared_ptr<T> load(const size_t hash);
 		// Load an existing Shader Program, Material, Texture, Font or Model
 		template <typename T>
-		std::shared_ptr<T> load(const std::string_view& key);
+		std::shared_ptr<T> load(const size_t hash);
 
-	private:
-		std::unordered_map<size_t, std::shared_ptr<Texture>> textures;
+	public:
+		std::unordered_map<size_t, TextureEntry> textures;
 		std::unordered_map<size_t, std::shared_ptr<Text>> texts;
 		std::unordered_map<size_t, std::shared_ptr<ShaderProgram>> programs;
 		std::unordered_map<size_t, std::shared_ptr<Material>> materials;
 		std::unordered_map<size_t, std::shared_ptr<Model>> models;
-
+	
+	private:
 		// Specialization
 		template <typename T> auto& get_cache();
-
 		// Helper to make a hash of a Material
 		size_t material_hash(const std::shared_ptr<ShaderProgram>& vertex, const std::shared_ptr<ShaderProgram>& fragment) const noexcept;
 };
@@ -90,10 +94,6 @@ template<> inline auto& Assets::get_cache<ShaderProgram>() { return this->progra
 template<> inline auto& Assets::get_cache<Material>() { return this->materials; }
 template<> inline auto& Assets::get_cache<Model>() { return this->models; }
 
-
-template <typename T>
-std::shared_ptr<T> Assets::load(const std::string_view& key) { return this->load<T>(hash::of(key)); }
-
 template <typename T>
 std::shared_ptr<T> Assets::load(const size_t hash) {
 	auto& cache = this->get_cache<T>();
@@ -102,5 +102,11 @@ std::shared_ptr<T> Assets::load(const size_t hash) {
 	return nullptr;
 }
 
+template <>
+inline std::shared_ptr<Texture> Assets::load(const size_t hash) {
+	auto it = this->textures.find(hash);
+	if(it != this->textures.end()) return it->second.texture;
+	return nullptr;
+}
 
 } // namespace floyd
