@@ -136,6 +136,17 @@ void Window::poll_events() noexcept {
 	while(RGFW_window_checkEvent(pimpl->window, &event)) {
 		this->events.emplace(static_cast<Event>(event.type));
 
+	#if !defined(FLOYD_RELEASE)
+		// Update ImGui events
+		if(event.type == RGFW_keyPressed) {
+			// Add pressed key to ImGui events
+			io.AddKeyEvent(ui::KeyToImGuiKey(event.key.value), true);
+			io.AddInputCharacter(event.key.sym);
+		} else if(event.type == RGFW_keyReleased) {
+			io.AddKeyEvent(ui::KeyToImGuiKey(event.key.value), false);
+		}
+	#endif
+
 		// Check for registered callback and run it
 		if(!this->events_callbacks.empty()) {
 			auto it = this->events_callbacks.find(static_cast<Event>(event.type));
@@ -143,22 +154,6 @@ void Window::poll_events() noexcept {
 				it->second();
 			}
 		}
-
-	// Update keyboard
-	#if !defined(FLOYD_RELEASE)
-		if(event.type == RGFW_keyPressed || event.type == RGFW_keyReleased) {
-			if(event.type == RGFW_keyPressed) {
-				io.AddKeyEvent(ui::KeyToImGuiKey(event.key.value), true);
-				io.AddInputCharacter(event.key.sym);
-			} else if(event.type == RGFW_keyReleased) {
-				io.AddKeyEvent(ui::KeyToImGuiKey(event.key.value), false);
-			}
-
-			io.AddKeyEvent(ImGuiMod_Shift, RGFW_isKeyDown(RGFW_shiftL) || RGFW_isKeyDown(RGFW_shiftR));
-			io.AddKeyEvent(ImGuiMod_Ctrl,  RGFW_isKeyDown(RGFW_controlL) || RGFW_isKeyDown(RGFW_controlR));
-			io.AddKeyEvent(ImGuiMod_Alt,   RGFW_isKeyDown(RGFW_altL) || RGFW_isKeyDown(RGFW_altR));
-		}
-	#endif
 	}
 
 // Update mouse
@@ -169,12 +164,18 @@ void Window::poll_events() noexcept {
 	const vec2<u32> mp = this->mouse_pos();
 	const vec2<float> scroll = this->mouse_scroll();
 
+	// Update window
 	io.DisplaySize = ImVec2(s.x, s.y);
 	io.DeltaTime = this->clock.delta();
+	// Update mouse
 	io.AddMousePosEvent(mp.x, mp.y);
-	io.AddMouseButtonEvent(0, this->mousedown(MouseButton::LEFT));
-	io.AddMouseButtonEvent(1, this->mousedown(MouseButton::RIGHT));
 	io.AddMouseWheelEvent(scroll.x, scroll.y);
+	io.AddMouseButtonEvent(0, RGFW_isMouseDown(RGFW_mouseLeft));
+	io.AddMouseButtonEvent(1, RGFW_isMouseDown(RGFW_mouseRight));
+	// Precision keys for slides
+	io.AddKeyEvent(ImGuiMod_Shift, RGFW_isKeyDown(RGFW_shiftL) || RGFW_isKeyDown(RGFW_shiftR));
+	io.AddKeyEvent(ImGuiMod_Ctrl,  RGFW_isKeyDown(RGFW_controlL) || RGFW_isKeyDown(RGFW_controlR));
+	io.AddKeyEvent(ImGuiMod_Alt,   RGFW_isKeyDown(RGFW_altL) || RGFW_isKeyDown(RGFW_altR));
 
 	ImGui::NewFrame();
 #endif
@@ -212,13 +213,6 @@ void Window::update_viewport(const u32 width, const u32 height) noexcept {
 	this->renderer->update_viewport(width, height);
 }
 
-bool Window::is_ui_focused() const noexcept {
-#if !defined(FLOYD_RELEASE)
-	return ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
-#else
-	return false;
-#endif
-}
 bool Window::is_mouse_grabbed() const noexcept { return RGFW_window_isHoldingMouse(pimpl->window); }
 
 // -- Editor Panel
@@ -307,6 +301,16 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 #endif
 }
 
+#if !defined(FLOYD_RELEASE)
+bool Window::ui_key_clicked() const noexcept {
+	return ImGui::GetIO().WantCaptureMouse;
+}
+
+bool Window::ui_mouse_clicked() const noexcept {
+	return ImGui::GetIO().WantCaptureKeyboard;
+}
+#endif
+
 
 // -- KEYBOARD
 
@@ -316,9 +320,24 @@ bool Window::keyup(const Keycode key) const noexcept      { return RGFW_isKeyRel
 
 // -- MOUSE
 
-bool Window::mousedown(const MouseButton key) const noexcept    { return RGFW_isMouseDown(static_cast<u8>(key)); }
-bool Window::mousepressed(const MouseButton key) const noexcept { return RGFW_isMousePressed(static_cast<u8>(key)); }
-bool Window::mouseup(const MouseButton key) const noexcept      { return RGFW_isMouseReleased(static_cast<u8>(key)); }
+bool Window::mousedown(const MouseButton key) const noexcept {
+#if !defined(FLOYD_RELEASE)
+	if(ImGui::GetIO().WantCaptureMouse) return false;
+#endif
+	return RGFW_isMouseDown(static_cast<u8>(key));
+}
+bool Window::mousepressed(const MouseButton key) const noexcept {
+#if !defined(FLOYD_RELEASE)
+	if(ImGui::GetIO().WantCaptureMouse) return false;
+#endif
+	return RGFW_isMousePressed(static_cast<u8>(key));
+}
+bool Window::mouseup(const MouseButton key) const noexcept {
+#if !defined(FLOYD_RELEASE)
+	if(ImGui::GetIO().WantCaptureMouse) return false;
+#endif
+	return RGFW_isMouseReleased(static_cast<u8>(key));
+}
 
 vec2<float> Window::mouse_scroll() const noexcept {
 	vec2<float> output;

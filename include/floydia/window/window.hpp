@@ -15,8 +15,6 @@
 #include <floydia/geometry/cube.hpp>
 #include <floydia/core/core.hpp>
 
-#include "imgui/imgui.h"
-
 namespace floyd {
 
 class Window final {
@@ -98,8 +96,12 @@ class Window final {
 
 		// Returns true if mouse is grabbed
 		bool is_mouse_grabbed() const noexcept;
-		// Returns true if mouse is interacting with the UI
-		bool is_ui_focused() const noexcept;
+	#if !defined(FLOYD_RELEASE)
+		// Retruns true if keyboard clicked inside UI
+		bool ui_key_clicked() const noexcept;
+		// Retruns true if mouse clicked inside UI
+		bool ui_mouse_clicked() const noexcept;
+	#endif
 
 		// Casts a ray from the mouse position and returns the closest visible object hit.
 		// Returns nullptr if nothing was hit.
@@ -139,6 +141,9 @@ class Window final {
 
 		// Open an ImGui window to edit a Renderable
 		void editor_panel(Renderable* obj) const noexcept;
+
+		// NOTE: When typing on ImGui. Keys will be handled by RGFW too
+		// but i dont think it is really necessary to handle this case
 
 		// Returns true if the key is down
 		bool keydown(const Keycode key) const noexcept;

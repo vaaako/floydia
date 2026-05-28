@@ -251,7 +251,7 @@ With debug flags:
 make debug vars
 ```
 
-> The "debug" flag removes compile otimization
+> The "debug" flag removes compile optimization
 
 
 ## Debug Macros
