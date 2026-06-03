@@ -253,12 +253,19 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 	if(ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
 		const vec3<float> pos = obj->transform.position();
 		float p[3] = { pos.x, pos.y, pos.z };
-		if(ui::drag_scroll_float3("Position", p, 0.1f, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max())) { obj->transform.set_position({ p[0], p[1], p[2] }); has_changed = true; }
+		if(ui::drag_scroll_float3("Position", p, 0.1f,
+			std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max())) {
+			obj->transform.set_position({ p[0], p[1], p[2] });
+			has_changed = true;
+		}
 
 		// Euler to rotation
 		const vec3<float> euler = obj->transform.euler_degrees();
 		float r[3] = { euler.x, euler.y, euler.z };
-		if(ui::drag_scroll_float3("Rotation", r, 0.25f, -360.0f, 360.0f)) { obj->transform.set_rotation({ r[0], r[1], r[2] }); has_changed = true; }
+		if(ui::drag_scroll_float3("Rotation", r, 0.25f, -360.0f, 360.0f)) {
+			obj->transform.set_rotation({ r[0], r[1], r[2] });
+			has_changed = true;
+		}
 	}
 
 	ImGui::Separator();
@@ -267,6 +274,10 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 		static std::shared_ptr<Texture> selected = nullptr;
 		if(selected == nullptr) selected = obj->material()->albedo;
 
+		// 64: image size
+		// 16: offset
+		ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 8.0f); // default is 14
+		ImGui::BeginChild("##tex_scroll", ImVec2(0, 64 + 16), false, ImGuiWindowFlags_HorizontalScrollbar);
 		for(auto& [_, texentry] : assets().textures) {
 			std::shared_ptr<Texture> tex = texentry.texture; // cache
 
@@ -281,17 +292,19 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 			if(ImGui::IsItemClicked()) { selected = tex; obj->material()->albedo = tex; has_changed = true; }
 			ImGui::SameLine();
 		}
+		ImGui::EndChild();
+		ImGui::PopStyleVar();
 
 		ImGui::Separator();
 		ImGui::Text("Filter:");
-		if(ImGui::Button("Nearest"))  selected->set_filter(Texture::Filter::Nearest);
+		if(ImGui::Button("Nearest")) selected->set_filter(Texture::Filter::Nearest);
 		ImGui::SameLine();
-		if(ImGui::Button("Linear"))   selected->set_filter(Texture::Filter::Linear);
+		if(ImGui::Button("Linear")) selected->set_filter(Texture::Filter::Linear);
 		ImGui::Separator();
 		ImGui::Text("Wrap:");
-		if(ImGui::Button("Repeat"))   selected->set_filter(Texture::Filter::Repeat);
+		if(ImGui::Button("Repeat")) selected->set_filter(Texture::Filter::Repeat);
 		ImGui::SameLine();
-		if(ImGui::Button("Clamp"))    selected->set_filter(Texture::Filter::Clamp);
+		if(ImGui::Button("Clamp")) selected->set_filter(Texture::Filter::Clamp);
 		ImGui::SameLine();
 		if(ImGui::Button("Mirrored")) selected->set_filter(Texture::Filter::Mirrored);
 	}

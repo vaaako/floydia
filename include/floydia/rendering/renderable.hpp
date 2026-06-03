@@ -57,6 +57,9 @@ class Renderable : public Object {
 		// The material of the desired mesh.
 		// Returns 'nullptr' if no mesh
 		inline const MaterialInstance* material(const size_t index) const noexcept { return this->_model->meshes().at(index).material.get(); }
+
+		// Set the same texture for all submeshes
+		void set_albedo_all(const std::shared_ptr<Texture>& tex) noexcept;
 	
 	protected:
 		AABB _world_aabb;

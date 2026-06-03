@@ -41,6 +41,7 @@ Renderer::Renderer() noexcept :
 	this->ppipeline.bind();
 }
 
+// TODO: optimize
 Renderable* Renderer::pick(const PerspectiveCamera& camera, const vec2<u32>& mouse_pos, const vec2<u32>& win_size) const noexcept {
 	Ray ray = Ray::screen_to_ray(camera, mouse_pos, win_size);
 	Renderable* obj = nullptr;
@@ -157,9 +158,9 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 
 void Renderer::draw_persistent() noexcept {
 	this->persistent_included = true;
-	// Rebuild persistent lights
-	for(const Light* light : this->persistent_lights) {
-		this->lights.push_back(light->to_gpu_data());
+	// Push persistent lights for this frame
+	for(const Light::LightData& light : this->persistent_lights) {
+		this->lights.push_back(light);
 	}
 }
 
@@ -188,7 +189,7 @@ void Renderer::draw(const Light& light) noexcept {
 }
 
 size_t Renderer::add(const Light& light) noexcept {
-	this->persistent_lights.push_back(&light);
+	this->persistent_lights.push_back(light.to_gpu_data());
 	this->persistent_ssbo_light_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
 	return this->persistent_lights.size() - 1;
 }
@@ -321,9 +322,6 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 
 	// Create draw commands with instance index
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
-		// Cull sub meshes
-		// if(!this->frustum.test(sub.mesh->aabb, mmatrix)) continue;
-
 		// Try to find existing batch
 		BatchKey key = {
 			sub.mesh.get(),

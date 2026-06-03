@@ -22,6 +22,8 @@ namespace floyd {
 class Window;
 
 class Renderer final {
+	friend struct SceneBuilder;
+
 	public:
 		Renderer() noexcept;
 		~Renderer() = default;
@@ -133,15 +135,17 @@ class Renderer final {
 		// All instance data, uploaded to the SSBO each frame
 		std::vector<Renderable::InstanceData> instances;
 		std::vector<Renderable::InstanceData> persistent_instances;
+
 		// Persistent object pointers, stored by pointer to avoid copies
 		std::vector<Renderable*> persistent_objs;
-		// For ray picking only. Cleared on 'begin_frame'
+		// Dynamic objects. For ray picking only. Cleared on 'begin_frame'
 		std::vector<Renderable*> pickables;
 
-		// All instance data, uploaded to the SSBO each frame
+		// All light instances to upload to SSBO
+		// dynamic lights and persistent_lights
 		std::vector<Light::LightData> lights;
 		// Persistent light pointers, stored by pointer to avoid copies
-		std::vector<const Light*> persistent_lights;
+		std::vector<Light::LightData> persistent_lights;
 
 		std::unordered_map<Text*, TextBatch> text_batches;
 		std::vector<Text::GlyphData> glyphs;

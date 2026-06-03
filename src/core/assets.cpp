@@ -121,91 +121,123 @@ std::shared_ptr<Model> Assets::load_model(const char* path) {
 	tinyobj::attrib_t attrib; // Mesh information
 	std::vector<tinyobj::shape_t> shapes; // Mesh shapes
 	std::vector<tinyobj::material_t> materials; // Mesh materials
-
 	std::string err;
+	const std::string base_dir = string::base_dir(path) + '/';
+
 	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err,
-		path, string::base_dir(path).c_str(), true); // path, mtl_basedir, triangulate
+		path, base_dir.c_str(), true); // path, mtl_basedir, triangulate
 	if(!err.empty()) logger::log(logger::Warning, "%s", err.c_str());
 	if(!ret) throw std::runtime_error(string::format("Failed to load \"%s\": %s", path, err.c_str()));
 
+	// Pre-load all textures referenced by materials
+	// Each mat_id maps to its loaded texture (nullptr if none)
+	std::vector<std::shared_ptr<Texture>> mat_textures(materials.size(), nullptr);
+	for(size_t i = 0; i < materials.size(); i++) {
+		const std::string& texname = materials[i].diffuse_texname;
+
+	#if defined(FLOYD_DEBUG_MODEL_LOADING)
+		logger::log(logger::Debug, "Material [%zu]: diffuse_texname = '%s'", i, texname.c_str());
+	#endif
+
+		if(!texname.empty()) {
+			const std::string texpath = base_dir + texname;
+			mat_textures[i] = this->load_texture(texpath.c_str());
+
+		#if defined(FLOYD_DEBUG_MODEL_LOADING)
+			logger::log(logger::Debug, "Texture loaded: %s", (mat_textures[i]) ? "OK" : "FAILED");
+		#endif
+		}
+	}
+
+	// Group vertices and indices by material_id across all shapes
+	// int key because tinyobj uses -1 for faces with no material
+	struct RawGroup {
+		std::vector<Vertex> vertices;
+		std::vector<u32> indices;
+		std::unordered_map<Vertex, u32> uniq_verts; // dedup: hash ->vertex index
+	};
+	std::map<int, RawGroup> material_groups;
 
 	// Each shape = one SubMesh
 	for (const tinyobj::shape_t& shape : shapes) {
-		std::vector<Vertex> vertices;
-		std::vector<u32> indices;
-		std::unordered_map<size_t, u32> uniq_verts; // dedup vertices
-		
-		for(const tinyobj::index_t& idx : shape.mesh.indices) {
-			Vertex v;
+		size_t index_offset = 0;
 
-			v.pos = {
-				attrib.vertices[3 * idx.vertex_index + 0],
-				attrib.vertices[3 * idx.vertex_index + 1],
-				attrib.vertices[3 * idx.vertex_index + 2]
-			};
+		// Iterate per face (robust against n-gons before triangulation)
+		for(size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
+			const int mat_id = shape.mesh.material_ids[f];
+			const int fv = shape.mesh.num_face_vertices[f]; // always 3 since triangulated=true
+			RawGroup& group = material_groups[mat_id];
 
-			if(idx.normal_index >= 0) {
-				v.normal = {
-					attrib.normals[3 * idx.normal_index + 0],
-					attrib.normals[3 * idx.normal_index + 1],
-					attrib.normals[3 * idx.normal_index + 2]
+			for(int v = 0; v < fv; v++) {
+				const tinyobj::index_t& idx = shape.mesh.indices[index_offset + v];
+				Vertex vert{};
+
+				// Position
+				vert.pos = {
+					attrib.vertices[3 * idx.vertex_index + 0],
+					attrib.vertices[3 * idx.vertex_index + 1],
+					attrib.vertices[3 * idx.vertex_index + 2]
 				};
-			}
 
-			if(idx.texcoord_index >= 0) {
-				v.uv = {
-					attrib.texcoords[2 * idx.texcoord_index + 0],
-					1.0f - attrib.texcoords[2 * idx.texcoord_index + 1] // flip Y
-				};
-			}
-
-			// Dedup
-			size_t h = 0;
-			hash::combine(h, idx.vertex_index);
-			hash::combine(h, idx.normal_index);
-			hash::combine(h, idx.texcoord_index);
-
-			auto it = uniq_verts.find(h);
-			if(it != uniq_verts.end()) {
-				// Duplicated
-				indices.push_back(it->second);
-			} else {
-				u32 i = (u32)vertices.size();
-				vertices.push_back(v);
-				indices.push_back(i);
-				uniq_verts[h] = i;
-			}
-		}
-
-		// Build material from .mtl
-		std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(
-			this->defaults.MAT_3D,
-			this->load<Texture>(hash::of("d_white"))
-		);
-
-		// First material index for this shape
-		if(!shape.mesh.material_ids.empty()) {
-			int mat_id = shape.mesh.material_ids[0];
-			if(mat_id >= 0 && mat_id < (int)materials.size()) {
-				const tinyobj::material_t& mat = materials[mat_id];
-				if(!mat.diffuse_texname.empty()) {
-					const std::string texpath = string::base_dir(path) + mat.diffuse_texname;
-					matinst->albedo = this->load_texture(texpath.c_str());
+				// Normal (optional)
+				if(idx.normal_index >= 0) {
+					vert.normal = {
+						attrib.normals[3 * idx.normal_index + 0],
+						attrib.normals[3 * idx.normal_index + 1],
+						attrib.normals[3 * idx.normal_index + 2]
+					};
 				}
-				// Metallic and roughness
-				matinst->metallic = mat.metallic;
-				matinst->roughness = mat.roughness;
+
+				// UV
+				if(idx.texcoord_index >= 0) {
+					vert.uv = {
+						attrib.texcoords[2 * idx.texcoord_index + 0],
+						attrib.texcoords[2 * idx.texcoord_index + 1] // no y flip, stb_image handles
+					};
+				}
+
+				// Deduplicate vertices within the material group
+				auto [it, inserted] = group.uniq_verts.emplace(vert, (u32)group.vertices.size());
+				if(inserted) group.vertices.push_back(vert);
+				group.indices.push_back(it->second);
 			}
+			index_offset += fv;
+		}
+	}
+
+	VertexLayout layout;
+	layout.add<float>(3); // pos
+	layout.add<float>(3); // normal
+	layout.add<float>(2); // texuv
+
+	// Each material group becomes one independent submesh with its own GPU buffers
+	
+	std::shared_ptr<Texture> def_tex = this->load<Texture>(hash::of("d_white"));
+	for(auto& [mat_id, group] : material_groups) {
+	#if defined(FLOYD_DEBUG_MODEL_LOADING)
+		logger::log(logger::Debug, "SubMesh mat_id=%d verts=%zu indices=%zu tex=%s\n",
+			mat_id,
+			group.vertices.size(),
+			group.indices.size(),
+			(mat_id >= 0 && mat_textures[mat_id]) ? "SET" : "NULL"
+		);
+	#endif
+
+		std::shared_ptr<Texture> tex = def_tex;
+
+		// Override with material texture if avaiable
+		if(mat_id >= 0 && mat_id < (int)mat_textures.size()) {
+			if(mat_textures[mat_id] != nullptr) tex = mat_textures[mat_id];
 		}
 
-		// Since the Mesh uses Vertex
-		// the minimum size is 32 bytes
-		// so it has to layout to the three attributes
-		VertexLayout layout;
-		layout.add<float>(3);
-		layout.add<float>(3);
-		layout.add<float>(2);
-		std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>(vertices, indices, layout);
+		// Load material
+		std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(this->defaults.MAT_3D, tex);
+		if(mat_id >= 0 && mat_id < (int)materials.size()) {
+			matinst->metallic  = materials[mat_id].metallic;
+			matinst->roughness = materials[mat_id].roughness;
+		}
+
+		std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>(group.vertices, group.indices, layout);
 		model->add_submesh(mesh, matinst);
 	}
 

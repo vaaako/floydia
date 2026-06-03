@@ -20,4 +20,10 @@ AABB Renderable::world_aabb() noexcept {
 	return this->_world_aabb;
 }
 
+void Renderable::set_albedo_all(const std::shared_ptr<Texture>& tex) noexcept {
+	for(auto& submesh : this->_model->meshes()) {
+		submesh.material->albedo = tex;
+	}
+}
+
 } // namespace floyd

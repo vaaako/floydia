@@ -260,6 +260,7 @@ make debug vars
 | `FLOYD_DEBUG_RENDERER`      | Logs batch creation and draw call count |
 | `FLOYD_DEBUG_MAPPED_BUFFER` | Logs SSBO/UBO resize events             |
 | `FLOYD_DEBUG_TEXT`          | Generates an image of the atlas         |
+| `FLOYD_DEBUG_MODEL_LOADING` | Logs texture loading of models          |
 
 
 <!--

@@ -44,9 +44,6 @@ out gl_PerVertex {
 struct InstanceData {
 	mat4 model;
 	vec4 color;
-	// float metallic = 0.0f;
-	// float roughness = 1.0f;
-	// float _pad[2];
 };
 
 layout(std140, binding = 0) uniform CameraBlock {
@@ -83,9 +80,9 @@ layout(location = 1) in vec3 normal;
 layout(location = 2) in vec4 color;
 layout(location = 3) in vec3 fragpos;
 
-layout(location = 0) uniform float u_metallic;
-layout(location = 1) uniform float u_roughness;
-layout(location = 2) uniform sampler2D albedo;
+layout(location = 0) uniform sampler2D albedo;
+layout(location = 1) uniform float u_metallic;
+layout(location = 2) uniform float u_roughness;
 
 layout(location = 0) out vec4 fragcolor;
 
