@@ -8,6 +8,9 @@ Contact me on discord: **vakothebat**
 **Teapot with point light source**
 ![teapot with lamp light](medias/teapot.gif)
 
+**Sonic model with lightsource**
+![sonic with light](medias/sonic.png)
+
 **Directional light**
 ![directional light](medias/directional_light.png)
 
