@@ -43,6 +43,9 @@ Renderer::Renderer() noexcept :
 
 // TODO: optimize
 Renderable* Renderer::pick(const PerspectiveCamera& camera, const vec2<u32>& mouse_pos, const vec2<u32>& win_size) const noexcept {
+#if defined(FLOYD_RELEASE)
+	return nullptr;
+#else
 	Ray ray = Ray::screen_to_ray(camera, mouse_pos, win_size);
 	Renderable* obj = nullptr;
 	float obj_t = std::numeric_limits<float>::max();
@@ -66,6 +69,7 @@ Renderable* Renderer::pick(const PerspectiveCamera& camera, const vec2<u32>& mou
 	}
 
 	return obj;
+#endif
 }
 
 void Renderer::update_viewport(const u32 width, const u32 height) noexcept {
@@ -101,7 +105,9 @@ void Renderer::begin_frame() noexcept {
 	this->ssbo_lights.wait(this->frameindex);
 	this->ssbo_glyphs.wait(this->frameindex);
 
+#if !defined(FLOYD_RELEASE)
 	this->pickables.clear();
+#endif
 }
 
 void Renderer::end_frame() noexcept {
@@ -136,15 +142,21 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 	if(this->persistent_dirty) {
 		this->persistent_batches.clear();
 		this->persistent_instances.clear();
+		this->dirty_queue.clear();
+
+		// Group batches
 		for(Renderable* obj : this->persistent_objs) {
 			if(!obj) continue;
-			this->add_batch(*obj, this->persistent_batches);
+			this->add_batch(*obj, this->persistent_batches, &obj->persistent_slot);
 		}
 
-		// Build instances to send to SSBO
-		for(auto& [_, batch] : this->persistent_batches) {
-			batch.instance_index = this->persistent_instances.size();
-			// Bulk copy. Insert all of batch's instances into 'persistent_instances'
+		// Flatten all batches into InstanceData
+		std::unordered_map<BatchKey, u32, BatchKeyHash> batch_base;
+		for(auto& [key, batch] : this->persistent_batches) {
+			const size_t base = (u32)this->persistent_instances.size(); // Where batch starts
+			batch_base[key] = base;
+			batch.instance_index = base;
+			// Append to instances
 			this->persistent_instances.insert(
 				this->persistent_instances.end(),
 				batch.instances.begin(),
@@ -152,7 +164,43 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 			);
 		}
 
+		// Identify where each batch starts inside instances.
+		// Example:
+		//   cube0: slot_batch=0, base=0   -> 0+0=0
+		//   cube1: slot_batch=1, base=0   -> 1+0=1
+		//   cube2: slot_batch=2, base=0   -> 2+0=2
+		//   sphere0: slot_batch=0, base=3 -> 0+3=3
+		for(Renderable* obj : this->persistent_objs) {
+			if(!obj) continue;
+			const Model::SubMesh& sub = obj->model()->meshes()[0];
+			BatchKey key = {
+				sub.mesh.get(),
+				sub.material->base->vertex->id(),
+				sub.material->base->fragment->id(),
+				(sub.material->albedo) ? sub.material->albedo->id() : 0,
+				sub.material->metallic,
+				sub.material->roughness
+			};
+			obj->persistent_slot += batch_base[key];
+		}
+
 		this->persistent_dirty = false;
+		// Re-upload SSBO
+		this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT;
+
+	// Incremental patch. Full rebuild is skipped
+	// Only objects with dirty transform are updated
+	} else if(!this->dirty_queue.empty()) {
+		for(const size_t index : this->dirty_queue) {
+			Renderable* obj = this->persistent_objs[index];
+			if(!obj) continue;
+			const glm::mat4& mmatrix = obj->final_matrix(this->cached_view);
+			// Write the new instance data directly into the correct SSBO slot
+			this->persistent_instances[obj->persistent_slot] = { mmatrix, obj->color_norm() };
+			obj->is_dirty_queued = false;
+		}
+		this->dirty_queue.clear();
+		this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT;
 	}
 }
 
@@ -173,15 +221,28 @@ void Renderer::draw(Renderable& obj) noexcept {
 	}
 	if(!obj.visible) return;
 	this->add_batch(obj, this->dynamic_batches);
+
+#if !defined(FLOYD_RELEASE)
 	this->pickables.push_back(&obj); // For Ray picking
+#endif
 }
 
 size_t Renderer::add(Renderable& obj) noexcept {
 	this->persistent_objs.push_back(&obj);
 	this->persistent_dirty = true;
 	this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
+
+	const size_t index = this->persistent_objs.size() - 1;
 	obj.is_persistent = true;
-	return this->persistent_objs.size() - 1;
+	obj.persistent_slot = index;
+	// When a persistent object changes, rebuild instance
+	obj.transform.on_dirty = [this, &obj, index]() {
+		if(!obj.is_dirty_queued) {
+			this->dirty_queue.push_back(index);
+			obj.is_dirty_queued = true;
+		}
+	};
+	return index;
 }
 
 void Renderer::draw(const Light& light) noexcept {
@@ -313,7 +374,7 @@ void Renderer::flush() noexcept {
 }
 
 
-void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept {
+void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target, u32* out_slot) noexcept {
 	// NOTE: Culling for both types of objects may cause problems.
 	// If Persistent Object was added not visible, it is likely to never be visible
 	// (excepts a new object is added when it is visible)
@@ -342,6 +403,8 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 			batch.mesh = sub.mesh.get();
 			batch.matinst = sub.material.get();
 		}
+
+		if(out_slot) *out_slot = (u32)batch.instances.size(); // Position inside batch
 		batch.instance_count++;
 		batch.instances.push_back(data);
 		// NOTE: If 'instances' were appended here
@@ -370,7 +433,6 @@ void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHa
 		}
 
 		if(prev_material != batch.matinst) {
-			// Material& mat = *batch.material->base; // cache
 			Material& mat = *batch.matinst->base; // cache
 			// pipeline stage swaps
 			if(prev_vertex != mat.vertex.get()) {

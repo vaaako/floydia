@@ -130,7 +130,7 @@ class Renderer final {
 	private:
 		// Dynamic batches, rebuilt every frame
 		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> dynamic_batches;
-		// Pre-built batches from persistent objects, rebuilt only when dirty
+		// Pre-built batches from persistent objects, rebuilt only when dirty. Used to draw batches
 		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> persistent_batches;
 		// All instance data, uploaded to the SSBO each frame
 		std::vector<Renderable::InstanceData> instances;
@@ -138,8 +138,12 @@ class Renderer final {
 
 		// Persistent object pointers, stored by pointer to avoid copies
 		std::vector<Renderable*> persistent_objs;
+		// Persistent objs dirty this frame
+		std::vector<size_t> dirty_queue;
 		// Dynamic objects. For ray picking only. Cleared on 'begin_frame'
+	#if !defined(FLOYD_RELEASE)
 		std::vector<Renderable*> pickables;
+	#endif
 
 		// All light instances to upload to SSBO
 		// dynamic lights and persistent_lights
@@ -186,7 +190,7 @@ class Renderer final {
 
 	private:
 		bool camera_moved(const vec3<float>& campos, const vec3<float>& forward) noexcept;
-		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target) noexcept;
+		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target, u32* out_slot = nullptr) noexcept;
 		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept;
 		void draw_text_batches() noexcept;
 };

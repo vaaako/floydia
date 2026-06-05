@@ -5,22 +5,26 @@ namespace floyd {
 void Transform::set_position(const vec3<float>& position) noexcept {
 	this->_position = position;
 	this->dirty = true;
+	if(this->on_dirty) this->on_dirty();
 }
 
 void Transform::set_scale(const vec3<float>& scale) noexcept {
 	this->_scale = scale;
 	this->dirty = true;
+	if(this->on_dirty) this->on_dirty();
 }
 
 void Transform::set_rotation(const vec3<float>& rotation) noexcept {
 	this->_euler_degrees = rotation;
 	this->_rotation = glm::quat(glm::radians((glm::vec3)rotation));
 	this->dirty = true;
+	if(this->on_dirty) this->on_dirty();
 }
 
 void Transform::set_rotation(const glm::quat& rotation) noexcept {
 	this->_rotation = rotation;
 	this->dirty = true;
+	if(this->on_dirty) this->on_dirty();
 }
 
 void Transform::rotate(const vec3<float>& degrees) noexcept {

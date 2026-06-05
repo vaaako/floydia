@@ -118,21 +118,26 @@ I wrote most of the things here very tired, sorry for any english mistake
 - [x] Light. Blinn-Phong
 - [x] Metallic / Roughness
 - [x] Store persistent instances and append to final instances
+- [x] ImGui scroll not working
+- [x] Click on shape makes a raycast to change object
 - [ ] Discord RPC support?
+
+- [ ] Error when sprite is not drawn
+- [ ] Scene serialization
+	+ Script builder
+
+- [ ] Be able to delete persistent object from renderer
 - [ ] Faster billboard
 	+ Remove `final_matrix`
+- [ ] Fast update for persistent object changes. Instead of rebuilding entire persistent instances
+- [ ] Frustum culling persistent objects
 - [ ] Frustum Culling for 2D shapes
 - [ ] Peristent object for 2D shapes
-- [x] Click on shape makes a raycast to change object
-	- [ ] Scene storage
+- [ ] Better `Material` handling on `Renderable`. I dont like the "only access first material" thing
 - [ ] scarablib stuff
 	+ [ ] Alarm
 	+ [ ] 3D Uniform Grid Collision
 	+ [ ] 2D Color map
-- [x] ImGui scroll not working
-- [ ] Be able to delete persistent object from renderer
-- [ ] Better `Material` handling on `Renderable`
-- [ ] Error when sprite is not drawn
 
 - Entity Scene system
 	+ Objects in scene may have triggers inject to it
@@ -265,7 +270,7 @@ class DoorScript : public Script {
 - [x] Use `vec2<float>` for Sprites
 - [x] Finish font
 - [x] Fix texuv
-- [ ] Take font size inside `draw_text`: `font_size / user_size`
+- [x] Take font size inside `draw_text`: `font_size / user_size`
 - [ ] Convert a small image to a scenario
 	+ like raylib does
 - [ ] Tiled support
@@ -320,9 +325,7 @@ class DoorScript : public Script {
 	+ Planes are not being detected
 	+ Corners are not being detected
 	+ Ceilings are not being detected
-- [ ] Convert a small image to a scenario
-	+ like raylib does
-- [ ] Fix texuv for 2D shapes
+- [ ] Fix texuv for 2D shapes. To support culling face
 
 - [ ] Class to load Map from trenchbroom
 	+ takes `.obj` and `.map`

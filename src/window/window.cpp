@@ -221,8 +221,6 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 #if defined(FLOYD_RELEASE)
 	return;
 #else
-	bool has_changed = false; // Avoid to mark dirty while window is open
-
 	ImGui::Begin("Properties");
 	if(obj == nullptr) {
 		ImGui::TextDisabled("No object selected");
@@ -234,17 +232,18 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 	if(!obj->name.empty()) ImGui::Text("Name: %s", obj->name.c_str());
 	ImGui::Separator();
 
-	// Color
+	// Material
+	bool material_changed = false; // If material changed, entire batch needs to change
 	if(ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen)) {
 		const vec4<float> color = obj->color_norm();
 		float c[4] = { color.x, color.y, color.z, color.w };
-		if(ui::color_edit_scroll4("Color", c)) { obj->set_color_norm({ c[0], c[1], c[2], c[3] }); has_changed = true; }
+		if(ui::color_edit_scroll4("Color", c)) { obj->set_color_norm({ c[0], c[1], c[2], c[3] }); material_changed = true; }
 
 		MaterialInstance& mat = *obj->material(); // cache
 		float metallic = mat.metallic;
 		float roughness = mat.roughness;
-		if(ui::drag_scroll_float("Metallic", &metallic, 0.1f, 0.0f, 1.0f)) { mat.metallic = metallic; has_changed = true; }
-		if(ui::drag_scroll_float("Roughness", &roughness, 0.1f, 0.0f, 1.0f)) { mat.roughness = roughness; has_changed = true; }
+		if(ui::drag_scroll_float("Metallic", &metallic, 0.1f, 0.0f, 1.0f)) { mat.metallic = metallic; material_changed = true; }
+		if(ui::drag_scroll_float("Roughness", &roughness, 0.1f, 0.0f, 1.0f)) { mat.roughness = roughness; material_changed = true; }
 	}
 	
 	ImGui::Separator();
@@ -256,7 +255,6 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 		if(ui::drag_scroll_float3("Position", p, 0.1f,
 			std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max())) {
 			obj->transform.set_position({ p[0], p[1], p[2] });
-			has_changed = true;
 		}
 
 		// Euler to rotation
@@ -264,7 +262,6 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 		float r[3] = { euler.x, euler.y, euler.z };
 		if(ui::drag_scroll_float3("Rotation", r, 0.25f, -360.0f, 360.0f)) {
 			obj->transform.set_rotation({ r[0], r[1], r[2] });
-			has_changed = true;
 		}
 	}
 
@@ -289,7 +286,7 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 				ImGui::Text("%s", texentry.path.c_str());
 				ImGui::EndTooltip();
 			}
-			if(ImGui::IsItemClicked()) { selected = tex; obj->material()->albedo = tex; has_changed = true; }
+			if(ImGui::IsItemClicked()) { selected = tex; obj->material()->albedo = tex; material_changed = true; }
 			ImGui::SameLine();
 		}
 		ImGui::EndChild();
@@ -309,7 +306,9 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 		if(ImGui::Button("Mirrored")) selected->set_filter(Texture::Filter::Mirrored);
 	}
 
-	if(has_changed && obj->is_persistent) renderer->mark_dirty();
+	// Transform changes trigger 'on_dirty' callback
+
+	if(material_changed && obj->is_persistent) renderer->mark_dirty();
 	ImGui::End();
 #endif
 }

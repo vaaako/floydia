@@ -1,6 +1,7 @@
 #pragma once
 
 #include <floydia/types.hpp>
+#include <functional>
 
 namespace floyd {
 
@@ -8,6 +9,8 @@ namespace floyd {
 // It also takes care of the model matrix
 class Transform {
 	public:
+		std::function<void()> on_dirty;
+
 		void set_position(const vec3<float>& position) noexcept;
 		void set_scale(const vec3<float>& scale) noexcept;
 		void set_rotation(const vec3<float>& rotation) noexcept;

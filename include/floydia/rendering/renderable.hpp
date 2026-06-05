@@ -21,7 +21,11 @@ class Renderable : public Object {
 		// Visible on Frustum Culling
 		bool visible = true;
 		// Set by Renderer. Tells if a Object is persistent on Renderer
-		bool is_persistent = true;
+		bool is_persistent = false;
+		// Set by Renderer. Just to avoid double push on 'dirty_queue'
+		bool is_dirty_queued = false;
+		// Set by Renderer. If persistent obj, position inside batch for rebuild
+		u32 persistent_slot = 0;
 
 	public:
 		Renderable(const std::shared_ptr<Model>& model) noexcept;
