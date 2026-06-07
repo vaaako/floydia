@@ -8,11 +8,6 @@ namespace floyd {
 Renderable::Renderable(const std::shared_ptr<Model>& model) noexcept
 	: _model(std::move(model)) {}
 
-glm::mat4 Renderable::final_matrix(const glm::mat4& view) const noexcept {
-	(void)(view);
-	return this->transform.model_matrix();
-}
-
 AABB Renderable::world_aabb() noexcept {
 	// Also check for valid world_abb, so it is initialized the first time
 	if(this->transform.isdirty() || !this->_world_aabb.valid)

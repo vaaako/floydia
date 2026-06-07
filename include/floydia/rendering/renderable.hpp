@@ -31,9 +31,6 @@ class Renderable : public Object {
 		Renderable(const std::shared_ptr<Model>& model) noexcept;
 		virtual ~Renderable() = default;
 
-		// Overridable for Redenderable objects that need aditional math on 'model_matrix'
-		// Remember to update 'world_aabb'
-		virtual glm::mat4 final_matrix(const glm::mat4& view) const noexcept;
 		// Returns world AABB
 		virtual AABB world_aabb() noexcept;
 

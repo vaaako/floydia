@@ -107,6 +107,15 @@ class Window final {
 		// Returns nullptr if nothing was hit.
 		// Call AFTER 'begin_frame()', otherwise dynamic objects won't be included
 		Renderable* pick(const PerspectiveCamera& camera) const noexcept { return renderer->pick(camera, this->mouse_pos(), this->size()); }
+		// Debug draw an AABB.
+		// Should not be used on release since it is a debug method
+		inline void draw_aabb(const AABB& aabb, const vec4<float>& color) const {
+		#if defined(FLOYD_RELEASE)
+			return;
+		#else
+			renderer->draw_aabb(aabb, color);
+		#endif
+		}
 		// Clears screen
 		inline void clear() const { renderer->clear(); }
 		// Advances 'frameindex' and waits for the GPU to finish reading
@@ -123,10 +132,11 @@ class Window final {
 		// Persistent objects are only rebuilt when dirty (i.e. when 'add()' is called).
 		// Without this call, persistent objects are excluded from the current pass
 		void draw_persistent() const noexcept { renderer->draw_persistent(); }
-		// Submit a dynamic object for this frame. Frustum culled
+		// Submit a dynamic object for this frame.
+		// Use this for temporary objects, or objects that changes often
 		inline void draw(Renderable& obj) const noexcept { renderer->draw(obj); }
-		// Submit a persistent object. Batched once and reused every frame.
-		// Skips per-frame frustum culling
+		// Submit a persistent object.
+		// Use this for objects that rarely changes properties
 		inline void add(Renderable& obj) const noexcept { renderer->add(obj); }
 		// Submit a dynamic light object for this frame
 		inline void draw(const Light& light) const noexcept { renderer->draw(light); }

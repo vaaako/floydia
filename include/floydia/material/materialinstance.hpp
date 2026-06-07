@@ -1,6 +1,7 @@
 #pragma once
 
 #include <floydia/material/material.hpp>
+#include <functional>
 
 namespace floyd {
 
@@ -18,6 +19,9 @@ struct MaterialInstance {
 	// Low roughness = sharp highlight
 	float roughness = 1.0f;
 
+	// Optional. Called at end of bind()
+	std::function<void()> on_bind;
+
 	inline MaterialInstance(const std::shared_ptr<Material>& base, const std::shared_ptr<Texture> albedo)
 		: base(base), albedo(albedo) {}
 
@@ -25,6 +29,7 @@ struct MaterialInstance {
 		this->albedo->bind(0);
 		this->base->fragment->set_uniform_float("u_metallic",  this->metallic);
 		this->base->fragment->set_uniform_float("u_roughness", this->roughness);
+		if(this->on_bind) this->on_bind();
 		// NOTE: 'metallic' and 'roughness' are per batch, not instance.
 		// All objects on the same batch share the same MaterialInstance,
 		// so the valor is constant

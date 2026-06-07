@@ -2,18 +2,16 @@
 
 #include "floydia/camera/perspectivecamera.hpp"
 #include "floydia/geometry/text.hpp"
-#include <floydia/rendering/light.hpp>
-#include <floydia/gpu/programpipeline.hpp>
-#include <floydia/camera/frustum.hpp>
-#include <floydia/types.hpp>
-#include <floydia/camera/camera.hpp>
-#include <floydia/rendering/renderable.hpp>
-#include <floydia/geometry/cube.hpp>
-#include <floydia/rendering/mesh.hpp>
-#include <floydia/material/material.hpp>
-#include <floydia/gpu/uniformbuffer.hpp>
-#include <floydia/gpu/ssbo.hpp>
-#include <floydia/helpers/hash.hpp>
+#include "floydia/rendering/light.hpp"
+#include "floydia/gpu/programpipeline.hpp"
+#include "floydia/camera/frustum.hpp"
+#include "floydia/types.hpp"
+#include "floydia/camera/camera.hpp"
+#include "floydia/rendering/renderable.hpp"
+#include "floydia/rendering/mesh.hpp"
+#include "floydia/gpu/uniformbuffer.hpp"
+#include "floydia/gpu/ssbo.hpp"
+#include "floydia/helpers/hash.hpp"
 
 #include <vector>
 
@@ -38,10 +36,12 @@ class Renderer final {
 		void set_clear_color(const vec4<u8>& color) noexcept;
 		// Mark persistent objects as dirty
 		void mark_dirty() noexcept;
+		// Debug draw an AABB.
+		// Should not be used on release since it is a debug method
+		void draw_aabb(const AABB& aabb, const vec4<float>& color) noexcept;
 
 		// Clear the screen
 		void clear() const noexcept;
-
 		// Advances 'frameindex' and waits for the GPU to finish reading
 		// the current frame's buffer slots before the CPU writes new data
 		void begin_frame() noexcept;
@@ -59,10 +59,11 @@ class Renderer final {
 		// Persistent objects are only rebuilt when dirty (i.e. when 'add()' is called).
 		// Without this call, persistent objects are excluded from the current pass
 		void draw_persistent() noexcept;
-		// Submit a dynamic object for this frame. Frustum culled
+		// Submit a dynamic object for this frame.
+		// Use this for temporary objects, or objects that changes often
 		void draw(Renderable& obj) noexcept;
-		// Submit a persistent object. Batched once and reused every frame.
-		// Skips per-frame frustum culling
+		// Submit a persistent object.
+		// Use this for objects that rarely changes properties
 		size_t add(Renderable& obj) noexcept;
 		// Submit a dynamic object for this frame
 		void draw(const Light& light) noexcept;
@@ -86,6 +87,8 @@ class Renderer final {
 			AABB aabb;
 			// To send to SSBO
 			std::vector<Renderable::InstanceData> instances;
+			// All objects in this batch
+			std::vector<Renderable*> objects;
 			// Start index in SSBO
 			u32 instance_index; // start offset into the instance buffer
 			// Number of instances for this mesh
@@ -143,8 +146,10 @@ class Renderer final {
 		// Persistent objs dirty this frame
 		std::vector<size_t> dirty_queue;
 		// Dynamic objects. For ray picking only. Cleared on 'begin_frame'
+	
 	#if !defined(FLOYD_RELEASE)
 		std::vector<Renderable*> pickables;
+		ShaderProgram aabb_program;
 	#endif
 
 		// All light instances to upload to SSBO
@@ -172,7 +177,7 @@ class Renderer final {
 		ProgramPipeline ppipeline;
 
 		u32 total_text_instances = 0; // Only used to resize 'ssbo_glyphs'
-		GLuint text_vao; // empty vao to satisfy core profile
+		GLuint empty_vao; // empty vao to satisfy core profile
 		
 		// Cache if necessary
 		u32 win_width;
@@ -193,7 +198,7 @@ class Renderer final {
 	private:
 		bool camera_moved(const vec3<float>& campos, const vec3<float>& forward) noexcept;
 		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target, u32* out_slot = nullptr) noexcept;
-		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap, const bool cull) const noexcept;
+		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap, const bool cull) noexcept;
 		void draw_text_batches() noexcept;
 };
 

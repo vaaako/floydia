@@ -39,6 +39,8 @@ class Assets final {
 			std::shared_ptr<Material> MAT_3D;
 			// Material of Shaders::DEFAULT_VERTEX_2D + Shaders::DEFAULT_FRAGMENT_2D
 			std::shared_ptr<Material> MAT_2D;
+			// Material of Shaders::DEFAULT_BILLBOARD_VERTEX + Shaders::DEFAULT_FRAGMENT
+			std::shared_ptr<Material> MAT_BILL;
 		} defaults;
 
 	public:

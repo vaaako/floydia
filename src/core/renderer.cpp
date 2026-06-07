@@ -1,12 +1,16 @@
 #include "floydia/physics/ray.hpp"
-#include <floydia/core/core.hpp>
-#include <floydia/gpu/shader.hpp>
-#include <floydia/core/renderer.hpp>
+#include "floydia/core/core.hpp"
+#include "floydia/gpu/shader.hpp"
+#include "floydia/core/renderer.hpp"
 
-#include <floydia/gpu/programpipeline.hpp>
+#include "floydia/gpu/programpipeline.hpp"
 
-#include <floydia/helpers/opengl.hpp>
-#include <floydia/helpers/logger.hpp>
+#include "floydia/helpers/opengl.hpp"
+#include <unordered_set>
+
+#if defined(FLOYD_DEBUG_RENDERER)
+#include "floydia/helpers/logger.hpp"
+#endif
 
 /*
 - 5000 Cubes
@@ -37,8 +41,16 @@ Renderer::Renderer() noexcept :
 	glDisable(GL_CULL_FACE);
 	// glEnable(GL_CULL_FACE);
 
-	glGenVertexArrays(1, &this->text_vao);
+	glGenVertexArrays(1, &this->empty_vao);
 	this->ppipeline.bind();
+
+#if !defined(FLOYD_RELEASE)
+	Shader vs = Shader(Shaders::DEFAULT_DEBUG_AABB_VERTEX, Shader::Vertex);
+	Shader fs = Shader(Shaders::DEFAULT_DEBUG_AABB_FRAGMENT, Shader::Fragment);
+	this->aabb_program.attach(vs);
+	this->aabb_program.attach(fs);
+	this->aabb_program.link();
+#endif
 }
 
 // TODO: optimize
@@ -88,6 +100,24 @@ void Renderer::set_clear_color(const vec4<u8>& color) noexcept {
 void Renderer::mark_dirty() noexcept {
 	this->persistent_dirty = true;
 	this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
+}
+
+void Renderer::draw_aabb(const AABB& aabb, const vec4<float>& color) noexcept {
+#if defined(FLOYD_RELEASE)
+	return;
+#else
+	this->aabb_program.bind();
+	this->aabb_program.set_uniform_mat4f("u_viewproj", this->cached_proj * this->cached_view);
+	this->aabb_program.set_uniform_vec3f("u_min", aabb.min);
+	this->aabb_program.set_uniform_vec3f("u_max", aabb.max);
+	this->aabb_program.set_uniform_vec3f("u_color", { color.x, color.y, color.z });
+
+	glBindVertexArray(this->empty_vao);
+	glDrawArrays(GL_LINES, 0, 24);
+
+	glBindVertexArray(0);
+	this->aabb_program.unbind();
+#endif
 }
 
 void Renderer::clear() const noexcept {
@@ -150,13 +180,18 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 			this->add_batch(*obj, this->persistent_batches, &obj->persistent_slot);
 		}
 
-		// Flatten all batches into InstanceData
-		std::unordered_map<BatchKey, u32, BatchKeyHash> batch_base;
+		// flatten + fix slots + build AABB
 		for(auto& [key, batch] : this->persistent_batches) {
-			const size_t base = (u32)this->persistent_instances.size(); // Where batch starts
-			batch_base[key] = base;
+			const u32 base = (u32)this->persistent_instances.size();
 			batch.instance_index = base;
-			// Append to instances
+			// Fix each object's slot and build batch AABB in one loop
+			batch.aabb = AABB{};
+
+			for(Renderable* obj : batch.objects) {
+				obj->persistent_slot += base;
+				batch.aabb.merge(obj->world_aabb());
+			}
+
 			this->persistent_instances.insert(
 				this->persistent_instances.end(),
 				batch.instances.begin(),
@@ -164,41 +199,46 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 			);
 		}
 
-		// Identify where each batch starts inside instances.
-		// Example:
-		//   cube0: slot_batch=0, base=0   -> 0+0=0
-		//   cube1: slot_batch=1, base=0   -> 1+0=1
-		//   cube2: slot_batch=2, base=0   -> 2+0=2
-		//   sphere0: slot_batch=0, base=3 -> 0+3=3
-		for(Renderable* obj : this->persistent_objs) {
-			if(!obj) continue;
-			const Model::SubMesh& sub = obj->model()->meshes()[0];
-			BatchKey key = {
-				sub.mesh.get(),
-				sub.material->base->vertex->id(),
-				sub.material->base->fragment->id(),
-				(sub.material->albedo) ? sub.material->albedo->id() : 0,
-				sub.material->metallic,
-				sub.material->roughness
-			};
-			obj->persistent_slot += batch_base[key];
-		}
-
 		this->persistent_dirty = false;
-		// Re-upload SSBO
-		this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT;
+		this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Re-upload SSBO
 
 	// Incremental patch. Full rebuild is skipped
 	// Only objects with dirty transform are updated
 	} else if(!this->dirty_queue.empty()) {
+		// Track which batches need AABB rebuild
+		std::unordered_set<BatchKey, BatchKeyHash> dirty_batches;
+
 		for(const size_t index : this->dirty_queue) {
 			Renderable* obj = this->persistent_objs[index];
 			if(!obj) continue;
-			const glm::mat4& mmatrix = obj->final_matrix(this->cached_view);
-			// Write the new instance data directly into the correct SSBO slot
+
+			if(obj->transform.isdirty()) {
+				// Recalculate world AABB while dirty flag is still set
+				obj->world_aabb();
+				// Mark batch for AABB rebuild
+				const Model::SubMesh& sub = obj->model()->meshes()[0];
+				dirty_batches.insert({
+					sub.mesh.get(),
+					sub.material->base->vertex->id(),
+					sub.material->base->fragment->id(),
+					(sub.material->albedo) ? sub.material->albedo->id() : 0,
+					sub.material->metallic,
+					sub.material->roughness
+				});
+			}
+
+			const glm::mat4& mmatrix = obj->transform.model_matrix();
 			this->persistent_instances[obj->persistent_slot] = { mmatrix, obj->color_norm() };
 			obj->is_dirty_queued = false;
 		}
+
+		// Rebuild AABB only for affected batches
+		for(const BatchKey& key : dirty_batches) {
+			DrawBatch& batch = this->persistent_batches.at(key);
+			batch.aabb = AABB{};
+			for(Renderable* obj : batch.objects) batch.aabb.merge(obj->world_aabb());
+		}
+
 		this->dirty_queue.clear();
 		this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT;
 	}
@@ -228,13 +268,12 @@ void Renderer::draw(Renderable& obj) noexcept {
 }
 
 size_t Renderer::add(Renderable& obj) noexcept {
+	const size_t index = this->persistent_objs.size();
 	this->persistent_objs.push_back(&obj);
 	this->persistent_dirty = true;
 	this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
 
-	const size_t index = this->persistent_objs.size() - 1;
 	obj.is_persistent = true;
-	obj.persistent_slot = index;
 	// When a persistent object changes, rebuild instance
 	obj.transform.on_dirty = [this, &obj, index]() {
 		if(!obj.is_dirty_queued) {
@@ -375,10 +414,9 @@ void Renderer::flush() noexcept {
 
 
 void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target, u32* out_slot) noexcept {
-	// NOTE: Culling for both types of objects may cause problems.
-	// If Persistent Object was added not visible, it is likely to never be visible
-	// (excepts a new object is added when it is visible)
-	const glm::mat4& mmatrix = obj.final_matrix(this->cached_view); // this updates model matrix
+	// For persistent objects, initialize world_aabb while dirty is still true
+	if(out_slot) obj.world_aabb();
+	const glm::mat4& mmatrix = obj.transform.model_matrix(); // this updates model matrix
 	Renderable::InstanceData data = { mmatrix, obj.color_norm() };
 
 	// Create draw commands with instance index
@@ -404,8 +442,13 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 			batch.matinst = sub.material.get();
 		}
 
-		batch.aabb.merge(obj.world_aabb());
-		if(out_slot) *out_slot = (u32)batch.instances.size(); // Position inside batch
+		// Persistent objects
+		if(out_slot) {
+			*out_slot = (u32)batch.instances.size(); // Position inside batch
+			batch.objects.push_back(&obj); // Add objects in this batch
+			// AABB is calculated inside 'begin_draw'
+		}
+
 		batch.instance_count++;
 		batch.instances.push_back(data);
 		// NOTE: If 'instances' were appended here
@@ -421,7 +464,7 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 	}
 }
 
-void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap, const bool cull) const noexcept {
+void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap, const bool cull)  noexcept {
 	Mesh* prev_mesh = nullptr;
 	ShaderProgram* prev_vertex = nullptr;
 	ShaderProgram* prev_fragment = nullptr;
@@ -475,7 +518,7 @@ void Renderer::draw_text_batches() noexcept {
 	this->ppipeline.attach(assets().defaults.PROG_VERT_TEXT, Shader::Vertex);
 	this->ppipeline.attach(assets().defaults.PROG_FRAG_2D, Shader::Fragment);
 
-	glBindVertexArray(this->text_vao);
+	glBindVertexArray(this->empty_vao);
 	glDepthMask(GL_FALSE);
 
 	for(const auto& [_, batch] : this->text_batches) {

@@ -72,6 +72,93 @@ void main() {
 }
 )glsl";
 
+
+constexpr const char* DEFAULT_BILLBOARD_VERTEX = R"glsl(
+#version 460 core
+
+layout(location = 0) in vec3 aPos;
+layout(location = 1) in vec3 aNor;
+layout(location = 2) in vec2 aTex;
+
+layout(location = 0) out vec2 texuv;
+layout(location = 1) out vec3 normal;
+layout(location = 2) out vec4 color;
+layout(location = 3) out vec3 fragpos;
+
+out gl_PerVertex {
+	vec4 gl_Position;
+};
+
+struct InstanceData {
+	mat4 model;
+	vec4 color;
+};
+
+layout(std140, binding = 0) uniform CameraBlock {
+	mat4 view;
+	mat4 proj;
+	vec4 campos;
+};
+
+layout(std430, binding = 1) buffer InstanceBuffer {
+	 InstanceData instances[];
+};
+
+// 0 = Full, 1 = Cylindrical
+layout(location = 3) uniform int u_billboard_type;
+
+void main() {
+	InstanceData data = instances[gl_InstanceID + gl_BaseInstance];
+
+	// Extract scale from model matrix columns
+	const float sx = length(data.model[0].xyz);
+	const float sy = length(data.model[1].xyz);
+	const float sz = length(data.model[2].xyz);
+
+	// World position from model matrix translation column
+	const vec3 world_pos = data.model[3].xyz;
+
+	// Extract view right/up/forward from view matrix rows
+	// View matrix rows are the world-space camera axis
+	const vec3 right   = vec3(view[0][0], view[1][0], view[2][0]);
+	const vec3 up      = vec3(view[0][1], view[1][1], view[2][1]);
+	const vec3 forward = vec3(view[0][2], view[1][2], view[2][2]);
+
+	vec3 v_right;
+	vec3 v_up;
+	vec3 v_forward;
+
+	if(u_billboard_type == 0) {
+		// All axis face camera
+		v_right   = right   * sx;
+		v_up      = up      * sy;
+		v_forward = forward * sz;
+	} else {
+		// Only X and Z face camera
+		v_right   = right * sx;
+		v_up      = data.model[1].xyz;
+		v_forward = forward * sz;
+	}
+
+	// Reconstruct model matrix with billboard axis
+	mat4 billboard = mat4(
+		vec4(v_right,   0.0),
+		vec4(v_up,      0.0),
+		vec4(v_forward, 0.0),
+		vec4(world_pos, 1.0)
+	);
+
+	vec4 worldpos = billboard * vec4(aPos, 1.0);
+	texuv   = aTex;
+	normal  = mat3(billboard) * aNor;
+	color   = data.color;
+	fragpos = worldpos.xyz;
+
+	gl_Position = proj * view * worldpos;
+}
+)glsl";
+
+
 constexpr const char* DEFAULT_FRAGMENT = R"glsl(
 #version 460 core
 
@@ -319,6 +406,39 @@ void main() {
 	fragcolor = base;
 }
 )glsl";
+
+constexpr const char* DEFAULT_DEBUG_AABB_VERTEX = R"glsl(
+#version 460 core
+layout(location = 0) uniform mat4 u_viewproj;
+layout(location = 1) uniform vec3 u_min;
+layout(location = 2) uniform vec3 u_max;
+
+out gl_PerVertex { vec4 gl_Position; };
+
+const vec3 corners[8] = vec3[8](
+	vec3(0,0,0), vec3(1,0,0), vec3(1,1,0), vec3(0,1,0),
+	vec3(0,0,1), vec3(1,0,1), vec3(1,1,1), vec3(0,1,1)
+);
+
+const int lines[24] = int[24](
+	0,1, 1,2, 2,3, 3,0,
+	4,5, 5,6, 6,7, 7,4,
+	0,4, 1,5, 2,6, 3,7
+);
+
+void main() {
+	vec3 c = mix(u_min, u_max, corners[lines[gl_VertexID]]);
+	gl_Position = u_viewproj * vec4(c, 1.0);
+}
+)glsl";
+
+constexpr const char* DEFAULT_DEBUG_AABB_FRAGMENT = R"glsl(
+#version 460 core
+layout(location = 3) uniform vec3 u_color;
+layout(location = 0) out vec4 fragcolor;
+void main() { fragcolor = vec4(u_color, 1.0); }
+)glsl";
+
 
 } // namespace Shaders
 } // namespace floyd
