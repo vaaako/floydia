@@ -24,7 +24,9 @@ class Renderable : public Object {
 		bool is_persistent = false;
 		// Set by Renderer. Just to avoid double push on 'dirty_queue'
 		bool is_dirty_queued = false;
-		// Set by Renderer. If persistent obj, position inside batch for rebuild
+		// Set by Renderer. Index in renderer
+		size_t index = SIZE_MAX;
+		// Set by Renderer. If persistent object, position inside batch for rebuild
 		u32 persistent_slot = 0;
 
 	public:

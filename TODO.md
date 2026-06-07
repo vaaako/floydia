@@ -128,8 +128,8 @@ I wrote most of the things here very tired, sorry for any english mistake
 
 - [x] Frustum culling persistent objects
 - [x] Fast update for persistent object changes. Instead of rebuilding entire persistent instances
-- [ ] Be able to delete persistent object from renderer
-- [ ] Faster billboard
+- [x] Be able to delete persistent object from renderer
+- [x] Faster billboard
 	+ Remove `final_matrix`
 - [ ] Frustum Culling for 2D shapes
 - [ ] Peristent object for 2D shapes

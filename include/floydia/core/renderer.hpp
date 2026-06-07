@@ -59,12 +59,16 @@ class Renderer final {
 		// Persistent objects are only rebuilt when dirty (i.e. when 'add()' is called).
 		// Without this call, persistent objects are excluded from the current pass
 		void draw_persistent() noexcept;
+
 		// Submit a dynamic object for this frame.
 		// Use this for temporary objects, or objects that changes often
 		void draw(Renderable& obj) noexcept;
 		// Submit a persistent object.
 		// Use this for objects that rarely changes properties
 		size_t add(Renderable& obj) noexcept;
+		// Removes a persistent objcet from the renderer
+		void remove(Renderable& obj) noexcept;
+
 		// Submit a dynamic object for this frame
 		void draw(const Light& light) noexcept;
 		// Submit a persistent light object

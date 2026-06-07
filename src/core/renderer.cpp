@@ -273,6 +273,7 @@ size_t Renderer::add(Renderable& obj) noexcept {
 	this->persistent_dirty = true;
 	this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
 
+	obj.index = index;
 	obj.is_persistent = true;
 	// When a persistent object changes, rebuild instance
 	obj.transform.on_dirty = [this, &obj, index]() {
@@ -282,6 +283,34 @@ size_t Renderer::add(Renderable& obj) noexcept {
 		}
 	};
 	return index;
+}
+
+void Renderer::remove(Renderable& obj) noexcept {
+	if(!obj.is_persistent) return;
+
+	const size_t index = obj.index;
+	const size_t last = this->persistent_objs.size() - 1;
+
+	// Move to last index
+	if(index != last) {
+		Renderable* moved = this->persistent_objs[last];
+		this->persistent_objs[index] = moved;
+		// Change index for moved object
+		moved->transform.on_dirty = [this, moved, index]() {
+			if(!moved->is_dirty_queued) {
+				moved->is_dirty_queued = true;
+				this->dirty_queue.push_back(index);
+			}
+		};
+	}
+
+	this->persistent_objs.pop_back();
+	obj.is_persistent = false;
+	obj.is_dirty_queued = false;
+	obj.index = SIZE_MAX;
+	obj.transform.on_dirty = nullptr;
+	// Rebuild persistent batches
+	this->mark_dirty();
 }
 
 void Renderer::draw(const Light& light) noexcept {
