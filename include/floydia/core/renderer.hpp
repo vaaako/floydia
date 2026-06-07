@@ -82,6 +82,8 @@ class Renderer final {
 			// MaterialInstance holds textures + points to cached Material (Shaders)
 			// BatchKey uses GPU IDs so different instances with same state share a batch
 			MaterialInstance* matinst;
+			// world AABB for batch
+			AABB aabb;
 			// To send to SSBO
 			std::vector<Renderable::InstanceData> instances;
 			// Start index in SSBO
@@ -191,7 +193,7 @@ class Renderer final {
 	private:
 		bool camera_moved(const vec3<float>& campos, const vec3<float>& forward) noexcept;
 		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target, u32* out_slot = nullptr) noexcept;
-		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept;
+		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap, const bool cull) const noexcept;
 		void draw_text_batches() noexcept;
 };
 

@@ -126,11 +126,11 @@ I wrote most of the things here very tired, sorry for any english mistake
 - [ ] Scene serialization
 	+ Script builder
 
+- [x] Frustum culling persistent objects
+- [x] Fast update for persistent object changes. Instead of rebuilding entire persistent instances
 - [ ] Be able to delete persistent object from renderer
 - [ ] Faster billboard
 	+ Remove `final_matrix`
-- [ ] Fast update for persistent object changes. Instead of rebuilding entire persistent instances
-- [ ] Frustum culling persistent objects
 - [ ] Frustum Culling for 2D shapes
 - [ ] Peristent object for 2D shapes
 - [ ] Better `Material` handling on `Renderable`. I dont like the "only access first material" thing

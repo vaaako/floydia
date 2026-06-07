@@ -368,8 +368,8 @@ void Renderer::flush() noexcept {
 	}
 
 	// Render all objects
-	if(this->persistent_included) this->draw_map(this->persistent_batches);
-	this->draw_map(this->dynamic_batches);
+	if(this->persistent_included) this->draw_map(this->persistent_batches, true);
+	this->draw_map(this->dynamic_batches, false);
 	if(!this->text_batches.empty() || !this->glyphs.empty()) this->draw_text_batches();
 }
 
@@ -404,6 +404,7 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 			batch.matinst = sub.material.get();
 		}
 
+		batch.aabb.merge(obj.world_aabb());
 		if(out_slot) *out_slot = (u32)batch.instances.size(); // Position inside batch
 		batch.instance_count++;
 		batch.instances.push_back(data);
@@ -420,13 +421,15 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 	}
 }
 
-void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) const noexcept {
+void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap, const bool cull) const noexcept {
 	Mesh* prev_mesh = nullptr;
 	ShaderProgram* prev_vertex = nullptr;
 	ShaderProgram* prev_fragment = nullptr;
 	MaterialInstance* prev_material = nullptr;
 
 	for(const auto& [_, batch] : batchmap) {
+		if(cull && !this->frustum.test(batch.aabb)) continue;
+
 		if(batch.mesh != prev_mesh) {
 			glBindVertexArray(batch.mesh->vaoid());
 			prev_mesh = batch.mesh;
