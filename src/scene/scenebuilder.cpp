@@ -1,4 +1,5 @@
 #include "floydia/scene/scenebuilder.hpp"
+#include "floydia/geometry/cube.hpp"
 #include "toml.hpp"
 
 namespace floyd {
