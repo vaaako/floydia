@@ -211,24 +211,34 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 		for(const size_t index : this->dirty_queue) {
 			Renderable* obj = this->persistent_objs[index];
 			if(!obj) continue;
-
-			if(obj->transform.isdirty()) {
-				// Recalculate world AABB while dirty flag is still set
-				obj->world_aabb();
-				// Mark batch for AABB rebuild
-				const Model::SubMesh& sub = obj->model()->meshes()[0];
-				dirty_batches.insert({
-					sub.mesh.get(),
-					sub.material->base->vertex->id(),
-					sub.material->base->fragment->id(),
-					(sub.material->albedo) ? sub.material->albedo->id() : 0,
-					sub.material->metallic,
-					sub.material->roughness
-				});
-			}
+			// Recalculate world AABB while dirty flag is still set	
+			if(obj->transform.isdirty()) obj->world_aabb();
 
 			const glm::mat4& mmatrix = obj->transform.model_matrix();
-			this->persistent_instances[obj->persistent_slot] = { mmatrix, obj->color_norm() };
+			const vec4<float>& colornorm = obj->color_norm();
+			u32 slot = obj->persistent_slot;
+
+			// Mark all submeshes for AABB rebuild
+			for(const Model::SubMesh& sub : obj->model()->meshes()) {
+				if(obj->transform.isdirty()) {
+					dirty_batches.insert({
+						sub.mesh.get(),
+						sub.material->base->vertex->id(),
+						sub.material->base->fragment->id(),
+						(sub.material->albedo) ? sub.material->albedo->id() : 0
+					});
+				}
+
+				// Patch one slot per submesh.
+				// submeshes are stored consecutively from there
+				this->persistent_instances[slot++] = {
+					mmatrix,
+					colornorm,
+					sub.material->metallic,
+					sub.material->roughness,
+					{} // Padding
+				};
+			}
 			obj->is_dirty_queued = false;
 		}
 
@@ -446,7 +456,7 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 	// For persistent objects, initialize world_aabb while dirty is still true
 	if(out_slot) obj.world_aabb();
 	const glm::mat4& mmatrix = obj.transform.model_matrix(); // this updates model matrix
-	Renderable::InstanceData data = { mmatrix, obj.color_norm() };
+	const vec4<float>& colornorm = obj.color_norm();
 
 	// Create draw commands with instance index
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
@@ -455,9 +465,15 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 			sub.mesh.get(),
 			sub.material->base->vertex->id(),
 			sub.material->base->fragment->id(),
-			(sub.material->albedo) ? sub.material->albedo->id() : 0,
+			(sub.material->albedo) ? sub.material->albedo->id() : 0
+		};
+
+		Renderable::InstanceData data = {
+			mmatrix,
+			colornorm,
 			sub.material->metallic,
-			sub.material->roughness
+			sub.material->roughness,
+			{} // Padding
 		};
 
 		auto [it, emplaced] = target.try_emplace(key);
@@ -473,7 +489,8 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 
 		// Persistent objects
 		if(out_slot) {
-			*out_slot = (u32)batch.instances.size(); // Position inside batch
+			*out_slot = (u32)batch.instances.size(); // Record base slot on first submesh
+			out_slot = nullptr; // Clear so next submesh doesn't overwrite
 			batch.objects.push_back(&obj); // Add objects in this batch
 			// AABB is calculated inside 'begin_draw'
 		}
@@ -568,7 +585,8 @@ void Renderer::draw_text_batches() noexcept {
 }
 
 bool Renderer::camera_moved(const vec3<float>& campos, const vec3<float>& forward) noexcept {
-	if(campos != this->campos || forward != this->camforward) {
+	// Epsilon comparison instead of exact float equality
+	if(glm::distance(this->campos, campos) > 1e-6f || glm::distance(this->camforward, forward) > 1e-6f) {
 		this->campos = campos;
 		this->camforward = forward;
 		return true;

@@ -111,15 +111,15 @@ class Renderer final {
 			GLuint vert_id;
 			GLuint frag_id;
 			GLuint albedo_id;
-			float metallic;
-			float roughness;
+			// Metallic and Roughness removed.
+			// Hashing floats is fragile: values that differ only by floating-point
+			// noise produce different hashes and split batches that should be merged.
+			// Per-instance material properties belong in InstanceData on the SSBO, not in the batch key
 			bool operator==(const BatchKey& other) const noexcept {
 				return mesh   == other.mesh     &&
 					vert_id   == other.vert_id  &&
 					frag_id   == other.frag_id  &&
-					albedo_id == other.albedo_id &&
-					metallic == other.metallic &&
-					roughness == other.roughness;
+					albedo_id == other.albedo_id;
 			}
 		};
 
@@ -130,8 +130,6 @@ class Renderer final {
 				hash::combine(seed, std::hash<GLuint>()(k.vert_id));
 				hash::combine(seed, std::hash<GLuint>()(k.frag_id));
 				hash::combine(seed, std::hash<GLuint>()(k.albedo_id));
-				hash::combine(seed, std::hash<float>()(k.metallic));
-				hash::combine(seed, std::hash<float>()(k.roughness));
 				return seed;
 			}
 		};

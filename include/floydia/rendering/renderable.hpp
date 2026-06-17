@@ -15,6 +15,9 @@ class Renderable : public Object {
 		struct alignas(16) InstanceData {
 			glm::mat4 model;
 			glm::vec4 color;
+			float metallic;
+			float roughness;
+			float _pad[2]; // alignment
 		};
 
 	public:

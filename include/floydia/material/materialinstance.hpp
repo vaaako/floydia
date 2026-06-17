@@ -27,8 +27,6 @@ struct MaterialInstance {
 
 	inline void bind() const noexcept {
 		this->albedo->bind(0);
-		this->base->fragment->set_uniform_float("u_metallic",  this->metallic);
-		this->base->fragment->set_uniform_float("u_roughness", this->roughness);
 		if(this->on_bind) this->on_bind();
 		// NOTE: 'metallic' and 'roughness' are per batch, not instance.
 		// All objects on the same batch share the same MaterialInstance,
