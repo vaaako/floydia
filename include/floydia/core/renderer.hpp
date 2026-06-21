@@ -97,6 +97,7 @@ class Renderer final {
 			u32 instance_index; // start offset into the instance buffer
 			// Number of instances for this mesh
 			u32 instance_count;
+			bool visible = true;
 		};
 
 		struct TextBatch {
@@ -209,7 +210,7 @@ std::vector<DrawBatch> all_objs;
 	private:
 		bool camera_moved(const vec3<float>& campos, const vec3<float>& forward) noexcept;
 		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target, u32* out_slot = nullptr) noexcept;
-		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap, const bool cull) noexcept;
+		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) noexcept;
 		void draw_text_batches() noexcept;
 };
 

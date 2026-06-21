@@ -33,10 +33,15 @@ Renderer::Renderer() noexcept :
 	ppipeline(ProgramPipeline())
 	{
 
+	// Reserve right away
+	this->instances.reserve(128);
+	this->persistent_instances.reserve(128);
+	this->lights.reserve(10);
+	this->glyphs.reserve(256);
+
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	// glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	// glEnable(GL_CULL_FACE);
@@ -166,6 +171,7 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 	const glm::mat4 vp = this->cached_proj * this->cached_view;
 	this->frustum.update(vp);
 	this->camera_dirty = this->camera_moved(camera.position, camera.forward); // this->campos set here
+	const bool batches_changed = this->persistent_dirty || !this->dirty_queue.empty();
 
 	// Rebuild persistent batch cache only when dirty
 	if(this->persistent_dirty) {
@@ -250,6 +256,13 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 
 		this->dirty_queue.clear();
 		this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT;
+	}
+
+	// Test frustum on persistent batches if persistent changed or camera moved
+	if(this->camera_dirty || batches_changed) {
+		for(auto& [key, batch] : this->persistent_batches) {
+			batch.visible = this->frustum.test(batch.aabb);
+		}
 	}
 }
 
@@ -457,8 +470,8 @@ void Renderer::flush() noexcept {
 	}
 
 	// Render all objects
-	if(this->persistent_included) this->draw_map(this->persistent_batches, true);
-	this->draw_map(this->dynamic_batches, false);
+	if(this->persistent_included) this->draw_map(this->persistent_batches);
+	this->draw_map(this->dynamic_batches);
 	if(!this->text_batches.empty() || !this->glyphs.empty()) this->draw_text_batches();
 }
 
@@ -521,14 +534,15 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 	}
 }
 
-void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap, const bool cull)  noexcept {
+void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap)  noexcept {
 	Mesh* prev_mesh = nullptr;
 	ShaderProgram* prev_vertex = nullptr;
 	ShaderProgram* prev_fragment = nullptr;
 	MaterialInstance* prev_material = nullptr;
 
 	for(const auto& [_, batch] : batchmap) {
-		if(this->camera_dirty && cull && !this->frustum.test(batch.aabb)) continue;
+		// 'batch.instance_count' is >0 only if batch passes individual frustum inside 'add_batch'
+		if(batch.instance_count == 0 || !batch.visible) continue;
 
 		if(batch.mesh != prev_mesh) {
 			glBindVertexArray(batch.mesh->vaoid());
