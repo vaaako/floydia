@@ -135,6 +135,8 @@ void Renderer::begin_frame() noexcept {
 	this->ssbo_lights.wait(this->frameindex);
 	this->ssbo_glyphs.wait(this->frameindex);
 
+	this->ssbo_objs_pass_offset = 0;
+
 #if !defined(FLOYD_RELEASE)
 	this->pickables.clear();
 #endif
@@ -225,7 +227,7 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 						sub.mesh.get(),
 						sub.material->base->vertex->id(),
 						sub.material->base->fragment->id(),
-						(sub.material->albedo) ? sub.material->albedo->id() : 0
+						(sub.material->albedo) ? sub.material->albedo->id() : 1
 					});
 				}
 
@@ -413,13 +415,19 @@ void Renderer::flush() noexcept {
 
 	// Update SSBO when there are dynamic objects or persistent slots need filling
 	if(!this->instances.empty() || this->persistent_ssbo_objs_dirty > 0) {
-		// Resize if necessary. Grow with margin
-		const size_t size = this->instances.size() * sizeof(Renderable::InstanceData);
-		if(size > this->ssbo_objs.perframesize()) this->ssbo_objs.resize(size);
+		// Get size with offset from last draw
+		const size_t size   = this->instances.size() * sizeof(Renderable::InstanceData);
+		const size_t base   = this->ssbo_objs.frame_offset(this->frameindex);
+		const size_t needed = this->ssbo_objs_pass_offset + size; // Pass index + needed size
+		if(needed > this->ssbo_objs.perframesize()) this->ssbo_objs.resize(needed); // Resize if needed
 
-		const size_t offset = this->ssbo_objs.frame_offset(this->frameindex);
+		// Calculate offset
+		const size_t offset = base + this->ssbo_objs_pass_offset;
 		this->ssbo_objs.update(this->instances.data(), size, offset);
 		this->ssbo_objs.flush(offset, size);
+
+		// Offset for next draw
+		this->ssbo_objs_pass_offset += size;
 
 		// Persistent objects are added once, so it is needed to manually
 		// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
@@ -465,7 +473,7 @@ void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch
 			sub.mesh.get(),
 			sub.material->base->vertex->id(),
 			sub.material->base->fragment->id(),
-			(sub.material->albedo) ? sub.material->albedo->id() : 0
+			(sub.material->albedo) ? sub.material->albedo->id() : 1
 		};
 
 		Renderable::InstanceData data = {

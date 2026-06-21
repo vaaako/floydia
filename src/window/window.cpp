@@ -242,7 +242,7 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 		MaterialInstance& mat = *obj->material(); // cache
 		float metallic = mat.metallic;
 		float roughness = mat.roughness;
-		if(ui::drag_scroll_float("Metallic", &metallic, 0.1f, 0.0f, 1.0f)) { mat.metallic = metallic; material_changed = true; }
+		if(ui::drag_scroll_float("Metallic", &metallic, 0.1f, 0.0f, 1.0f))   { mat.metallic = metallic; material_changed = true; }
 		if(ui::drag_scroll_float("Roughness", &roughness, 0.1f, 0.0f, 1.0f)) { mat.roughness = roughness; material_changed = true; }
 	}
 	
@@ -307,7 +307,6 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 	}
 
 	// Transform changes trigger 'on_dirty' callback
-
 	if(material_changed && obj->is_persistent) renderer->mark_dirty();
 	ImGui::End();
 #endif
