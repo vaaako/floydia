@@ -129,12 +129,9 @@ void Renderer::begin_frame() noexcept {
 	this->pass_index = -1; // Reset
 	// Advance frame
 	this->frameindex = (this->frameindex + 1) % PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Cap to ring buffer size
-	// Block CPU until GPU is done reading this frame's buffer slots.
-	this->ubo_camera.wait(this->frameindex); // Correct but overkill
-	this->ssbo_objs.wait(this->frameindex);
-	this->ssbo_lights.wait(this->frameindex);
-	this->ssbo_glyphs.wait(this->frameindex);
 
+	// Set all to false
+	this->wrote_camera  = this->wrote_objs  = this->wrote_lights  = this->wrote_glyphs  = false;
 	this->ssbo_objs_pass_offset = 0;
 
 #if !defined(FLOYD_RELEASE)
@@ -144,10 +141,10 @@ void Renderer::begin_frame() noexcept {
 
 void Renderer::end_frame() noexcept {
 	// Signal GPU fence, marks this frame's buffer slots as in-flight
-	this->ubo_camera.lock(this->frameindex);
-	this->ssbo_objs.lock(this->frameindex);
-	this->ssbo_lights.lock(this->frameindex);
-	this->ssbo_glyphs.lock(this->frameindex);
+	if(this->wrote_camera) this->ubo_camera.lock(this->frameindex);
+	if(this->wrote_objs)   this->ssbo_objs.lock(this->frameindex);
+	if(this->wrote_lights) this->ssbo_lights.lock(this->frameindex);
+	if(this->wrote_glyphs) this->ssbo_glyphs.lock(this->frameindex);
 }
 
 void Renderer::begin_draw(const Camera& camera) noexcept {
@@ -363,7 +360,6 @@ void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const 
 		const Text::Glyph g = font->glyph(codepoint, scale);
 		if(g.width > 0.0f && g.height > 0.0f) {
 			Text::GlyphData gd;
-			// gd.pos   = { pen_x + g.offset_x, pen_y + g.offset_y };
 			gd.pos = { pen_x + g.offset_x, pen_y + ascent + g.offset_y };
 			gd.size  = { g.width, g.height };
 			gd.uv0   = g.uv0;
@@ -381,6 +377,9 @@ void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const 
 void Renderer::flush() noexcept {
 	// Skip if no object
 	if(!this->dynamic_batches.empty() || !this->persistent_batches.empty()) {
+		// A bit overkill for UBO
+		if(!this->wrote_camera) { this->ubo_camera.wait(this->frameindex); this->wrote_camera = true; }
+
 		// Update camera here so 'lights' is updated
 		const Camera::CameraData cam = { this->cached_view, this->cached_proj, glm::vec4(this->campos, 1.0f) };
 	
@@ -415,6 +414,8 @@ void Renderer::flush() noexcept {
 
 	// Update SSBO when there are dynamic objects or persistent slots need filling
 	if(!this->instances.empty() || this->persistent_ssbo_objs_dirty > 0) {
+		if(!this->wrote_objs) { this->ssbo_objs.wait(this->frameindex); this->wrote_objs = true; }
+
 		// Get size with offset from last draw
 		const size_t size   = this->instances.size() * sizeof(Renderable::InstanceData);
 		const size_t base   = this->ssbo_objs.frame_offset(this->frameindex);
@@ -437,6 +438,8 @@ void Renderer::flush() noexcept {
 	// Update lights on scene
 	if(!this->lights.empty() || this->persistent_ssbo_light_dirty > 0) {
 		if(!this->lights.empty()) {
+			if(this->wrote_lights) { this->ssbo_lights.wait(this->frameindex); this->wrote_lights = true; }
+
 			Light::LightBuffer header;
 			header.count = static_cast<u32>(this->lights.size());
 			const size_t header_size = sizeof(Light::LightBuffer);
@@ -525,7 +528,7 @@ void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHa
 	MaterialInstance* prev_material = nullptr;
 
 	for(const auto& [_, batch] : batchmap) {
-		if(cull && !this->frustum.test(batch.aabb)) continue;
+		if(this->camera_dirty && cull && !this->frustum.test(batch.aabb)) continue;
 
 		if(batch.mesh != prev_mesh) {
 			glBindVertexArray(batch.mesh->vaoid());
@@ -560,6 +563,8 @@ void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHa
 }
 
 void Renderer::draw_text_batches() noexcept {
+	if(!this->wrote_glyphs) { this->ssbo_glyphs.wait(this->frameindex); this->wrote_glyphs = true; }
+
 	// Upload all glyphs at once
 	const size_t size = this->glyphs.size() * sizeof(Text::GlyphData);
 	if(size > this->ssbo_glyphs.perframesize()) this->ssbo_glyphs.resize(size);

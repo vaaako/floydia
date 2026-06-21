@@ -28,10 +28,6 @@ struct MaterialInstance {
 	inline void bind() const noexcept {
 		this->albedo->bind(0);
 		if(this->on_bind) this->on_bind();
-		// NOTE: 'metallic' and 'roughness' are per batch, not instance.
-		// All objects on the same batch share the same MaterialInstance,
-		// so the valor is constant
-		//
 		// NOTE: for shaders that don't have these uniforms, it will simply ignore
 	}
 };

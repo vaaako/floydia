@@ -143,6 +143,8 @@ class Renderer final {
 		std::vector<Renderable::InstanceData> instances;
 		std::vector<Renderable::InstanceData> persistent_instances;
 
+std::vector<DrawBatch> all_objs;
+
 		// Persistent object pointers, stored by pointer to avoid copies
 		std::vector<Renderable*> persistent_objs;
 		// Persistent objs dirty this frame
@@ -197,6 +199,12 @@ class Renderer final {
 		bool persistent_included = false; // Set by draw_persistent() to indicate persistant objects should be draw this pass
 										  // Without this flag, draw_map(persistent_batches) would run every flush() with stale instance_index
 										  // values, corrupting the SSBO reads for dynamic objects
+		// Check when SSBO was waited for this frame to lock it on end_frame
+		// This makes only necessary SSBOs wait and lock
+		bool wrote_camera  = false,
+			 wrote_objs    = false,
+			 wrote_lights  = false,
+			 wrote_glyphs  = false;
 
 	private:
 		bool camera_moved(const vec3<float>& campos, const vec3<float>& forward) noexcept;
