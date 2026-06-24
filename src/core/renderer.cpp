@@ -268,10 +268,6 @@ void Renderer::begin_draw(const Camera& camera) noexcept {
 
 void Renderer::draw_persistent() noexcept {
 	this->persistent_included = true;
-	// Push persistent lights for this frame
-	for(const Light::LightData& light : this->persistent_lights) {
-		this->lights.push_back(light);
-	}
 }
 
 void Renderer::draw(Renderable& obj) noexcept {
@@ -450,22 +446,25 @@ void Renderer::flush() noexcept {
 
 	// Update lights on scene
 	if(!this->lights.empty() || this->persistent_ssbo_light_dirty > 0) {
-		if(!this->lights.empty()) {
-			if(this->wrote_lights) { this->ssbo_lights.wait(this->frameindex); this->wrote_lights = true; }
+		if(!this->wrote_lights) { this->ssbo_lights.wait(this->frameindex); this->wrote_lights = true; }
 
-			Light::LightBuffer header;
-			header.count = static_cast<u32>(this->lights.size());
-			const size_t header_size = sizeof(Light::LightBuffer);
-			const size_t data_size = this->lights.size() * sizeof(Light::LightData);
+		const size_t header_size     = sizeof(Light::LightBuffer);
+		const size_t persistent_size = this->persistent_lights.size() * sizeof(Light::LightData);
+		const size_t dynamic_size    = this->lights.size() * sizeof(Light::LightData);
+		const size_t total_size      = header_size + persistent_size + dynamic_size;
+		if(total_size > this->ssbo_lights.perframesize()) this->ssbo_lights.resize(total_size);
 
-			const size_t total_size = header_size + data_size;
-			if(total_size > this->ssbo_lights.perframesize()) this->ssbo_lights.resize(total_size);
+		Light::LightBuffer header;
+		header.count = static_cast<u32>(this->persistent_lights.size() + this->lights.size());
 
-			const size_t offset = this->ssbo_lights.frame_offset(this->frameindex);
-			this->ssbo_lights.update(&header, header_size, offset);
-			this->ssbo_lights.update(this->lights.data(), data_size, offset + header_size); // Append after header
-			this->ssbo_lights.flush(offset, total_size);
-		}
+		const size_t offset = this->ssbo_lights.frame_offset(this->frameindex);
+		this->ssbo_lights.update(&header, header_size, offset);
+		// Append dynamic and persistent after header
+		// Persistent aren't added to instances because there is no need for it
+		this->ssbo_lights.update(this->persistent_lights.data(), persistent_size, offset + header_size);
+		this->ssbo_lights.update(this->lights.data(), dynamic_size, offset + header_size + persistent_size);
+		this->ssbo_lights.flush(offset, total_size);
+
 		if(this->persistent_ssbo_light_dirty > 0) --this->persistent_ssbo_light_dirty;
 	}
 
