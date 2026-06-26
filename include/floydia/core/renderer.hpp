@@ -140,32 +140,30 @@ class Renderer final {
 		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> dynamic_batches;
 		// Pre-built batches from persistent objects, rebuilt only when dirty. Used to draw batches
 		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> persistent_batches;
-		// All instance data, uploaded to the SSBO each frame
+		// All dynamic instance data
 		std::vector<Renderable::InstanceData> instances;
+		// All persistent instance data
 		std::vector<Renderable::InstanceData> persistent_instances;
-
-std::vector<DrawBatch> all_objs;
-
-		// Persistent object pointers, stored by pointer to avoid copies
+		// Used to rebuilt 'persistent_instances'. Stored by pointer to avoid copies
 		std::vector<Renderable*> persistent_objs;
-		// Persistent objs dirty this frame
-		std::vector<size_t> dirty_queue;
-		// Dynamic objects. For ray picking only. Cleared on 'begin_frame'
 	
 	#if !defined(FLOYD_RELEASE)
+		// Dynamic objects. For ray picking only. Cleared on 'begin_frame'
 		std::vector<Renderable*> pickables;
+		// Used to debug AABB
 		ShaderProgram aabb_program;
 	#endif
 
-		// All light instances to upload to SSBO
-		// dynamic lights and persistent_lights
+		// All dynamic light instance data
 		std::vector<Light::LightData> lights;
-		// Persistent light pointers, stored by pointer to avoid copies
+		// All dynamic persistent instance data
 		std::vector<Light::LightData> persistent_lights;
 
 		std::unordered_map<Text*, TextBatch> text_batches;
 		std::vector<Text::GlyphData> glyphs;
 
+		// Persistent objs dirty this frame
+		std::vector<size_t> dirty_queue;
 
 		glm::mat4 cached_view;
 		glm::mat4 cached_proj;

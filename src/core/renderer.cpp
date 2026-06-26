@@ -131,13 +131,13 @@ void Renderer::clear() const noexcept {
 }
 
 void Renderer::begin_frame() noexcept {
-	this->pass_index = -1; // Reset
+	// Reset passes
+	this->pass_index = -1;
+	this->ssbo_objs_pass_offset = 0;
 	// Advance frame
 	this->frameindex = (this->frameindex + 1) % PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Cap to ring buffer size
-
 	// Set all to false
 	this->wrote_camera  = this->wrote_objs  = this->wrote_lights  = this->wrote_glyphs  = false;
-	this->ssbo_objs_pass_offset = 0;
 
 #if !defined(FLOYD_RELEASE)
 	this->pickables.clear();
@@ -145,6 +145,11 @@ void Renderer::begin_frame() noexcept {
 }
 
 void Renderer::end_frame() noexcept {
+	// Persistent objects are added once, so it is needed to manually
+	// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
+	if(this->persistent_ssbo_objs_dirty > 0) --this->persistent_ssbo_objs_dirty;
+	if(this->persistent_ssbo_light_dirty > 0) --this->persistent_ssbo_light_dirty;
+
 	// Signal GPU fence, marks this frame's buffer slots as in-flight
 	if(this->wrote_camera) this->ubo_camera.lock(this->frameindex);
 	if(this->wrote_objs)   this->ssbo_objs.lock(this->frameindex);
@@ -384,6 +389,8 @@ void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const 
 }
 
 void Renderer::flush() noexcept {
+	const size_t persistent_count = (this->persistent_included) ? this->persistent_instances.size() : 0;
+
 	// Skip if no object
 	if(!this->dynamic_batches.empty() || !this->persistent_batches.empty()) {
 		// A bit overkill for UBO
@@ -392,7 +399,7 @@ void Renderer::flush() noexcept {
 		// Update camera here so 'lights' is updated
 		const Camera::CameraData cam = { this->cached_view, this->cached_proj, glm::vec4(this->campos, 1.0f) };
 	
-		const size_t offset = this->ubo_camera.frame_offset(frameindex) 
+		const size_t offset = this->ubo_camera.frame_offset(frameindex)
 			+ this->pass_index * sizeof(Camera::CameraData);
 		const size_t size = (this->pass_index + 1) * sizeof(Camera::CameraData);
 		if(size > this->ubo_camera.perframesize()) this->ubo_camera.resize(size);
@@ -400,11 +407,9 @@ void Renderer::flush() noexcept {
 		this->ubo_camera.update(&cam, sizeof(Camera::CameraData), offset);
 		this->ubo_camera.flush(offset, sizeof(Camera::CameraData)); // Bind for shader use
 
-		// Put on final instances
-		if(persistent_included) this->instances.insert(this->instances.end(), this->persistent_instances.begin(), this->persistent_instances.end());
 		// Update dynamic batches
 		for(auto& [_, batch] : this->dynamic_batches) {
-			batch.instance_index = this->instances.size();
+			batch.instance_index = persistent_count + this->instances.size();
 			this->instances.insert(
 				this->instances.end(),
 				batch.instances.begin(),
@@ -421,31 +426,36 @@ void Renderer::flush() noexcept {
 	#endif
 	}
 
-	// Update SSBO when there are dynamic objects or persistent slots need filling
-	if(!this->instances.empty() || this->persistent_ssbo_objs_dirty > 0) {
+	// Only process persistent data in the pass that owns it. Prevents later passes from overwriting the SSBO with stale/empty data
+	if(!this->instances.empty() ||
+			(this->persistent_included && (!this->persistent_instances.empty() || this->persistent_ssbo_objs_dirty > 0))) {
 		if(!this->wrote_objs) { this->ssbo_objs.wait(this->frameindex); this->wrote_objs = true; }
 
-		// Get size with offset from last draw
-		const size_t size   = this->instances.size() * sizeof(Renderable::InstanceData);
-		const size_t base   = this->ssbo_objs.frame_offset(this->frameindex);
-		const size_t needed = this->ssbo_objs_pass_offset + size; // Pass index + needed size
+		const size_t dynamic_size = this->instances.size() * sizeof(Renderable::InstanceData);
+		const size_t persistent_size = persistent_count * sizeof(Renderable::InstanceData);
+		const size_t total_size = persistent_size + dynamic_size;
+		const size_t needed = this->ssbo_objs_pass_offset + total_size; // Pass index + needed size
 		if(needed > this->ssbo_objs.perframesize()) this->ssbo_objs.resize(needed); // Resize if needed
 
-		// Calculate offset
-		const size_t offset = base + this->ssbo_objs_pass_offset;
-		this->ssbo_objs.update(this->instances.data(), size, offset);
-		this->ssbo_objs.flush(offset, size);
+		const size_t pass_base = this->ssbo_objs.frame_offset(this->frameindex) + this->ssbo_objs_pass_offset;
 
-		// Offset for next draw
-		this->ssbo_objs_pass_offset += size;
+		// Send persistent
+		if(this->persistent_included && persistent_size > 0) {
+			this->ssbo_objs.update(this->persistent_instances.data(), persistent_size, pass_base);
+		}
 
-		// Persistent objects are added once, so it is needed to manually
-		// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
-		if(this->persistent_ssbo_objs_dirty > 0) --this->persistent_ssbo_objs_dirty;
+		// Send dynamic
+		if(dynamic_size > 0) {
+			this->ssbo_objs.update(this->instances.data(), dynamic_size, pass_base + persistent_size);
+		}
+
+		this->ssbo_objs.flush(pass_base, total_size); // Send both data blocks
+		this->ssbo_objs_pass_offset += total_size; // Offset for next draw
 	}
 
 	// Update lights on scene
-	if(!this->lights.empty() || this->persistent_ssbo_light_dirty > 0) {
+	if(!this->lights.empty() || 
+			(this->persistent_included && (!this->persistent_lights.empty() || this->persistent_ssbo_light_dirty > 0))) {
 		if(!this->wrote_lights) { this->ssbo_lights.wait(this->frameindex); this->wrote_lights = true; }
 
 		const size_t header_size     = sizeof(Light::LightBuffer);
@@ -454,18 +464,26 @@ void Renderer::flush() noexcept {
 		const size_t total_size      = header_size + persistent_size + dynamic_size;
 		if(total_size > this->ssbo_lights.perframesize()) this->ssbo_lights.resize(total_size);
 
-		Light::LightBuffer header;
-		header.count = static_cast<u32>(this->persistent_lights.size() + this->lights.size());
-
 		const size_t offset = this->ssbo_lights.frame_offset(this->frameindex);
-		this->ssbo_lights.update(&header, header_size, offset);
-		// Append dynamic and persistent after header
-		// Persistent aren't added to instances because there is no need for it
-		this->ssbo_lights.update(this->persistent_lights.data(), persistent_size, offset + header_size);
-		this->ssbo_lights.update(this->lights.data(), dynamic_size, offset + header_size + persistent_size);
-		this->ssbo_lights.flush(offset, total_size);
 
-		if(this->persistent_ssbo_light_dirty > 0) --this->persistent_ssbo_light_dirty;
+		Light::LightBuffer header;
+		header.count = static_cast<u32>(
+			(this->persistent_included ? this->persistent_lights.size() : 0)
+			+ this->lights.size()
+		);
+		this->ssbo_lights.update(&header, header_size, offset); // Send header
+
+		// Send persistent
+		if(this->persistent_included && this->persistent_ssbo_light_dirty > 0) {
+			this->ssbo_lights.update(this->persistent_lights.data(), persistent_size, offset + header_size);
+		}
+
+		// Send dynamic
+		if(!this->lights.empty()) {
+			this->ssbo_lights.update(this->lights.data(), dynamic_size, offset + header_size + persistent_size);
+		}
+
+		this->ssbo_lights.flush(offset, total_size);
 	}
 
 	// Render all objects
