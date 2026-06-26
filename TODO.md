@@ -120,19 +120,24 @@ I wrote most of the things here very tired, sorry for any english mistake
 - [x] Store persistent instances and append to final instances
 - [x] ImGui scroll not working
 - [x] Click on shape makes a raycast to change object
-- [ ] Discord RPC support?
-
-- [ ] Error when sprite is not drawn
-- [ ] Scene serialization
-	+ Script builder
-
 - [x] Frustum culling persistent objects
 - [x] Fast update for persistent object changes. Instead of rebuilding entire persistent instances
 - [x] Be able to delete persistent object from renderer
 - [x] Faster billboard
 	+ Remove `final_matrix`
-- [ ] Frustum Culling for 2D shapes
-- [ ] Peristent object for 2D shapes
+
+
+- [ ] Discord RPC support?
+
+- [ ] Error when sprite is not drawn
+- [ ] Scene serialization
+	+ Script builder
+	+ Persistent only (?)
+
+- [ ] Frustum Culling for 2D shapes (?)
+- [ ] Peristent object for 2D shapes (?)
+
+- [ ] 2D work with cullface on
 - [ ] Better `Material` handling on `Renderable`. I dont like the "only access first material" thing
 - [ ] scarablib stuff
 	+ [ ] Alarm

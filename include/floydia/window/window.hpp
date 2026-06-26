@@ -126,7 +126,7 @@ class Window final {
 		void end_frame() noexcept { renderer->end_frame(); }
 		// Advances the frame index, syncs GPU fences, updates camera UBO,
 		// updates the frustum, and rebuilds persistent batches if dirty
-		inline void begin_draw(const Camera& camera) const noexcept { renderer->begin_draw(camera); }
+		inline void begin_draw(const Camera& camera, const bool cullface = true) const noexcept { renderer->begin_draw(camera, cullface); }
 		// Includes persistent objects in the current pass.
 		// Must be called after 'begin_draw()' and before 'flush()'.
 		// Persistent objects are only rebuilt when dirty (i.e. when 'add()' is called).

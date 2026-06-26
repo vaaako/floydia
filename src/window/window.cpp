@@ -219,6 +219,7 @@ bool Window::is_mouse_grabbed() const noexcept { return RGFW_window_isHoldingMou
 
 void Window::editor_panel(Renderable* obj) const noexcept {
 #if defined(FLOYD_RELEASE)
+	(void)(obj);
 	return;
 #else
 	ImGui::Begin("Properties");

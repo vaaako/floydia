@@ -52,7 +52,7 @@ class Renderer final {
 
 		// Advances the frame index, syncs GPU fences, updates camera UBO,
 		// updates the frustum, and rebuilds persistent batches if dirty
-		void begin_draw(const Camera& camera) noexcept;
+		void begin_draw(const Camera& camera, const bool cullface = true) noexcept;
 
 		// Includes persistent objects in the current pass.
 		// Must be called after 'begin_draw()' and before 'flush()'.

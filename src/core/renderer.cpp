@@ -1,3 +1,4 @@
+#include "floydia/camera/orthocamera.hpp"
 #include "floydia/physics/ray.hpp"
 #include "floydia/core/core.hpp"
 #include "floydia/gpu/shader.hpp"
@@ -43,8 +44,6 @@ Renderer::Renderer() noexcept :
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
-	// glEnable(GL_CULL_FACE);
 
 	glGenVertexArrays(1, &this->empty_vao);
 	this->ppipeline.bind();
@@ -157,7 +156,14 @@ void Renderer::end_frame() noexcept {
 	if(this->wrote_glyphs) this->ssbo_glyphs.lock(this->frameindex);
 }
 
-void Renderer::begin_draw(const Camera& camera) noexcept {
+void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
+	static bool lastcullface = false;
+	if(cullface != lastcullface) {
+		lastcullface = cullface;
+		if(cullface) glEnable(GL_CULL_FACE);
+		else glDisable(GL_CULL_FACE);
+	}
+
 	this->pass_index++;
 	// Clear previous frame
 	this->dynamic_batches.clear();
