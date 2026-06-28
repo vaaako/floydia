@@ -46,7 +46,7 @@ Contact me on discord: **vakothebat**
 
 # Libraries used
 - [`RGFW`](https://github.com/ColleagueRiley/RGFW) for window and input management
-- [`miniaudio`](https://miniaud.io/) for sound handling
+<!-- - [`miniaudio`](https://miniaud.io/) for sound handling -->
 - [`stb_image`](https://github.com/nothings/stb) for image loading
 - [`stb_truetype`](https://github.com/nothings/stb) for TTF font loading
 - [`GLAD`](https://github.com/Dav1dde/glad) for OpenGL loader
@@ -61,7 +61,7 @@ Contact me on discord: **vakothebat**
 - `libxi`
 - `mesa` (`libgl1-mesa-dev` on Debian)
 
-Only `GLAD` and `glm` headers are required 
+Only `GLAD` and `glm` headers are required
 
 ---
 

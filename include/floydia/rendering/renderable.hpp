@@ -33,6 +33,7 @@ class Renderable : public Object {
 		u32 persistent_slot = 0;
 
 	public:
+		Renderable() noexcept = default;
 		Renderable(const std::shared_ptr<Model>& model) noexcept;
 		virtual ~Renderable() = default;
 
@@ -43,6 +44,8 @@ class Renderable : public Object {
 		inline Model* model() noexcept { return this->_model.get(); }
 		// Returns Model class
 		inline const Model* model() const noexcept { return this->_model.get(); }
+		// Set a new model
+		inline void set_model(const std::shared_ptr<Model>& model) noexcept { this->_model = model; }
 		// How many meshes are inside the model
 		inline size_t mesh_count() const { return this->_model->meshes().size(); }
 		// The material of the first mesh.
