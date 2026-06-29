@@ -6,6 +6,8 @@ namespace floyd {
 
 class PerspectiveCamera final : public Camera {
 	public:
+		vec3<float> up     = vec3<float>(0.0f, 1.0f,  0.0f);
+		vec3<float> right  = vec3<float>(1.0f, 0.0f,  0.0f);
 		// Horizontal
 		float yaw = -90.0f; // forward: -Z
 		// Vertical
@@ -23,8 +25,10 @@ class PerspectiveCamera final : public Camera {
 			return glm::lookAt(this->position, this->position + this->forward, this->up);
 		}
 
-		// Takes a normalized vector and moves the camera
-		void move(const vec3<float>& dir, const float velocity) noexcept;
+		// Takes a normalized vector and returns world dir
+		vec3<float> calc_move_dir(const vec3<float>& dir) noexcept;
+		// Free-fly camera
+		void free_fly(const vec3<float>& dir, const float velocity) noexcept;
 		// Takes a delta vector and rotates the cameras
 		void rotate(const vec2<float>& delta) noexcept;
 		// Updates camera's vectors using yaw and pitch
@@ -61,15 +65,7 @@ class PerspectiveCamera final : public Camera {
 			this->dirty = true;
 		}
 
-		// Changes camera's height in cm
-		//inline set_height(const float height) noexcept {
-		//	this->transform.position.y = std::max(height * 0.01f, 0.0f);
-		//}
-
 	private:
-		vec3<float> up      = vec3<float>(0.0f, 1.0f,  0.0f);
-		vec3<float> right   = vec3<float>(1.0f, 0.0f,  0.0f);
-
 		float fov;
 		float near_plane = 0.1f;
 		float far_plane  = 1000.0f;

@@ -35,12 +35,7 @@ SHARED_LIB = $(BUILD_DIR)/lib$(LIB_NAME).so
 
 # ----------
 # Default targets
-all: dirs $(STATIC_LIB) $(SHARED_LIB)
-
-# Create build directories
-dirs:
-	mkdir -p $(BUILD_DIR)
-	mkdir -p $(OBJ_DIR)
+all: $(STATIC_LIB) $(SHARED_LIB)
 
 # Static library
 $(STATIC_LIB): $(OBJECTS)

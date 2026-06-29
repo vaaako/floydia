@@ -13,6 +13,7 @@ class Camera {
 		};
 
 	public:
+		vec3<float> offset = vec3<float>(0.0f);
 		vec3<float> position = vec3<float>(0.0f);
 		vec3<float> forward = vec3<float>(0.0f, 0.0f, -1.0f); // Only used to cheap check when camera moved
 	
@@ -25,6 +26,8 @@ class Camera {
 		virtual glm::mat4 view() const noexcept = 0;
 		// Updates width and height
 		void update_viewport(const float width, const float height) noexcept;
+		// Adds to camera's position
+		inline void follow(const vec3<float>& pos) noexcept { this->position = pos + this->offset; }
 
 	protected:
 		mutable glm::mat4 proj;

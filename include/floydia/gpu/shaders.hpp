@@ -90,6 +90,7 @@ layout(location = 4) flat in float v_metallic;
 layout(location = 5) flat in float v_roughness;
 
 layout(location = 0) uniform sampler2D albedo;
+layout(location = 1) uniform float u_ambient;
 layout(location = 0) out vec4 fragcolor;
 
 struct LightData {
@@ -175,7 +176,8 @@ void main() {
 
 	// Metals absorve more light, the ambient must be darker
 	// vec3 ambient = vec3(0.1);
-	vec3 ambient = mix(vec3(0.1), base.rgb * 0.05, v_metallic);
+	// vec3 ambient = mix(vec3(0.1), base.rgb * 0.05, v_metallic);
+	vec3 ambient = mix(vec3(u_ambient), base.rgb * (u_ambient * 0.5), v_metallic);
 	vec3 lighting = ambient;
 
 	// Blinn-Phong specular

@@ -231,7 +231,7 @@ void move_camera(const Window& window, PerspectiveCamera& camera) {
 	}
 
 	// Rotate camera
-	camera.move(dir, velocity);
+	camera.free_fly(dir, velocity);
 	if(window.is_mouse_grabbed()) {
 		camera.rotate(window.mouse_vector());
 	}
