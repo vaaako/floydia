@@ -243,6 +243,12 @@ void move_camera(const Window& window, PerspectiveCamera& camera) {
 # Compiling
 The library has been tested on **Linux** and **Windows**
 
+## Macros
+| Macro                       | Description                             |
+|-----------------------------|-----------------------------------------|
+| `FLOYD_NO_EDITOR_PANEL`     | Compiles with no editor panel support (recommended for release) |
+| `FLOYD_SINGLE_THREAD`       | Compiles without multithread |
+
 ## Build Commands
 Outputs a static and shared library under `build/`:
 ```sh

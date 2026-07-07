@@ -1,5 +1,3 @@
-
-
 #include "floydia/physics/ray.hpp"
 #include <algorithm>
 namespace floyd {

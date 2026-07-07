@@ -1,17 +1,23 @@
 #pragma once
 
-#include <floydia/core/renderer.hpp>
-#include <floydia/core/assets.hpp>
+#include "floydia/core/renderer.hpp"
+#include "floydia/core/assets.hpp"
+#include "floydia/core/jobsystem.hpp"
 
 namespace floyd {
 
 // Global class agregator
 struct Core final {
+	// Set this before initializing window. '0' is the default for "all available"
+	static size_t thread_count;
+
 	// Renderer object
 	std::unique_ptr<Renderer> renderer = nullptr;
 	// Shader Program, Material, Texture and Mesh agregator
 	std::unique_ptr<Assets> assets = nullptr;
-
+	// Multithread manager
+	std::unique_ptr<JobSystem> jobsystem = nullptr;
+	
 	// Global access to Core object
 	static Core& get() {
 		static Core _instance; // constructed once here
@@ -26,6 +32,10 @@ struct Core final {
 // Global accessor
 inline Assets& assets() noexcept {
 	return *Core::get().assets;
+}
+
+inline JobSystem& jobsystem() noexcept {
+	return *Core::get().jobsystem;
 }
 
 } // namespace floyd

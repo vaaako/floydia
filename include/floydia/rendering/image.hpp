@@ -31,6 +31,7 @@ struct Image {
 	// Write image to file
 	void write_to_file(const char* filename) const noexcept;
 
+	// Initializes stb_image once
 	static void init_stb_image() noexcept;
 
 	static constexpr u8 FALLBACK_IMAGE[16] = {

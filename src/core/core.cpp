@@ -9,6 +9,8 @@
 
 namespace floyd {
 
+size_t Core::thread_count = 0;
+
 Core::Core() noexcept {
 	RGFW_glHints* hints = RGFW_getGlobalHints_OpenGL();
 	hints->major = 4;
@@ -18,7 +20,11 @@ Core::Core() noexcept {
 
 void Core::initialize() noexcept {
 	// was initialized already
-	if(this->assets != nullptr && this->renderer != nullptr) return;
+	if(this->assets != nullptr && this->renderer != nullptr
+#if !defined(FLOYD_SINGLE_THREAD)
+	&& this->jobsystem != nullptr
+#endif
+	) return;
 
 	// Initialize GLAD
 	if(!gladLoadGLLoader((GLADloadproc)RGFW_getProcAddress_OpenGL)) {
@@ -29,9 +35,10 @@ void Core::initialize() noexcept {
 	// Initialize OpenGL dependend objects
 	this->assets = std::make_unique<Assets>();
 	this->renderer = std::make_unique<Renderer>();
-
-	// Enable flip vertically once
-	Image::init_stb_image();
+#if !defined(FLOYD_SINGLE_THREAD)
+	this->jobsystem = std::make_unique<JobSystem>(Core::thread_count);
+#endif
+	Image::init_stb_image(); // Enable flip vertically once
 
 	TRACELOG(logger::Info, "OpenGL initialized!");
 	TRACELOG(logger::Info, "GL Version: %s", glGetString(GL_VERSION));

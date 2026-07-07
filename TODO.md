@@ -143,6 +143,7 @@ I wrote most of the things here very tired, sorry for any english mistake
 	+ [ ] Alarm
 	+ [ ] 3D Uniform Grid Collision
 	+ [ ] 2D Color map
+- [ ] On renderer, instead of a logic for persistent update, remove and add persistent object
 
 - Entity Scene system
 	+ Objects in scene may have triggers inject to it

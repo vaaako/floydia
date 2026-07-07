@@ -55,7 +55,7 @@ class Window final {
 		}
 		// Run a callback for given event
 		inline void on_event(const Event event,
-				const std::function<void()> callback) noexcept {
+				const std::function<void()>& callback) noexcept {
 			this->events_callbacks.emplace(event, callback);
 		}
 
