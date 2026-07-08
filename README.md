@@ -243,24 +243,30 @@ void move_camera(const Window& window, PerspectiveCamera& camera) {
 # Compiling
 The library has been tested on **Linux** and **Windows**
 
-## Macros
-| Macro                       | Description                             |
+## Build Options
+| Option                       | Description                             |
 |-----------------------------|-----------------------------------------|
-| `FLOYD_NO_EDITOR_PANEL`     | Compiles with no editor panel support (recommended for release) |
-| `FLOYD_SINGLE_THREAD`       | Compiles without multithread |
+| `DEBUG=1`           | Builds without optimization, enables debug macros, symbols and warnings |
+| `SINGLE_THREAD=1`   | Defines `FLOYD_SINGLE_THREAD`, disabling multithreading support |
+| `NO_EDITOR_PANEL=1` | Defines `FLOYD_NO_EDITOR_PANEL` and excludes Dear ImGui from the build. Recommended for **release** builds |
+
+All options can be combined
 
 ## Build Commands
-Outputs a static and shared library under `build/`:
+Release build example:
 ```sh
-make release
+make NO_EDITOR_PANEL=1
 ```
 
-With debug flags:
+Debug build example:
 ```sh
-make debug vars
+make DEBUG=1
 ```
 
-> The "debug" flag removes compile optimization
+Compile and print the current build configuration:
+```sh
+make vars
+```
 
 
 ## Debug Macros
