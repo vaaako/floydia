@@ -7,7 +7,7 @@
 #include "floydia/helpers/ui.hpp"
 #include "floydia/rgfwimpl.hpp"
 
-#if !defined(FLOYD_RELEASE)
+#if !defined(FLOYD_NO_EDITOR_PANEL)
 #include "imgui/imgui_impl_opengl3.h"
 #endif
 
@@ -63,7 +63,7 @@ Window::Window(const Settings& settings)
 		// Initialize GLAD + Core
 		Core::get().initialize();
 
-	#if !defined(FLOYD_RELEASE)
+	#if !defined(FLOYD_NO_EDITOR_PANEL)
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
 		// Initialize backend for this application
@@ -129,14 +129,14 @@ void Window::poll_events() noexcept {
 	// Poll events
 	RGFW_event event;
 
-#if !defined(FLOYD_RELEASE)
+#if !defined(FLOYD_NO_EDITOR_PANEL)
 	ImGuiIO& io = ImGui::GetIO();
 #endif
 
 	while(RGFW_window_checkEvent(pimpl->window, &event)) {
 		this->events.emplace(static_cast<Event>(event.type));
 
-	#if !defined(FLOYD_RELEASE)
+	#if !defined(FLOYD_NO_EDITOR_PANEL)
 		// Update ImGui events
 		if(event.type == RGFW_keyPressed) {
 			// Add pressed key to ImGui events
@@ -157,7 +157,7 @@ void Window::poll_events() noexcept {
 	}
 
 // Update mouse
-#if !defined(FLOYD_RELEASE)
+#if !defined(FLOYD_NO_EDITOR_PANEL)
 	ImGui_ImplOpenGL3_NewFrame();
 
 	const vec2<u32> s = this->size();
@@ -182,7 +182,7 @@ void Window::poll_events() noexcept {
 }
 
 void Window::swap_buffers() const noexcept {
-#if !defined(FLOYD_RELEASE)
+#if !defined(FLOYD_NO_EDITOR_PANEL)
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 #endif
@@ -218,7 +218,7 @@ bool Window::is_mouse_grabbed() const noexcept { return RGFW_window_isHoldingMou
 // -- Editor Panel
 
 void Window::editor_panel(Renderable* obj) const noexcept {
-#if defined(FLOYD_RELEASE)
+#if defined(FLOYD_NO_EDITOR_PANEL)
 	(void)(obj);
 	return;
 #else
@@ -313,7 +313,7 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 #endif
 }
 
-#if !defined(FLOYD_RELEASE)
+#if !defined(FLOYD_NO_EDITOR_PANEL)
 bool Window::ui_key_clicked() const noexcept {
 	return ImGui::GetIO().WantCaptureMouse;
 }
@@ -333,19 +333,19 @@ bool Window::keyup(const Keycode key) const noexcept      { return RGFW_isKeyRel
 // -- MOUSE
 
 bool Window::mousedown(const MouseButton key) const noexcept {
-#if !defined(FLOYD_RELEASE)
+#if !defined(FLOYD_NO_EDITOR_PANEL)
 	if(ImGui::GetIO().WantCaptureMouse) return false;
 #endif
 	return RGFW_isMouseDown(static_cast<u8>(key));
 }
 bool Window::mousepressed(const MouseButton key) const noexcept {
-#if !defined(FLOYD_RELEASE)
+#if !defined(FLOYD_NO_EDITOR_PANEL)
 	if(ImGui::GetIO().WantCaptureMouse) return false;
 #endif
 	return RGFW_isMousePressed(static_cast<u8>(key));
 }
 bool Window::mouseup(const MouseButton key) const noexcept {
-#if !defined(FLOYD_RELEASE)
+#if !defined(FLOYD_NO_EDITOR_PANEL)
 	if(ImGui::GetIO().WantCaptureMouse) return false;
 #endif
 	return RGFW_isMouseReleased(static_cast<u8>(key));

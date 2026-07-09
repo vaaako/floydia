@@ -96,7 +96,7 @@ class Window final {
 
 		// Returns true if mouse is grabbed
 		bool is_mouse_grabbed() const noexcept;
-	#if !defined(FLOYD_RELEASE)
+	#if !defined(FLOYD_NO_EDITOR_PANEL)
 		// Retruns true if keyboard clicked inside UI
 		bool ui_key_clicked() const noexcept;
 		// Retruns true if mouse clicked inside UI
@@ -110,7 +110,7 @@ class Window final {
 		// Debug draw an AABB.
 		// Should not be used on release since it is a debug method
 		inline void draw_aabb(const AABB& aabb, const vec4<float>& color) const {
-		#if defined(FLOYD_RELEASE)
+		#if defined(FLOYD_NO_EDITOR_PANEL)
 			return;
 		#else
 			renderer->draw_aabb(aabb, color);
