@@ -144,12 +144,16 @@ class Renderer final {
 		std::vector<Renderable::InstanceData> instances;
 		// All persistent instance data
 		std::vector<Renderable::InstanceData> persistent_instances;
+
 		// Used to rebuilt 'persistent_instances'. Stored by pointer to avoid copies
 		std::vector<Renderable*> persistent_objs;
+
+	#if !defined(FLOYD_SINGLE_THREAD) || !defined(FLOYD_NO_EDITOR_PANEL)
+		// Used for multithreading and ray picking
+		std::vector<Renderable*> dynamic_objs;
+	#endif
 	
-	#if !defined(FLOYD_RELEASE)
-		// Dynamic objects. For ray picking only. Cleared on 'begin_frame'
-		std::vector<Renderable*> pickables;
+	#if !defined(FLOYD_NO_EDITOR_PANEL)
 		// Used to debug AABB
 		ShaderProgram aabb_program;
 	#endif

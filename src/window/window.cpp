@@ -97,8 +97,10 @@ Window::~Window() {
 			shared_context = nullptr;
 			// Delete ImGui
 			TRACELOG(logger::Info, "ImGui destroyed!");
+		#if !defined(FLOYD_NO_EDITOR_PANEL)
 			ImGui_ImplOpenGL3_Shutdown();
 			ImGui::DestroyContext();
+		#endif
 		}
 		RGFW_window_close(pimpl->window); // Automatically calls RGFW_window_deleteContext_OpenGL
 		pimpl->window = nullptr;

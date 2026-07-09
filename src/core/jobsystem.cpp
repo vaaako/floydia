@@ -4,6 +4,10 @@
 
 namespace floyd {
 
+// 'thread_local': Each OS thread gets its own independent copy of this variable
+// Read/Write from a thread never sees or affects other thread's copy
+static thread_local size_t t_worker_index = SIZE_MAX; // SIZE_MAX: Not a worker thread
+
 JobSystem::JobSystem(const size_t workers) noexcept {
 	this->_workers_count = std::max<size_t>(1,
 		(workers != 0) ? workers : std::thread::hardware_concurrency() - 1); // -1: Leave one for main thread
@@ -11,7 +15,7 @@ JobSystem::JobSystem(const size_t workers) noexcept {
 
 	// Make all threads now because is expensive to open a new thread
 	for(size_t i = 0; i < this->_workers_count; ++i) {
-		this->workers.emplace_back([this] { this->worker_loop(); });
+		this->workers.emplace_back([this, i] { this->worker_loop(i); });
 	}
 }
 
@@ -25,6 +29,10 @@ JobSystem::~JobSystem() noexcept {
 	}
 }
 
+size_t JobSystem::worker_index() noexcept {
+	return t_worker_index;
+}
+
 void JobSystem::wait() noexcept {
 	// 'std::unique_lock' because 'wait' needs to unlock and lock internally
 	std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(this->queue_mutex);
@@ -36,7 +44,10 @@ void JobSystem::wait() noexcept {
 	});
 }
 
-void JobSystem::worker_loop() {
+void JobSystem::worker_loop(const size_t index) {
+	// Set this thread's copy of 't_worker_index' once
+	t_worker_index = index;
+
 	// Execute jobs as it comes
 	while(true) {
 		std::function<void()> job;
@@ -91,6 +102,26 @@ void JobSystem::parallel_for(const size_t begin, const size_t end, const std::fu
 
 		this->dispatch([chunk_begin, chunk_end, &callback]() {
 			for(size_t i = chunk_begin; i < chunk_end; ++i) callback(i);
+		});
+	}
+
+	this->wait();
+}
+
+void JobSystem::parallel_for_chunks(const size_t begin, const size_t end, const std::function<void(size_t, size_t, size_t)>& callback) {
+	if(begin >= end) return;
+
+	const size_t range = end - begin;
+	const size_t chunk_count = std::min(range, this->_workers_count);
+	const size_t chunk_size = (range + chunk_count - 1) / chunk_count;
+
+	for(size_t c = 0; c < chunk_count; ++c) {
+		const size_t chunk_begin = begin + c * chunk_size;
+		const size_t chunk_end = std::min(chunk_begin + chunk_size, end);
+		if(chunk_begin >= chunk_end) continue;
+
+		this->dispatch([chunk_begin, chunk_end, c, &callback]() {
+			callback(chunk_begin, chunk_end, c);
 		});
 	}
 

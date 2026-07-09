@@ -1,5 +1,5 @@
 # Floydia 🪲 v1.0
-**Floydia** is a C++ OpenGL 4.6 graphics library designed to simplify 2D and 3D development. It provides an easy-to-use, beginner-friendly API while still offering powerful features like resource management, lighting, batch rendering, and more
+**Floydia** is a multithreading C++ OpenGL 4.6 graphics library designed to simplify 2D and 3D development. It provides an easy-to-use, beginner-friendly API while still offering powerful features like resource management, lighting, batch rendering, and more
 
 > ⚠️ Floydia is a **hobby project** and still under active development
 

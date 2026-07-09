@@ -1,4 +1,3 @@
-#include "floydia/camera/orthocamera.hpp"
 #include "floydia/physics/ray.hpp"
 #include "floydia/core/core.hpp"
 #include "floydia/gpu/shader.hpp"
@@ -13,6 +12,11 @@
 #include "floydia/helpers/logger.hpp"
 #endif
 
+// Design choices i am not satisfied with:
+// - Duplicated objects inside "DrawBatch" when is a persistent object
+// - "is_visible" on DrawBatch
+// - Cloning on flat vectors and maps (not duplicated objects, but different members for the same objects)
+
 /*
 - 5000 Cubes
 - 5000 Planes
@@ -21,8 +25,6 @@
 Shader Program: ~224-285 fps
 Program Pipeline: ~257-303 fps
 */
-
-// #define FLOYD_DEBUG_RENDERER
 
 namespace floyd {
 
@@ -48,7 +50,7 @@ Renderer::Renderer() noexcept :
 	glGenVertexArrays(1, &this->empty_vao);
 	this->ppipeline.bind();
 
-#if !defined(FLOYD_RELEASE)
+#if !defined(FLOYD_NO_EDITOR_PANEL)
 	Shader vs = Shader(Shaders::DEFAULT_DEBUG_AABB_VERTEX, Shader::Vertex);
 	Shader fs = Shader(Shaders::DEFAULT_DEBUG_AABB_FRAGMENT, Shader::Fragment);
 	this->aabb_program.attach(vs);
@@ -59,7 +61,7 @@ Renderer::Renderer() noexcept :
 
 // TODO: optimize
 Renderable* Renderer::pick(const PerspectiveCamera& camera, const vec2<u32>& mouse_pos, const vec2<u32>& win_size) const noexcept {
-#if defined(FLOYD_RELEASE)
+#if defined(FLOYD_NO_EDITOR_PANEL)
 	return nullptr;
 #else
 	Ray ray = Ray::screen_to_ray(camera, mouse_pos, win_size);
@@ -80,7 +82,7 @@ Renderable* Renderer::pick(const PerspectiveCamera& camera, const vec2<u32>& mou
 		test(r);
 	}
 
-	for(Renderable* r : this->pickables) {
+	for(Renderable* r : this->dynamic_objs) {
 		test(r);
 	}
 
@@ -107,7 +109,7 @@ void Renderer::mark_dirty() noexcept {
 }
 
 void Renderer::draw_aabb(const AABB& aabb, const vec4<float>& color) noexcept {
-#if defined(FLOYD_RELEASE)
+#if defined(FLOYD_NO_EDITOR_PANEL)
 	return;
 #else
 	this->aabb_program.bind();
@@ -138,8 +140,8 @@ void Renderer::begin_frame() noexcept {
 	// Set all to false
 	this->wrote_camera  = this->wrote_objs  = this->wrote_lights  = this->wrote_glyphs  = false;
 
-#if !defined(FLOYD_RELEASE)
-	this->pickables.clear();
+#if !defined(FLOYD_SINGLE_THREAD) || !defined(FLOYD_NO_EDITOR_PANEL)
+	this->dynamic_objs.clear();
 #endif
 }
 
@@ -221,13 +223,14 @@ void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 	// Incremental patch. Full rebuild is skipped
 	// Only objects with dirty transform are updated
 	} else if(!this->dirty_queue.empty()) {
+	#if defined(FLOYD_SINGLE_THREAD)
 		// Track which batches need AABB rebuild
 		std::unordered_set<BatchKey, BatchKeyHash> dirty_batches;
 
 		for(const size_t index : this->dirty_queue) {
 			Renderable* obj = this->persistent_objs[index];
 			if(!obj) continue;
-			// Recalculate world AABB while dirty flag is still set	
+			// Recalculate world AABB while dirty flag is still set
 			if(obj->transform.isdirty()) obj->world_aabb();
 
 			const glm::mat4& mmatrix = obj->transform.model_matrix();
@@ -257,13 +260,80 @@ void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 			}
 			obj->is_dirty_queued = false;
 		}
+	#else
+		// WARNING: For this job to work 'job_queue' CAN NOT have duplicated objects
+
+		// Local buffer by thread. Each chunk writes on its own unordered_set
+		// (that is why 'parallel_for_chunks' is used)
+		struct LocalBatches {
+			std::unordered_set<BatchKey, BatchKeyHash> batches;
+		};
+		std::vector<LocalBatches> local_dirty = std::vector<LocalBatches>(jobsystem().workers_count());
+	
+		// A dispatch per chunk
+		jobsystem().parallel_for_chunks(0, this->dirty_queue.size(), [this, &local_dirty](size_t begin, size_t end, size_t chunk_index) {
+			std::unordered_set<BatchKey, BatchKeyHash>& local_dirty_batches = local_dirty[chunk_index].batches;
+
+			// This chunk
+			for(size_t i = begin; i < end; ++i) {
+				Renderable* obj = this->persistent_objs[this->dirty_queue[i]];
+				if(!obj) continue;
+				if(obj->transform.isdirty()) obj->world_aabb(); // Safe because only this thread changes this value
+				
+				const glm::mat4& mmatrix = obj->transform.model_matrix(); // Also safe
+				const vec4<float>& colornorm = obj->color_norm();
+				u32 slot = obj->persistent_slot; // SSBO slot is unique by object so it is save to write
+
+				// Mark all submeshes for AABB rebuild
+				for(const Model::SubMesh& sub : obj->model()->meshes()) {
+					if(obj->transform.isdirty()) {
+						// Write on this chunk unordered_set
+						local_dirty_batches.insert({
+							sub.mesh.get(),
+							sub.material->base->vertex->id(),
+							sub.material->base->fragment->id(),
+							(sub.material->albedo) ? sub.material->albedo->id() : 1
+						});
+					}
+
+					// Write on this object's unique slot
+					this->persistent_instances[slot++] = {
+						mmatrix,
+						colornorm,
+						sub.material->metallic,
+						sub.material->roughness,
+						{} // Padding
+					};
+				}
+				obj->is_dirty_queued = false;
+			}
+		});
+
+		// Insert all chunks
+		std::unordered_set<BatchKey, BatchKeyHash> dirty_batches;
+		for(auto& local : local_dirty) dirty_batches.insert(local.batches.begin(), local.batches.end());
+	#endif
+
 
 		// Rebuild AABB only for affected batches
+	#if defined(FLOYD_SINGLE_THREAD)
 		for(const BatchKey& key : dirty_batches) {
 			DrawBatch& batch = this->persistent_batches.at(key);
 			batch.aabb = AABB{};
 			for(Renderable* obj : batch.objects) batch.aabb.merge(obj->world_aabb());
 		}
+	#else
+		// TODO: i will remove this auxiliary vector later
+		std::vector<DrawBatch*> batches;
+		batches.reserve(dirty_batches.size());
+		for(const BatchKey& key : dirty_batches) batches.push_back(&this->persistent_batches[key]);
+
+		jobsystem().parallel_for(0, batches.size(), [&batches](size_t i) {
+			DrawBatch* batch = batches[i];
+			batch->aabb = AABB{};
+			for(Renderable* obj : batch->objects) batch->aabb.merge(obj->world_aabb());
+		});
+	#endif
 
 		this->dirty_queue.clear();
 		this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT;
@@ -271,9 +341,19 @@ void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 
 	// Test frustum on persistent batches if persistent changed or camera moved
 	if(this->camera_dirty || batches_changed) {
-		for(auto& [key, batch] : this->persistent_batches) {
-			batch.visible = this->frustum.test(batch.aabb);
-		}
+	#if defined(FLOYD_SINGLE_THREAD)
+		for(auto& [key, batch] : this->persistent_batches) batch.visible = this->frustum.test(batch.aabb);
+	#else
+		// TODO: I will remove this auxiliary vector later
+		std::vector<DrawBatch*> batches;
+		batches.reserve(this->persistent_batches.size());
+		for(auto& [_, batch] : this->persistent_batches) batches.push_back(&batch);	
+
+		jobsystem().parallel_for(0, batches.size(), [this, &batches](size_t i) {
+			DrawBatch* batch = batches[i];
+			batch->visible = this->frustum.test(batch->aabb);
+		});
+	#endif
 	}
 }
 
@@ -289,10 +369,15 @@ void Renderer::draw(Renderable& obj) noexcept {
 		obj.visible = this->frustum.test(obj.world_aabb());
 	}
 	if(!obj.visible) return;
-	this->add_batch(obj, this->dynamic_batches);
 
-#if !defined(FLOYD_RELEASE)
-	this->pickables.push_back(&obj); // For Ray picking
+#if defined(FLOYD_SINGLE_THREAD)
+	this->add_batch(obj, this->dynamic_batches);
+	// On multithreading was moved to 'flush' because the amount of dynamic objects
+	// in this frame is needed
+#endif
+
+#if !defined(FLOYD_SINGLE_THREAD) || !defined(FLOYD_NO_EDITOR_PANEL)
+	this->dynamic_objs.push_back(&obj);
 #endif
 }
 
@@ -395,6 +480,34 @@ void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const 
 }
 
 void Renderer::flush() noexcept {
+#if !defined(FLOYD_SINGLE_THREAD)
+	// Build dynamic batches
+	struct LocalBatches {
+		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> map;
+	};
+	std::vector<LocalBatches> local = std::vector<LocalBatches>(jobsystem().workers_count());
+
+	jobsystem().parallel_for_chunks(0, this->dynamic_objs.size(), [&](size_t begin, size_t end, size_t c) {
+		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target = local[c].map;
+		// Safe because 'out_slot' is not accessed
+		for(size_t i = begin; i < end; ++i) this->add_batch(*this->dynamic_objs[i], target, nullptr);
+	});
+
+	// Concatenate
+	this->dynamic_batches.clear();
+	for(LocalBatches& lb : local) {
+		for(auto& [key, chunk_batch] : lb.map) {
+			DrawBatch& batches = this->dynamic_batches[key];
+			if(!batches.mesh) {
+				batches.mesh = chunk_batch.mesh;
+				batches.matinst = chunk_batch.matinst;
+			}
+			batches.instances.insert(batches.instances.end(), chunk_batch.instances.begin(), chunk_batch.instances.end());
+			batches.instance_count += chunk_batch.instance_count;
+		}
+	}
+#endif
+
 	const size_t persistent_count = (this->persistent_included) ? this->persistent_instances.size() : 0;
 
 	// Skip if no object
@@ -460,7 +573,7 @@ void Renderer::flush() noexcept {
 	}
 
 	// Update lights on scene
-	if(!this->lights.empty() || 
+	if(!this->lights.empty() ||
 			(this->persistent_included && (!this->persistent_lights.empty() || this->persistent_ssbo_light_dirty > 0))) {
 		if(!this->wrote_lights) { this->ssbo_lights.wait(this->frameindex); this->wrote_lights = true; }
 

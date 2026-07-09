@@ -22,12 +22,20 @@ class JobSystem final {
 
 		// Schedules a single task for execution
 		void dispatch(const std::function<void()>& callback);
-		// Executes a range of work in parallel. Divides the job between workers
+		// Executes a range of work in parallel. Divides the job between workers.
+		// Use when each index is fully independent
 		void parallel_for(const size_t begin, const size_t end, const std::function<void(size_t)>& callback);
+		// Same as `parallel_for`, but callback receives (chunk_begin, chunk_end, chunk_index)
+		// instead of a single index. Use when you need per-chunk state (e.g., a thread-local accumulator
+		// merged after wait()), since chunk_index lets you pick the right slot
+		void parallel_for_chunks(const size_t begin, const size_t end, const std::function<void(size_t, size_t, size_t)>& callback);
 	
+		// Returns the index of the worker calling this from a job
+		static size_t worker_index() noexcept;
+
 	private:
 		// Main loop for all threads
-		void worker_loop();
+		void worker_loop(const size_t index);
 
 		// Threads alive
 		std::vector<std::thread> workers;
