@@ -12,9 +12,9 @@ ifeq ($(NO_EDITOR_PANEL),0)
 INCLUDE_DIRS += -Iinclude/external/imgui
 endif
 
-CXXFLAGS     := -std=c++17 -fPIC $(INCLUDE_DIRS)
+CXXFLAGS := -std=c++17 -fPIC $(INCLUDE_DIRS)
 LDFLAGS :=
-LDLIBS   = -lX11 -lGL -lXrandr
+LDLIBS = -lX11 -lGL -lXrandr
 
 CFLAGS := -fPIC $(INCLUDE_DIRS)
 
@@ -144,7 +144,7 @@ vars: all
 	@echo "LIBRARY  : $(LIB_NAME)"
 	@echo "DEBUG    : $(DEBUG)"
 	@echo "SINGLE   : $(SINGLE_THREAD)"
-	@echo "EDITOR   : $(NO_EDITOR_PANEL)"
+	@echo "NOEDITOR : $(NO_EDITOR_PANEL)"
 	@echo "SOURCES  : $(SOURCES)"
 	@echo "OBJECTS  : $(OBJECTS)"
 	@echo "TARGET   : $(LIB_NAME)"

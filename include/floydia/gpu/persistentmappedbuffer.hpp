@@ -80,7 +80,6 @@ class PersistentMappedBuffer {
 			this->fences[frameindex] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 		}
 
-
 		// Returns byte offset for the given frame's region.
 		// Ensures each frame writes to a separate memory slice (avoids CPU/GPU overlap)
 		inline size_t frame_offset(const u32 frameindex) const noexcept {

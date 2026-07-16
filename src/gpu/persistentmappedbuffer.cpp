@@ -71,8 +71,21 @@ void PersistentMappedBuffer::make_buffer(const size_t perframesize) noexcept {
 
 	// If has a buffer. Replace
 	if(this->buffer != 0) {
+		// Preserve existing data. Each ring-buffer frame slot moved to a new
+		// offset, so copy slot by slot instead of a single flat copy
+		const size_t copy_per_frame = std::min(this->_perframesize, perframe);
+		for(u32 i = 0; i < FRAMES_IN_FLIGHT; ++i) {
+			glCopyNamedBufferSubData(
+				this->buffer, buffer,
+				i * this->_perframesize, // Old offset
+				i * perframe, // New offset
+				copy_per_frame
+			);
+		}
+
 		// Wait on ALL fences before deleting old buffer
-		this->delete_fences();	
+		this->delete_fences();
+		glUnmapNamedBuffer(this->buffer);
 		glDeleteBuffers(1, &this->buffer); // Delete old buffer
 		this->mapped = nullptr;
 	}

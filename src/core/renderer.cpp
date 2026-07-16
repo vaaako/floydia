@@ -29,7 +29,7 @@ Program Pipeline: ~257-303 fps
 namespace floyd {
 
 Renderer::Renderer() noexcept :
-	ubo_camera(0, sizeof(Camera::CameraData)),
+	ubo_camera(0, sizeof(Camera::CameraData) * 2),
 	ssbo_objs(1, sizeof(Renderable::InstanceData) * 128),
 	ssbo_lights(2, sizeof(Light::LightData) * 10),
 	ssbo_glyphs(3, sizeof(Text::GlyphData) * 256),
@@ -143,48 +143,7 @@ void Renderer::begin_frame() noexcept {
 #if !defined(FLOYD_SINGLE_THREAD) || !defined(FLOYD_NO_EDITOR_PANEL)
 	this->dynamic_objs.clear();
 #endif
-}
 
-void Renderer::end_frame() noexcept {
-	// Persistent objects are added once, so it is needed to manually
-	// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
-	if(this->persistent_ssbo_objs_dirty > 0) --this->persistent_ssbo_objs_dirty;
-	if(this->persistent_ssbo_light_dirty > 0) --this->persistent_ssbo_light_dirty;
-
-	// Signal GPU fence, marks this frame's buffer slots as in-flight
-	if(this->wrote_camera) this->ubo_camera.lock(this->frameindex);
-	if(this->wrote_objs)   this->ssbo_objs.lock(this->frameindex);
-	if(this->wrote_lights) this->ssbo_lights.lock(this->frameindex);
-	if(this->wrote_glyphs) this->ssbo_glyphs.lock(this->frameindex);
-}
-
-void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
-	static bool lastcullface = false;
-	if(cullface != lastcullface) {
-		lastcullface = cullface;
-		if(cullface) glEnable(GL_CULL_FACE);
-		else glDisable(GL_CULL_FACE);
-	}
-
-	this->pass_index++;
-	// Clear previous frame
-	this->dynamic_batches.clear();
-	this->instances.clear();
-	this->lights.clear();
-	this->text_batches.clear();
-	this->glyphs.clear();
-	this->total_text_instances = 0;
-	this->persistent_included = false;
-
-	// Update Camera and Camera Uniform Buffer
-	this->cached_view = camera.view();
-	this->cached_proj = camera.projection();
-
-	// Update frustum once per frame
-	const glm::mat4 vp = this->cached_proj * this->cached_view;
-	this->frustum.update(vp);
-	this->camera_dirty = this->camera_moved(camera.position, camera.forward); // this->campos set here
-	const bool batches_changed = this->persistent_dirty || !this->dirty_queue.empty();
 
 	// Rebuild persistent batch cache only when dirty
 	if(this->persistent_dirty) {
@@ -338,9 +297,54 @@ void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 		this->dirty_queue.clear();
 		this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT;
 	}
+}
 
-	// Test frustum on persistent batches if persistent changed or camera moved
-	if(this->camera_dirty || batches_changed) {
+void Renderer::end_frame() noexcept {
+	// Persistent objects are added once, so it is needed to manually
+	// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
+	if(this->persistent_ssbo_objs_dirty > 0) --this->persistent_ssbo_objs_dirty;
+	if(this->persistent_ssbo_light_dirty > 0) --this->persistent_ssbo_light_dirty;
+
+	// Signal GPU fence, marks this frame's buffer slots as in-flight
+	if(this->wrote_camera) this->ubo_camera.lock(this->frameindex);
+	if(this->wrote_objs)   this->ssbo_objs.lock(this->frameindex);
+	if(this->wrote_lights) this->ssbo_lights.lock(this->frameindex);
+	if(this->wrote_glyphs) this->ssbo_glyphs.lock(this->frameindex);
+}
+
+void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
+	static bool lastcullface = false;
+	if(cullface != lastcullface) {
+		lastcullface = cullface;
+		if(cullface) glEnable(GL_CULL_FACE);
+		else glDisable(GL_CULL_FACE);
+	}
+
+	this->pass_index++;
+	// Clear previous frame
+	this->dynamic_batches.clear();
+	this->instances.clear();
+	this->lights.clear();
+	this->text_batches.clear();
+	this->glyphs.clear();
+	this->total_text_instances = 0;
+	this->persistent_included = false;
+
+	// Update Camera and Camera Uniform Buffer
+	this->cached_view = camera.view();
+	this->cached_proj = camera.projection();
+
+	// Update frustum once per frame
+	const glm::mat4 vp = this->cached_proj * this->cached_view;
+	this->frustum.update(vp);
+	this->camera_dirty = this->camera_moved(camera.position, camera.forward); // this->campos set here
+}
+
+void Renderer::draw_persistent() noexcept {
+	this->persistent_included = true;
+
+	// Test frustum on persistent batches if camera moved or persistent changed
+	if(this->camera_dirty || this->persistent_dirty || !this->dirty_queue.empty()) {
 	#if defined(FLOYD_SINGLE_THREAD)
 		for(auto& [key, batch] : this->persistent_batches) batch.visible = this->frustum.test(batch.aabb);
 	#else
@@ -355,10 +359,6 @@ void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 		});
 	#endif
 	}
-}
-
-void Renderer::draw_persistent() noexcept {
-	this->persistent_included = true;
 }
 
 void Renderer::draw(Renderable& obj) noexcept {

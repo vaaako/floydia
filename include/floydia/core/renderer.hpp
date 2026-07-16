@@ -195,7 +195,7 @@ class Renderer final {
 		u32 persistent_ssbo_objs_dirty;
 		u32 persistent_ssbo_light_dirty;
 		int pass_index = -1; // Tracks the current pass within a frame. Incremented on each begin_draw call
-							 // Used to offset the camera UBO so eac pass has its own camera slot without overwriting others
+							 // Used to offset the camera UBO so each pass has its own camera slot without overwriting others
 		size_t ssbo_objs_pass_offset = 0; // Tracks current pass within frame. Other SSBOs do not appear on other passes, no need
 		bool camera_dirty = true; // Check if camera moved
 		bool persistent_dirty = true; // Track if persistent batch cache is dirty
