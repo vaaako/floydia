@@ -129,16 +129,21 @@ I wrote most of the things here very tired, sorry for any english mistake
 
 - [ ] Discord RPC support?
 
+- [x] Better `Material` handling on `Renderable`. I dont like the "only access first material" thing
+	+ Remove `MaterialInstance` and make `Material` on `Mesh` a copy
+- [ ] `Model` is being copied by each `Renderable`
+	+ Share the same `Model` with multiple objects
+
 - [ ] Error when sprite is not drawn
+
 - [ ] Scene serialization
 	+ Script builder
 	+ Persistent only (?)
 
+- [ ] 2D work with cullface on
 - [ ] Frustum Culling for 2D shapes (?)
 - [ ] Peristent object for 2D shapes (?)
 
-- [ ] 2D work with cullface on
-- [ ] Better `Material` handling on `Renderable`. I dont like the "only access first material" thing
 - [ ] scarablib stuff
 	+ [ ] Alarm
 	+ [ ] 3D Uniform Grid Collision

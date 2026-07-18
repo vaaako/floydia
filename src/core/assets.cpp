@@ -27,9 +27,9 @@ Assets::Assets() noexcept {
 	this->defaults.PROG_FRAG_2D   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_2D);
 	this->defaults.PROG_VERT_TEXT = this->load_program(Shaders::DEFAULT_VERTEX_TEXT, nullptr);
 
-	this->defaults.MAT_3D = this->load_material(this->defaults.PROG_VERT_3D, this->defaults.PROG_FRAG_3D);
-	this->defaults.MAT_2D = this->load_material(this->defaults.PROG_VERT_2D, this->defaults.PROG_FRAG_2D);
-	this->defaults.MAT_BILL = this->load_material(this->load_program(Shaders::DEFAULT_BILLBOARD_VERTEX, nullptr), this->defaults.PROG_FRAG_3D);
+	// this->defaults.MAT_3D = this->load_material(this->defaults.PROG_VERT_3D, this->defaults.PROG_FRAG_3D);
+	// this->defaults.MAT_2D = this->load_material(this->defaults.PROG_VERT_2D, this->defaults.PROG_FRAG_2D);
+	// this->defaults.MAT_BILL = this->load_material(this->load_program(Shaders::DEFAULT_BILLBOARD_VERTEX, nullptr), this->defaults.PROG_FRAG_3D);
 }
 
 std::shared_ptr<Texture> Assets::load_texture(const char* path) {

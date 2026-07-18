@@ -11,6 +11,8 @@ namespace floyd {
 
 // Renderable object
 class Renderable : public Object {
+	friend class Renderer;
+	
 	public:
 		struct alignas(16) InstanceData {
 			glm::mat4 model;
@@ -21,16 +23,8 @@ class Renderable : public Object {
 		};
 
 	public:
-		// Visible on Frustum Culling
-		bool visible = true;
-		// Set by Renderer. Tells if a Object is persistent on Renderer
-		bool is_persistent = false;
-		// Set by Renderer. Just to avoid double push on 'dirty_queue'
-		bool is_dirty_queued = false;
 		// Set by Renderer. Index in renderer
 		size_t index = SIZE_MAX;
-		// Set by Renderer. If persistent object, position inside batch for rebuild
-		u32 persistent_slot = 0;
 
 	public:
 		Renderable() noexcept = default;
@@ -48,28 +42,23 @@ class Renderable : public Object {
 		inline void set_model(const std::shared_ptr<Model>& model) noexcept { this->_model = model; }
 		// How many meshes are inside the model
 		inline size_t mesh_count() const { return this->_model->meshes().size(); }
-		// The material of the first mesh.
-		// Returns 'nullptr' if no mesh
-		inline MaterialInstance* material() noexcept {
-			if(this->_model->meshes().empty()) { return nullptr; }
-			return this->_model->meshes()[0].material.get();
-		}
-		// The material of the first mesh.
-		// Returns 'nullptr' if no mesh
-		inline const MaterialInstance* material() const noexcept {
-			if(this->_model->meshes().empty()) { return nullptr; }
-			return this->_model->meshes()[0].material.get();
-		}
-		// The material of the desired mesh.
-		// Returns 'nullptr' if no mesh
-		inline MaterialInstance* material(const size_t index) noexcept { return this->_model->meshes().at(index).material.get(); }
-		// The material of the desired mesh.
-		// Returns 'nullptr' if no mesh
-		inline const MaterialInstance* material(const size_t index) const noexcept { return this->_model->meshes().at(index).material.get(); }
 
-		// Set the same texture for all submeshes
-		void set_albedo_all(const std::shared_ptr<Texture>& tex) noexcept;
+		// Mesh's material (first mesh by default)
+		inline Material& material(const size_t index = 0) noexcept { return this->_model->meshes().at(index).material; }
+		// Mesh's material (first mesh by default)
+		inline const Material& material(const size_t index = 0) const noexcept { return this->_model->meshes().at(index).material; }
+
+		// Set a texture of a mesh (first mesh by default)
+		void set_texture(const std::shared_ptr<Texture>& albedo, const size_t index = 0) noexcept;
+		// Set the same texture for all meshes
+		void set_albedo_all(const std::shared_ptr<Texture>& albedo) noexcept;
 	
+	private:
+		// Set by Renderer. Tells if a object is static
+		bool is_persistent = false;
+		// Set by Renderer. Tells when a static object's BatchKey changed
+		bool needs_rebatch = false;
+
 	protected:
 		AABB _world_aabb;
 		std::shared_ptr<Model> _model;

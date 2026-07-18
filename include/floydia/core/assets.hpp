@@ -1,11 +1,8 @@
 #pragma once
 
 #include "floydia/geometry/text.hpp"
-#include "floydia/helpers/hash.hpp"
-#include "floydia/rendering/model.hpp"
 #include "floydia/gpu/shaderprogram.hpp"
 #include "floydia/rendering/mesh.hpp"
-#include "floydia/material/material.hpp"
 #include "floydia/material/texture.hpp"
 #include <unordered_map>
 #include <memory>
@@ -35,12 +32,6 @@ class Assets final {
 			std::shared_ptr<ShaderProgram> PROG_FRAG_2D;
 			// Shader Program of Shaders::DEFAULT_VERTEX_TEXT
 			std::shared_ptr<ShaderProgram> PROG_VERT_TEXT;
-			// Material of Shaders::DEFAULT_VERTEX + Shaders::DEFAULT_FRAGMENT
-			std::shared_ptr<Material> MAT_3D;
-			// Material of Shaders::DEFAULT_VERTEX_2D + Shaders::DEFAULT_FRAGMENT_2D
-			std::shared_ptr<Material> MAT_2D;
-			// Material of Shaders::DEFAULT_BILLBOARD_VERTEX + Shaders::DEFAULT_FRAGMENT
-			std::shared_ptr<Material> MAT_BILL;
 		} defaults;
 
 	public:
@@ -57,11 +48,6 @@ class Assets final {
 		// Builds a new Shader Program or returns an existing one.
 		// If Vertex or Fragment shader is null, the Shader Program will be separable
 		std::shared_ptr<ShaderProgram> load_program(const char* vertex, const char* fragment);
-		// Builds a new Material or returns an existing one
-		std::shared_ptr<Material> load_material(
-			const std::shared_ptr<ShaderProgram>& vertex,
-			const std::shared_ptr<ShaderProgram>& fragment
-		) noexcept;
 		// Builds a Model of a Wavefront OBJ file or returns if already loaded
 		std::shared_ptr<Model> load_model(const char* path);
 
@@ -72,7 +58,7 @@ class Assets final {
 		// Load a Cube mesh
 		std::shared_ptr<Mesh> load_cube_mesh() noexcept;
 
-		// Load an existing Shader Program, Material, Texture, Font or Model
+		// Load an existing Shader Program, Texture, Font or Model
 		template <typename T>
 		std::shared_ptr<T> load(const size_t hash);
 
@@ -80,20 +66,16 @@ class Assets final {
 		std::unordered_map<size_t, TextureEntry> textures;
 		std::unordered_map<size_t, std::shared_ptr<Text>> texts;
 		std::unordered_map<size_t, std::shared_ptr<ShaderProgram>> programs;
-		std::unordered_map<size_t, std::shared_ptr<Material>> materials;
 		std::unordered_map<size_t, std::shared_ptr<Model>> models;
 	
 	private:
 		// Specialization
 		template <typename T> auto& get_cache();
-		// Helper to make a hash of a Material
-		size_t material_hash(const std::shared_ptr<ShaderProgram>& vertex, const std::shared_ptr<ShaderProgram>& fragment) const noexcept;
 };
 
 template<> inline auto& Assets::get_cache<Texture>() { return this->textures; }
 template<> inline auto& Assets::get_cache<Text>() { return this->texts; }
 template<> inline auto& Assets::get_cache<ShaderProgram>() { return this->programs; }
-template<> inline auto& Assets::get_cache<Material>() { return this->materials; }
 template<> inline auto& Assets::get_cache<Model>() { return this->models; }
 
 template <typename T>

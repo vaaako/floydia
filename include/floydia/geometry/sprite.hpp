@@ -1,15 +1,12 @@
 #pragma once
 
-#include <floydia/rendering/renderable.hpp>
-#include <floydia/material/texture.hpp>
-
+#include "floydia/rendering/renderable.hpp"
 
 namespace floyd {
 
 class Sprite : public Renderable {
 	public:
 		Sprite() noexcept;
-
 		// Sprite do not use AABB
 		inline AABB world_aabb() noexcept override { return {}; }
 

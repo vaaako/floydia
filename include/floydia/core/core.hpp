@@ -1,8 +1,10 @@
 #pragma once
 
-#include "floydia/core/renderer.hpp"
 #include "floydia/core/assets.hpp"
 #include "floydia/core/jobsystem.hpp"
+#include "floydia/core/renderer.hpp"
+#include <cstddef>
+#include <memory>
 
 namespace floyd {
 

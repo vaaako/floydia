@@ -1,25 +1,24 @@
 #include "floydia/geometry/billboard.hpp"
-
 #include "floydia/core/core.hpp"
-#include "floydia/material/materialinstance.hpp"
 #include <algorithm>
 
 namespace floyd {
 
 Billboard::Billboard() noexcept : Renderable(Billboard::create_model()) {
-	this->material()->on_bind = [this]() {
-		this->material()->base->vertex->set_uniform_int("u_billboard_type", (u32)this->type);
+	// TODO: may be dangerous if Billboard's material is copied ('this' flag)
+	this->material().on_bind = [this]() {
+		this->material().vertex->set_uniform_int("u_billboard_type", (u32)this->type);
 	};
 }
 
 std::shared_ptr<Model> Billboard::create_model() noexcept {
 	std::shared_ptr<Mesh> mesh = assets().load_quad3d_mesh();
-	std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(
-		assets().defaults.MAT_BILL,
-		assets().load<Texture>(hash::of("d_white"))
+	Material mat = Material(
+		assets().load_program(Shaders::DEFAULT_BILLBOARD_VERTEX, nullptr),
+		assets().defaults.PROG_FRAG_2D
 	);
 	std::shared_ptr<Model> model = std::make_shared<Model>();
-	model->add_submesh(mesh, matinst); // use default material
+	model->add_submesh(mesh, mat); // use default material
 	return model;
 }
 

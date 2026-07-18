@@ -15,9 +15,14 @@ AABB Renderable::world_aabb() noexcept {
 	return this->_world_aabb;
 }
 
+void Renderable::set_texture(const std::shared_ptr<Texture>& albedo, const size_t index) noexcept {
+	this->material(index).albedo = albedo;
+	if(this->is_persistent) this->needs_rebatch = true;
+}
+
 void Renderable::set_albedo_all(const std::shared_ptr<Texture>& tex) noexcept {
-	for(auto& submesh : this->_model->meshes()) {
-		submesh.material->albedo = tex;
+	for(Model::SubMesh& submesh : this->_model->meshes()) {
+		submesh.material.albedo = tex;
 	}
 }
 
