@@ -289,7 +289,11 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 				ImGui::Text("%s", texentry.path.c_str());
 				ImGui::EndTooltip();
 			}
-			if(ImGui::IsItemClicked()) { selected = tex; obj->material()->albedo = tex; material_changed = true; }
+			if(ImGui::IsItemClicked()) {
+				selected = tex;
+				obj->material()->albedo = tex;
+				material_changed = true;
+			}
 			ImGui::SameLine();
 		}
 		ImGui::EndChild();

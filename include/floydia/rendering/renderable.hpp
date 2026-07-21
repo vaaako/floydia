@@ -58,6 +58,7 @@ class Renderable : public Object {
 		bool is_persistent = false;
 		// Set by Renderer. Tells when a static object's BatchKey changed
 		bool needs_rebatch = false;
+		bool is_dirty_queued = false;
 
 	protected:
 		AABB _world_aabb;

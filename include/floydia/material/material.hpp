@@ -26,8 +26,8 @@ class Material {
 		Material(const std::shared_ptr<ShaderProgram>& vertex, const std::shared_ptr<ShaderProgram>& fragment) noexcept;
 		~Material() = default;
 
-		inline Texture* texture(const std::shared_ptr<Texture>& albedo) noexcept { return this->albedo.get(); }
-		inline const Texture* texture(const std::shared_ptr<Texture>& albedo) const noexcept { return this->albedo.get(); }
+		inline Texture* texture() noexcept { return this->albedo.get(); }
+		inline const Texture* texture() const noexcept { return this->albedo.get(); }
 		// Bind texture and call 'on_bind'
 		void bind() const noexcept;
 };

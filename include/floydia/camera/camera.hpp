@@ -21,7 +21,7 @@ class Camera {
 		Camera(const float width, const float height) noexcept;
 
 		// Calculate projection matrix
-		virtual glm::mat4 projection() const noexcept = 0;
+		virtual glm::mat4 proj() const noexcept = 0;
 		// Calculate view matrix
 		virtual glm::mat4 view() const noexcept = 0;
 		// Updates width and height
@@ -30,7 +30,7 @@ class Camera {
 		inline void follow(const vec3<float>& pos) noexcept { this->position = pos + this->offset; }
 
 	protected:
-		mutable glm::mat4 proj;
+		mutable glm::mat4 _proj;
 		float width;
 		float height;
 		mutable bool dirty = true;
