@@ -25,6 +25,8 @@ class Renderable : public Object {
 	public:
 		// Set by Renderer. Index in renderer
 		size_t index = SIZE_MAX;
+		// Set by Renderer. If inside frustum culling
+		bool visible = false;
 
 	public:
 		Renderable() noexcept = default;

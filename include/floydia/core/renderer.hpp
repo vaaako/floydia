@@ -26,10 +26,12 @@ class Renderer final {
 		// Call once, after `begin_frame` and before `flush`
 		void begin_draw(const Camera& camera, const bool cullface = false) noexcept;
 
-		// Includes static objects in the current pass
-		void draw_persistent() noexcept;
+		// Register a static object. This overwrites 'Renderable::on_dirty' callback
+		void add(Renderable& obj) noexcept;
 		// Registers a static object
 		void draw(Renderable& obj) noexcept;
+		// Includes static objects in the current pass
+		void draw_persistent() noexcept;
 		// Unregisters a static object
 		void remove(Renderable& obj) noexcept;
 		// Update and draw objects
@@ -80,7 +82,7 @@ class Renderer final {
 
 			// Index of this batch on instances
 			u32 instance_index = 0;
-			// Result of the last frustum test
+			// Static only. Result of the last frustum test
 			bool visible = true;
 
 			inline size_t push_dynamic(const Renderable::InstanceData& d) noexcept {
@@ -123,6 +125,8 @@ class Renderer final {
 	
 		// All objects currently registered as static
 		std::vector<Renderable*> static_objs;
+		// All objects currently registered as dynamic
+		std::vector<Renderable*> dynamic_objs;
 		// Static objects that transform changed last frame
 		std::vector<Renderable*> dirty_queue;
 

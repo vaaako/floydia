@@ -1,6 +1,7 @@
 #include "floydia/core/renderer.hpp"
 #include "floydia/geometry/text.hpp"
 #include "floydia/rendering/light.hpp"
+#include "floydia/window/keycode.hpp"
 #include <unordered_set>
 
 #if defined(FLOYD_DEBUG_RENDERER)
@@ -207,8 +208,34 @@ void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 		hist->forward = camera.forward;
 	}
 
+	this->dynamic_objs.clear();
 	this->dynamic_batches.clear();
 	this->static_included = false;
+}
+
+void Renderer::add(Renderable& obj) noexcept {
+	// const size_t index = this->static_objs.size();
+	this->static_objs.push_back(&obj);
+
+	obj.is_persistent = true;
+	// obj.index = index;
+	obj.transform.on_dirty = [this, &obj]() {
+		if(!obj.is_dirty_queued) {
+			this->dirty_queue.push_back(&obj);
+			obj.is_dirty_queued = true;
+		}
+	};
+
+	this->mark_dirty(); // Forces 'flatten_persistent' next 'begin_frame'
+	// return index;
+}
+
+void Renderer::draw(Renderable& obj) noexcept {
+	if(obj.transform.isdirty() || this->camera_dirty) {
+		obj.visible = this->frustum.test(obj.world_aabb());
+	}
+	if(!obj.visible) return;
+	this->dynamic_objs.push_back(&obj);
 }
 
 void Renderer::draw_persistent() noexcept {
@@ -218,6 +245,22 @@ void Renderer::draw_persistent() noexcept {
 		for(auto& [key, batch] : this->static_batches) {
 			batch.visible = this->frustum.test(batch.aabb);
 		}
+	}
+}
+
+void Renderer::flush() noexcept {
+	// Build dynamic batches
+	this->dynamic_batches.clear();
+	for(Renderable* obj : this->dynamic_objs) {
+		this->insert_dynamic(*obj);
+	}
+
+	// Static instances
+	const size_t base = (this->static_included) ? this->static_instances.size() : 0;
+	size_t offset = base;
+	for(auto& [key, batch] : this->dynamic_batches) {
+		batch.instance_index = static_cast<u32>(offset);
+		offset += batch.gpu_data.size();
 	}
 }
 
