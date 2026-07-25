@@ -26,10 +26,6 @@ Assets::Assets() noexcept {
 	this->defaults.PROG_VERT_2D   = this->load_program(Shaders::DEFAULT_VERTEX_2D, nullptr);
 	this->defaults.PROG_FRAG_2D   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_2D);
 	this->defaults.PROG_VERT_TEXT = this->load_program(Shaders::DEFAULT_VERTEX_TEXT, nullptr);
-
-	// this->defaults.MAT_3D = this->load_material(this->defaults.PROG_VERT_3D, this->defaults.PROG_FRAG_3D);
-	// this->defaults.MAT_2D = this->load_material(this->defaults.PROG_VERT_2D, this->defaults.PROG_FRAG_2D);
-	// this->defaults.MAT_BILL = this->load_material(this->load_program(Shaders::DEFAULT_BILLBOARD_VERTEX, nullptr), this->defaults.PROG_FRAG_3D);
 }
 
 std::shared_ptr<Texture> Assets::load_texture(const char* path) {
@@ -96,19 +92,6 @@ std::shared_ptr<ShaderProgram> Assets::load_program(const char* vertex, const ch
 
 	this->programs[hash] = program;
 	return program;
-}
-
-std::shared_ptr<Material> Assets::load_material(
-	const std::shared_ptr<ShaderProgram>& vertex,
-	const std::shared_ptr<ShaderProgram>& fragment
-) noexcept {
-	const size_t key = this->material_hash(vertex, fragment);
-	std::shared_ptr<Material> material = this->load<Material>(key);
-	if(material != nullptr) return material;
-
-	material = std::make_shared<Material>(vertex, fragment);
-	this->materials[key] = material;
-	return material;
 }
 
 std::shared_ptr<Model> Assets::load_model(const char* path) {
@@ -224,22 +207,20 @@ std::shared_ptr<Model> Assets::load_model(const char* path) {
 		);
 	#endif
 
-		std::shared_ptr<Texture> tex = def_tex;
-
-		// Override with material texture if avaiable
-		if(mat_id >= 0 && mat_id < (int)mat_textures.size()) {
-			if(mat_textures[mat_id] != nullptr) tex = mat_textures[mat_id];
+		// Load material
+		Material mat = Material(this->defaults.PROG_VERT_3D, this->defaults.PROG_FRAG_3D);
+		if(mat_id >= 0 && mat_id < (int)materials.size()) {
+			mat.metallic  = materials[mat_id].metallic;
+			mat.roughness = materials[mat_id].roughness;
 		}
 
-		// Load material
-		std::shared_ptr<MaterialInstance> matinst = std::make_shared<MaterialInstance>(this->defaults.MAT_3D, tex);
-		if(mat_id >= 0 && mat_id < (int)materials.size()) {
-			matinst->metallic  = materials[mat_id].metallic;
-			matinst->roughness = materials[mat_id].roughness;
+		// Override with object's texture if avaiable
+		if(mat_id >= 0 && mat_id < (int)mat_textures.size()) {
+			if(mat_textures[mat_id] != nullptr) mat.albedo = mat_textures[mat_id];
 		}
 
 		std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>(group.vertices, group.indices, layout);
-		model->add_submesh(mesh, matinst);
+		model->add_submesh(mesh, mat);
 	}
 
 	this->models[key] = model;
@@ -359,14 +340,6 @@ std::shared_ptr<Mesh> Assets::load_cube_mesh() noexcept {
 		return std::make_shared<Mesh>(vertices, indices, layout);
 	}();
 	return mesh;
-}
-
-
-size_t Assets::material_hash(const std::shared_ptr<ShaderProgram>& vertex, const std::shared_ptr<ShaderProgram>& fragment) const noexcept {
-	size_t seed = 0;
-	hash::combine(seed, vertex->id());
-	hash::combine(seed, fragment->id());
-	return seed;
 }
 
 } // namespace floyd
