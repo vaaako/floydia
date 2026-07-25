@@ -1,7 +1,7 @@
 #include "floydia/core/renderer.hpp"
 #include "floydia/geometry/text.hpp"
 #include "floydia/rendering/light.hpp"
-#include "floydia/window/keycode.hpp"
+#include <algorithm>
 #include <unordered_set>
 
 #if defined(FLOYD_DEBUG_RENDERER)
@@ -17,12 +17,6 @@ Renderer::Renderer() noexcept :
 	ssbo_glyphs(3, sizeof(Text::GlyphData) * 255),
 	ppipeline(ProgramPipeline())
 	{
-
-	// Reserve right away
-	// this->instances.reserve(128);
-	this->static_instances.reserve(128);
-	// this->lights.reserve(10);
-	// this->glyphs.reserve(256);
 
 	glEnable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
@@ -55,9 +49,9 @@ void Renderer::insert_static(Renderable& obj) noexcept {
 
 	std::vector<SlotLocation>& slots = this->static_lookup[&obj]; // new entry
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
-		Batch& batch = this->resolve_batch(sub, this->dynamic_batches);
+		Batch& batch = this->resolve_batch(sub, this->static_batches);
 		u32 idx = batch.push_static({
-			m, color, sub.material.metallic, sub.material.roughness,
+			m, color, sub.material.metallic, sub.material.roughness, {}
 		}, &obj);
 		slots.push_back({ &batch, idx });
 	}
@@ -68,9 +62,9 @@ void Renderer::insert_dynamic(Renderable& obj) noexcept {
 	const vec4<float>& color = obj.color_norm();
 
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
-		Batch& batch = this->resolve_batch(sub, this->static_batches);
+		Batch& batch = this->resolve_batch(sub, this->dynamic_batches);
 		batch.push_dynamic({
-			m, color, sub.material.metallic, sub.material.roughness,
+			m, color, sub.material.metallic, sub.material.roughness, {}
 		});
 	}
 }
@@ -138,7 +132,7 @@ void Renderer::patch_dirty() noexcept {
 			SlotLocation& loc = slots[i++];
 			// Write directly into the flattened buffer
 			this->static_instances[loc.batch->instance_index + loc.index] = Renderable::InstanceData {
-				m, color, sub.material.metallic, sub.material.roughness
+				m, color, sub.material.metallic, sub.material.roughness, {}
 			};
 			
 			if(transform_changed) touched_batches.insert(loc.batch);
@@ -157,10 +151,152 @@ void Renderer::patch_dirty() noexcept {
 	this->dirty_queue.clear();
 }
 
+void Renderer::upload_objects() noexcept {
+	const size_t static_size = (this->static_included)
+		? this->static_instances.size() * sizeof(Renderable::InstanceData) : 0;
+
+	size_t dynamic_size = 0;
+	for(auto& [key, batch] : this->dynamic_batches) {
+		dynamic_size += batch.gpu_data.size() * sizeof(Renderable::InstanceData);
+	}
+
+	const size_t total_size = static_size + dynamic_size;
+	if(total_size == 0) return; // Nothing to upload
+	if(!this->wrote_objs) { this->ssbo_objs.wait(this->frame_index); this->wrote_objs = true; }
+
+	const size_t needed = this->ssbo_objs_pass_offset + total_size;
+	this->ssbo_objs.ensure_capacity(needed);
+
+	const size_t pass_base = this->ssbo_objs.frame_offset(this->frame_index) + this->ssbo_objs_pass_offset;
+	// Subtracting converts 'instance_index' into a byte offset relative to 'pass_base', without relying on iteration order
+	// ('base' matches the offset 'build_dynamic_batches')
+	const size_t base = (this->static_included) ? this->static_instances.size() : 0;
+	if(static_size > 0) {
+		this->ssbo_objs.update(this->static_instances.data(), static_size, pass_base);
+	}
+
+	for(auto& [key, batch] : this->dynamic_batches) {
+		if(batch.gpu_data.empty()) continue;
+		const size_t batch_bytes = batch.gpu_data.size() * sizeof(Renderable::InstanceData);
+		const size_t batch_offset = pass_base + static_size + (batch.instance_index - base) * sizeof(Renderable::InstanceData);
+		this->ssbo_objs.update(batch.gpu_data.data(), batch_bytes, batch_offset);
+	}
+
+	this->ssbo_objs.flush(pass_base, total_size);
+	this->ssbo_objs_pass_offset += total_size;
+}
+
+void Renderer::upload_camera() noexcept {
+	const Camera::CameraData cam {
+		.view = this->cached_view,
+		.proj = this->cached_proj,
+		.camerapos = vec4<float>(this->campos, 1.0f)
+	};
+
+	const size_t needed = (this->pass_index + 1) * sizeof(Camera::CameraData);
+	if(needed == 0) return; // Nothing to upload
+	if(!this->wrote_camera) { this->ubo_camera.wait(this->frame_index); this->wrote_camera = true; }
+
+	this->ubo_camera.ensure_capacity(needed);
+	const size_t offset = this->ubo_camera.frame_offset(this->frame_index)
+		+ this->pass_index * sizeof(Camera::CameraData);
+
+	this->ubo_camera.update(&cam, sizeof(Camera::CameraData), offset);
+	this->ubo_camera.flush(offset, sizeof(Camera::CameraData));
+}
+
+// TODO: Pending. Currently re-uploads every pass, redundantly
+void Renderer::upload_lights() noexcept {
+	const size_t header_size  = sizeof(Light::LightBuffer); // Readability
+	const size_t static_size  = (this->static_included) ? this->static_lights.size() * sizeof(Light::LightData) : 0;
+	const size_t dynamic_size = this->dynamic_lights.size() * sizeof(Light::LightData);
+	const size_t total_size   = header_size + static_size + dynamic_size;
+	if(static_size == 0 && dynamic_size == 0) return; // Nothing to upload
+	if(!this->wrote_lights) { this->ssbo_lights.wait(this->frame_index); this->wrote_lights = true; }
+
+	this->ssbo_lights.ensure_capacity(total_size);
+	const size_t offset = this->ssbo_lights.frame_offset(this->frame_index);
+
+	// Upload header first
+	Light::LightBuffer header;
+	header.count = ((this->static_included) ? this->static_lights.size() : 0) + this->dynamic_lights.size();
+	this->ssbo_lights.update(&header, header_size, offset);
+
+	// Upload after header
+	if(static_size > 0) {
+		this->ssbo_lights.update(this->static_lights.data(), static_size, offset + header_size);
+	}
+
+	// Upload after header and static lights
+	if(dynamic_size > 0) {
+		this->ssbo_lights.update(this->dynamic_lights.data(), dynamic_size, offset + header_size + static_size);
+	}
+
+	this->ssbo_lights.flush(offset, total_size);
+}
+
+void Renderer::render_batches(const BatchTable& table) noexcept {
+	this->render_scratch.clear();
+	for(auto& [key, batch] : table) {
+		if(batch.instance_count == 0 || !batch.visible) continue;
+		this->render_scratch.push_back(&batch);
+	}
+	if(this->render_scratch.empty()) return;
+
+	std::sort(this->render_scratch.begin(), this->render_scratch.end(), [](const Batch* a, const Batch* b) {
+		if(a->material->vertex.get() != b->material->vertex.get()) return (a->material->vertex.get() < b->material->vertex.get());
+		if(a->material->fragment.get() != b->material->fragment.get()) return (a->material->fragment.get() < b->material->fragment.get());
+		if(a->material->texture() != b->material->texture()) return (a->material->texture() < b->material->texture());
+		return a->mesh < b->mesh;
+	});
+
+	ShaderProgram* prev_vertex = nullptr;
+	ShaderProgram* prev_fragment = nullptr;
+	const Material* prev_material = nullptr;
+	Mesh* prev_mesh = nullptr;
+
+	for(const Batch* batch : this->render_scratch) {
+		if(batch->mesh != prev_mesh) {
+			prev_mesh = batch->mesh;
+			glBindVertexArray(prev_mesh->vaoid());
+		}
+
+		if(batch->material != prev_material) {
+			if(batch->material->vertex.get() != prev_vertex) {
+				this->ppipeline.attach(batch->material->vertex, Shader::Vertex);
+				prev_vertex = batch->material->vertex.get();
+			}
+
+			if(batch->material->fragment.get() != prev_fragment) {
+				this->ppipeline.attach(batch->material->fragment, Shader::Fragment);
+				prev_fragment = batch->material->fragment.get();
+			}
+
+			batch->material->bind();
+			prev_material = batch->material;
+		}
+
+		glDrawElementsInstancedBaseInstance(
+			GL_TRIANGLES,
+			batch->mesh->index_count,
+			batch->mesh->index_type,
+			(void*)0,
+			batch->instance_count,
+			batch->instance_index // gl_BaseInstance
+		);
+	}
+}
+
+
 // -------
 
-void Renderer::begin_frame() noexcept {
+
+void Renderer::begin_frame(const vec4<float>& clear_color) noexcept {
+	glClearColor(clear_color[0], clear_color[1], clear_color[2], clear_color[3]);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	this->pass_index = -1;
+	this->ssbo_objs_pass_offset = 0;
 	this->frame_index = (this->frame_index + 1) % PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Cap to ring buffer size
 	this->static_rebuilt_this_frame = false;
 
@@ -171,6 +307,14 @@ void Renderer::begin_frame() noexcept {
 	} else if(!this->dirty_queue.empty()) {
 		this->patch_dirty();
 	}
+}
+
+void Renderer::end_frame() noexcept {
+	if(this->wrote_camera) this->ubo_camera.lock(this->frame_index);
+	if(this->wrote_objs)   this->ssbo_objs.lock(this->frame_index);
+	if(this->wrote_lights) this->ssbo_lights.lock(this->frame_index);
+	if(this->wrote_glyphs) this->ssbo_glyphs.lock(this->frame_index);
+	this->wrote_camera = this->wrote_objs = this->wrote_lights = this->wrote_glyphs = false;
 }
 
 void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
@@ -184,6 +328,7 @@ void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 	this->cached_view = camera.view();
 	this->cached_proj = camera.proj();
 	this->frustum.update(this->cached_proj * this->cached_view);
+	this->campos = camera.position;
 
 	// Find this camera's history
 	CameraHistory* hist = nullptr;
@@ -208,17 +353,15 @@ void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 		hist->forward = camera.forward;
 	}
 
-	this->dynamic_objs.clear();
 	this->dynamic_batches.clear();
+	this->dynamic_objs.clear();
 	this->static_included = false;
 }
 
 void Renderer::add(Renderable& obj) noexcept {
-	// const size_t index = this->static_objs.size();
 	this->static_objs.push_back(&obj);
 
 	obj.is_persistent = true;
-	// obj.index = index;
 	obj.transform.on_dirty = [this, &obj]() {
 		if(!obj.is_dirty_queued) {
 			this->dirty_queue.push_back(&obj);
@@ -227,7 +370,6 @@ void Renderer::add(Renderable& obj) noexcept {
 	};
 
 	this->mark_dirty(); // Forces 'flatten_persistent' next 'begin_frame'
-	// return index;
 }
 
 void Renderer::draw(Renderable& obj) noexcept {
@@ -249,6 +391,8 @@ void Renderer::draw_persistent() noexcept {
 }
 
 void Renderer::flush() noexcept {
+	// -- Build Instances
+
 	// Build dynamic batches
 	this->dynamic_batches.clear();
 	for(Renderable* obj : this->dynamic_objs) {
@@ -262,6 +406,18 @@ void Renderer::flush() noexcept {
 		batch.instance_index = static_cast<u32>(offset);
 		offset += batch.gpu_data.size();
 	}
+	if(this->dynamic_batches.empty() && this->static_batches.empty()) return;
+
+	// -- Upload objects to SSBO
+	this->upload_camera();
+	this->upload_objects();
+	this->upload_lights();
+
+	// -- Render batches
+	if(this->static_included) this->render_batches(this->static_batches);
+	this->render_batches(this->dynamic_batches);
+
+	// TODO: text/glyph batches
 }
 
 } // namespace floyd

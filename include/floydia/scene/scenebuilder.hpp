@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace floyd {
-
+/*
 struct SceneBuilder {
 	std::vector<std::unique_ptr<Renderable>> persistent;
 	std::vector<std::unique_ptr<Renderable>> dynamics;
@@ -24,6 +24,5 @@ struct SceneBuilder {
 	// Save current scene to a file
 	void save(const char* path, Renderer& renderer) noexcept;
 };
-
-
+*/
 } // namespace floyd

@@ -2,14 +2,14 @@
 #include "floydia/window/window.hpp"
 #include "floydia/core/core.hpp"
 
-#include <mutex>
-
-#include "floydia/helpers/ui.hpp"
-#include "floydia/rgfwimpl.hpp"
-
 #if !defined(FLOYD_NO_EDITOR_PANEL)
 #include "imgui/imgui_impl_opengl3.h"
+#include "floydia/helpers/ui.hpp"
 #endif
+
+#include "floydia/rgfwimpl.hpp"
+
+#include <mutex>
 
 // https://github.com/ColleagueRiley/RGFW/blob/main/examples/multi-window/multi-window.c
 
@@ -212,7 +212,6 @@ void Window::update_viewport(const u32 width, const u32 height) noexcept {
 	// RGFW_window_setAspectRatio(pimpl->window, static_cast<int>(width),
 	// 		static_cast<int>(height));
 	glViewport(0, 0, width, height);
-	this->renderer->update_viewport(width, height);
 }
 
 bool Window::is_mouse_grabbed() const noexcept { return RGFW_window_isHoldingMouse(pimpl->window); }
@@ -242,7 +241,7 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 		float c[4] = { color.x, color.y, color.z, color.w };
 		if(ui::color_edit_scroll4("Color", c)) { obj->set_color_norm({ c[0], c[1], c[2], c[3] }); material_changed = true; }
 
-		MaterialInstance& mat = *obj->material(); // cache
+		Material& mat = obj->material(); // cache
 		float metallic = mat.metallic;
 		float roughness = mat.roughness;
 		if(ui::drag_scroll_float("Metallic", &metallic, 0.1f, 0.0f, 1.0f))   { mat.metallic = metallic; material_changed = true; }
@@ -272,7 +271,7 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 
 	if(ImGui::CollapsingHeader("Textures")) {
 		static std::shared_ptr<Texture> selected = nullptr;
-		if(selected == nullptr) selected = obj->material()->albedo;
+		if(selected == nullptr) selected = obj->material().albedo;
 
 		// 64: image size
 		// 16: offset
@@ -291,7 +290,7 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 			}
 			if(ImGui::IsItemClicked()) {
 				selected = tex;
-				obj->material()->albedo = tex;
+				obj->material().albedo = tex;
 				material_changed = true;
 			}
 			ImGui::SameLine();
@@ -313,8 +312,9 @@ void Window::editor_panel(Renderable* obj) const noexcept {
 		if(ImGui::Button("Mirrored")) selected->set_filter(Texture::Filter::Mirrored);
 	}
 
+	// TODO: fix
 	// Transform changes trigger 'on_dirty' callback
-	if(material_changed && obj->is_persistent) renderer->mark_dirty();
+	// if(material_changed && obj->is_persistent) renderer->mark_dirty();
 	ImGui::End();
 #endif
 }

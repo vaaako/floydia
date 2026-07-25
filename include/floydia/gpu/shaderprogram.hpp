@@ -71,7 +71,6 @@ class ShaderProgram {
 		std::unordered_map<std::string, GLint> uniforms_cache;
 		GLuint program;
 		// TODO: currently supporting only these shaders.
-		// Add geometry and compute later
 		GLuint v_shader = 0;
 		GLuint f_shader = 0;
 		bool linked = false;

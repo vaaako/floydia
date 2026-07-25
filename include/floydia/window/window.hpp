@@ -5,15 +5,15 @@
 #include <string>
 #include <unordered_set>
 
-#include <floydia/time/clock.hpp>
-#include <floydia/window/event.hpp>
-#include <floydia/window/keycode.hpp>
-#include <floydia/window/mousebutton.hpp>
+#include "floydia/core/renderer.hpp"
+#include "floydia/time/clock.hpp"
+#include "floydia/window/event.hpp"
+#include "floydia/window/keycode.hpp"
+#include "floydia/window/mousebutton.hpp"
 
-#include <floydia/camera/camera.hpp>
-#include <floydia/rendering/renderable.hpp>
-#include <floydia/geometry/cube.hpp>
-#include <floydia/core/core.hpp>
+#include "floydia/camera/camera.hpp"
+#include "floydia/camera/perspectivecamera.hpp"
+#include "floydia/rendering/renderable.hpp"
 
 namespace floyd {
 
@@ -97,30 +97,31 @@ class Window final {
 		// Returns true if mouse is grabbed
 		bool is_mouse_grabbed() const noexcept;
 	#if !defined(FLOYD_NO_EDITOR_PANEL)
-		// Retruns true if keyboard clicked inside UI
+		// Returns true if keyboard clicked inside UI
 		bool ui_key_clicked() const noexcept;
-		// Retruns true if mouse clicked inside UI
+		// Returns true if mouse clicked inside UI
 		bool ui_mouse_clicked() const noexcept;
 	#endif
 
 		// Casts a ray from the mouse position and returns the closest visible object hit.
 		// Returns nullptr if nothing was hit.
 		// Call AFTER 'begin_frame()', otherwise dynamic objects won't be included
-		Renderable* pick(const PerspectiveCamera& camera) const noexcept { return renderer->pick(camera, this->mouse_pos(), this->size()); }
-		// Debug draw an AABB.
-		// Should not be used on release since it is a debug method
-		inline void draw_aabb(const AABB& aabb, const vec4<float>& color) const {
-		#if defined(FLOYD_NO_EDITOR_PANEL)
-			return;
+		Renderable* pick(const PerspectiveCamera& camera) const noexcept {
+		#if defined (FLOYD_NO_EDITOR_PANEL)
+			return nullptr;
 		#else
-			renderer->draw_aabb(aabb, color);
+			return nullptr;
+			// return renderer->pick(camera, this->mouse_pos(), this->size());
 		#endif
 		}
-		// Clears screen
-		inline void clear() const { renderer->clear(); }
+
+		// // Debug draw an AABB.
+		// // Should not be used on release since it is a debug method
+		// inline void draw_aabb(const AABB& aabb, const vec4<float>& color) const { renderer->draw_aabb(aabb, color); }
+
 		// Advances 'frameindex' and waits for the GPU to finish reading
 		// the current frame's buffer slots before the CPU writes new data
-		void begin_frame() noexcept { renderer->begin_frame(); }
+		void begin_frame(const vec4<float>& clear_color = { 0.1f, 0.1f, 0.1f, 0.1f }) noexcept { renderer->begin_frame(clear_color); }
 		// Singals GPU fences to mark this frame's buffer slots as in-flight,
 		// preventing the CPU from overwriting them before the GPU is done
 		void end_frame() noexcept { renderer->end_frame(); }
@@ -139,15 +140,15 @@ class Window final {
 		// Use this for objects that rarely changes properties
 		inline void add(Renderable& obj) const noexcept { renderer->add(obj); }
 		// Submit a dynamic light object for this frame
-		inline void draw(const Light& light) const noexcept { renderer->draw(light); }
+		// inline void draw(const Light& light) const noexcept { renderer->draw(light); }
 		// Submit a persistent light object
-		inline void add(const Light& light) const noexcept { renderer->add(light); }
+		// inline void add(const Light& light) const noexcept { renderer->add(light); }
 		// Upload instance data to SSBo and issue draw calls
 		inline void flush() const { renderer->flush(); }
 
 		// Submit a text object for this frame
-		void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font,
-			const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept { renderer->draw_text(text, pos, font, scale, color); }
+		// void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font,
+		// 	const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept { renderer->draw_text(text, pos, font, scale, color); }
 
 		// Open an ImGui window to edit a Renderable
 		void editor_panel(Renderable* obj) const noexcept;

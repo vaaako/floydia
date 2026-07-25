@@ -6,6 +6,7 @@
 #include "floydia/gpu/ssbo.hpp"
 #include "floydia/gpu/uniformbuffer.hpp"
 #include "floydia/helpers/hash.hpp"
+#include "floydia/rendering/light.hpp"
 #include "floydia/rendering/mesh.hpp"
 #include "floydia/rendering/renderable.hpp"
 
@@ -18,7 +19,7 @@ class Renderer final {
 
 		// Advances the frame index and rebuilds or patches static batches.
 		// Call once per frame, before `begin_draw`
-		void begin_frame() noexcept;
+		void begin_frame(const vec4<float>& clear_color = { 0.1f, 0.1f, 0.1f, 0.1f }) noexcept;
 		// GPU fence signaling for this frame's buffer slots.
 		// Call once per frame
 		void end_frame() noexcept;
@@ -82,17 +83,23 @@ class Renderer final {
 
 			// Index of this batch on instances
 			u32 instance_index = 0;
+			// Number of instances in this batch.
+			// NOTE: Not using 'gpu_data' or 'owners.size()', because persistent batches
+			// clear 'gpu_data' after flattening, and dynamic batches don't
+			u32 instance_count = 0;
 			// Static only. Result of the last frustum test
 			bool visible = true;
 
 			inline size_t push_dynamic(const Renderable::InstanceData& d) noexcept {
 				this->gpu_data.push_back(d);
+				this->instance_count++;
 				return this->gpu_data.size() - 1;
 			}
 			
 			inline size_t push_static(const Renderable::InstanceData& d, Renderable* owner) noexcept {
 				this->gpu_data.push_back(d);
 				this->owners.push_back(owner);
+				this->instance_count++;
 				return this->gpu_data.size() - 1;
 			}
 		};
@@ -108,6 +115,7 @@ class Renderer final {
 		// Tracks a single camera's last known position and forward
 		struct CameraHistory {
 			const Camera* camera = nullptr;
+			// TODO: not necessary?
 			vec3<float> position;
 			vec3<float> forward;
 		};
@@ -130,6 +138,12 @@ class Renderer final {
 		// Static objects that transform changed last frame
 		std::vector<Renderable*> dirty_queue;
 
+		std::vector<Light*> static_lights;
+		std::vector<Light*> dynamic_lights;
+
+		// Reused across calls to avoid a heap allocation every 'render_batches'
+		std::vector<const Batch*> render_scratch;
+
 	// Camera
 	private:
 		std::vector<CameraHistory> camera_history;
@@ -146,7 +160,11 @@ class Renderer final {
 		Frustum frustum;
 
 	private:
+		// Cached camera's position
+		vec3<float> campos;
 		int pass_index = -1;
+		// Data offset between each camera's pass
+		u32 ssbo_objs_pass_offset = 0;
 		size_t frame_index = 0;
 
 	// Flags
@@ -162,6 +180,10 @@ class Renderer final {
 		// Set by `draw_persistent`
 		bool static_included = false;
 
+		// Signals GPU fences for every buffer written to this frame.
+		bool wrote_camera = false, wrote_objs   = false,
+			 wrote_lights = false, wrote_glyphs = false;
+
 	private:
 		// Resolves the batch a submesh belongs to
 		Batch& resolve_batch(const Model::SubMesh& sub, BatchTable& table) noexcept;
@@ -175,6 +197,14 @@ class Renderer final {
 		void flatten_persistent() noexcept;
 		// Incremental patch, only objects queued in 'dirty_queue'
 		void patch_dirty() noexcept;
+		// Upload this pass's instance data (static + dynamic) to 'ssbo_objs'
+		void upload_objects() noexcept;
+		// Upload this pass's camera data to 'ubo_camera'
+		void upload_camera() noexcept;
+		// Upload lights (static + dynamic) to 'ssbo_lights'
+		void upload_lights() noexcept;
+		// Draws every visible, non-empty batch
+		void render_batches(const BatchTable& table) noexcept;
 };
 
 } // namespace floyd
