@@ -4,6 +4,7 @@
 
 namespace floyd {
 
+#if !defined(NO_EDITOR_PANEL)
 bool ui::slider_scroll_float(const char* label, float* value, float min, float max, const char* format) noexcept {
 	bool changed = ImGui::SliderFloat(label, value, min, max, format);
 
@@ -242,5 +243,6 @@ ImGuiKey ui::KeyToImGuiKey(const int key) noexcept {
 		default:                return ImGuiKey_None;
 	}
 }
+#endif
 
 } // namespace floyd
