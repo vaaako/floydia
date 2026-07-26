@@ -52,13 +52,13 @@ std::shared_ptr<Texture> Assets::load_texture(u8* data, const u32 width, const u
 	return tex;
 }
 
-std::shared_ptr<Text> Assets::load_font(const char* path, const u32 size) {
+std::shared_ptr<Font> Assets::load_font(const char* path, const u32 size) {
 	if(path == nullptr) throw std::invalid_argument("Font path is null");
 	const size_t hash = hash::of(path);
-	std::shared_ptr<Text> text = this->load<Text>(hash);
+	std::shared_ptr<Font> text = this->load<Font>(hash);
 	if(text) return text;
 
-	text = std::make_shared<Text>(path, size);
+	text = std::make_shared<Font>(path, size);
 	this->texts[hash] = text;
 	return text;
 }

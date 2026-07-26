@@ -1,6 +1,6 @@
 #pragma once
 
-#include "floydia/geometry/text.hpp"
+#include "floydia/geometry/font.hpp"
 #include "floydia/gpu/shaderprogram.hpp"
 #include "floydia/rendering/mesh.hpp"
 #include "floydia/material/texture.hpp"
@@ -44,7 +44,7 @@ class Assets final {
 		// 'name' represents the name the texture will be stored with
 		std::shared_ptr<Texture> load_texture(u8* data, const u32 width, const u32 height, const u8 channels = 4, const char* name = "[DATA_TEXTURE]");
 		// Builds a new TTF file or returns an existing one.
-		std::shared_ptr<Text> load_font(const char* path, const u32 size);
+		std::shared_ptr<Font> load_font(const char* path, const u32 size);
 		// Builds a new Shader Program or returns an existing one.
 		// If Vertex or Fragment shader is null, the Shader Program will be separable
 		std::shared_ptr<ShaderProgram> load_program(const char* vertex, const char* fragment);
@@ -64,7 +64,7 @@ class Assets final {
 
 	public:
 		std::unordered_map<size_t, TextureEntry> textures;
-		std::unordered_map<size_t, std::shared_ptr<Text>> texts;
+		std::unordered_map<size_t, std::shared_ptr<Font>> texts;
 		std::unordered_map<size_t, std::shared_ptr<ShaderProgram>> programs;
 		std::unordered_map<size_t, std::shared_ptr<Model>> models;
 	
@@ -74,7 +74,7 @@ class Assets final {
 };
 
 template<> inline auto& Assets::get_cache<Texture>() { return this->textures; }
-template<> inline auto& Assets::get_cache<Text>() { return this->texts; }
+template<> inline auto& Assets::get_cache<Font>() { return this->texts; }
 template<> inline auto& Assets::get_cache<ShaderProgram>() { return this->programs; }
 template<> inline auto& Assets::get_cache<Model>() { return this->models; }
 
