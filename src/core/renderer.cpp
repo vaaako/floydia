@@ -28,8 +28,6 @@ Renderer::Renderer() noexcept :
 }
 
 void Renderer::update_viewport(const u32 width, const u32 height) noexcept {
-	this->wwidth = width;
-	this->wheight = height;
 	assets().defaults.PROG_VERT_TEXT->set_uniform_vec2f("u_screen_size", { (float)width, (float)height });
 }
 
@@ -51,7 +49,6 @@ Renderer::Batch& Renderer::resolve_batch(const Model::SubMesh& sub, BatchTable& 
 }
 
 void Renderer::insert_static(Renderable& obj) noexcept {
-	obj.world_aabb(); // If called after 'model_matrix' it would return with old Transform, because 'dirty' flag was consumed
 	const glm::mat4& m = obj.transform.model_matrix();
 	const vec4<float>& color = obj.color_norm();
 
@@ -65,7 +62,7 @@ void Renderer::insert_static(Renderable& obj) noexcept {
 	}
 }
 
-void Renderer::insert_dynamic(Renderable& obj) noexcept {
+void Renderer::insert_dynamic(const Renderable& obj) noexcept {
 	const glm::mat4& m = obj.transform.model_matrix();
 	const vec4<float>& color = obj.color_norm();
 
@@ -216,9 +213,26 @@ void Renderer::upload_camera() noexcept {
 void Renderer::upload_lights() noexcept {
 	if(this->wrote_lights) return; // Already sent to SSBO
 
+	// Rebuild static light data only when the set changed
+	if(this->static_lights_dirty) {
+		this->static_light_data.clear();
+		this->static_light_data.reserve(this->static_lights.size());
+		for(Light* light : this->static_lights) {
+			this->static_light_data.push_back(light->to_gpu_data());
+		}
+		this->static_lights_dirty = false;
+	}
+
+	// Dynamic lights: rebuilt every upload
+	this->light_scratch.clear();
+	this->light_scratch.reserve(this->dynamic_lights.size());
+	for(const Light* light : this->dynamic_lights) {
+		this->light_scratch.push_back(light->to_gpu_data());
+	}
+
 	const size_t header_size  = sizeof(Light::LightBuffer); // Readability
-	const size_t static_size  = (this->static_included) ? this->static_lights.size() * sizeof(Light::LightData) : 0;
-	const size_t dynamic_size = this->dynamic_lights.size() * sizeof(Light::LightData);
+	const size_t static_size  = (this->static_included) ? this->static_light_data.size() * sizeof(Light::LightData) : 0;
+	const size_t dynamic_size = this->light_scratch.size() * sizeof(Light::LightData);
 	const size_t total_size   = header_size + static_size + dynamic_size;
 	if(static_size == 0 && dynamic_size == 0) return; // Nothing to upload
 	this->ssbo_lights.wait(this->frame_index); this->wrote_lights = true;
@@ -228,17 +242,17 @@ void Renderer::upload_lights() noexcept {
 
 	// Upload header first
 	Light::LightBuffer header;
-	header.count = ((this->static_included) ? this->static_lights.size() : 0) + this->dynamic_lights.size();
+	header.count = ((this->static_included) ? this->static_light_data.size() : 0) + static_cast<u32>(this->light_scratch.size());
 	this->ssbo_lights.update(&header, header_size, offset);
 
 	// Upload after header
 	if(static_size > 0) {
-		this->ssbo_lights.update(this->static_lights.data(), static_size, offset + header_size);
+		this->ssbo_lights.update(this->static_light_data.data(), static_size, offset + header_size);
 	}
 
 	// Upload after header and static lights
 	if(dynamic_size > 0) {
-		this->ssbo_lights.update(this->dynamic_lights.data(), dynamic_size, offset + header_size + static_size);
+		this->ssbo_lights.update(this->light_scratch.data(), dynamic_size, offset + header_size + static_size);
 	}
 
 	this->ssbo_lights.flush(offset, total_size);
@@ -400,8 +414,9 @@ void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 
 	this->dynamic_batches.clear();
 	this->dynamic_objs.clear();
-	this->glyphs.clear();
+	this->dynamic_lights.clear();
 	this->text_batches.clear();
+	this->glyphs.clear();
 	this->static_included = false;
 }
 
@@ -426,12 +441,21 @@ void Renderer::add(Renderable& obj) noexcept {
 	this->mark_dirty(); // Forces 'flatten_persistent' next 'begin_frame'
 }
 
+void Renderer::add(Light& light) noexcept {
+	this->static_lights.push_back(&light);
+	this->static_lights_dirty = true; // Forces re-upload of the LightData
+}
+
 void Renderer::draw(Renderable& obj) noexcept {
 	if(obj.transform.isdirty() || this->camera_dirty) {
 		obj.visible = this->frustum.test(obj.world_aabb());
 	}
 	if(!obj.visible) return;
 	this->dynamic_objs.push_back(&obj);
+}
+
+void Renderer::draw(const Light& light) noexcept {
+	this->dynamic_lights.push_back(&light);
 }
 
 void Renderer::draw_persistent() noexcept {
@@ -496,12 +520,20 @@ void Renderer::remove(Renderable& obj) noexcept {
 	this->mark_dirty();
 }
 
+void Renderer::remove(Light& light) noexcept {
+	this->static_lights.erase(
+		std::remove(this->static_lights.begin(), this->static_lights.end(), &light),
+		this->static_lights.end()
+	);
+	this->static_lights_dirty = true;
+}
+
 void Renderer::flush() noexcept {
 	// -- Build Instances
 
 	// Build dynamic batches
 	this->dynamic_batches.clear();
-	for(Renderable* obj : this->dynamic_objs) {
+	for(const Renderable* obj : this->dynamic_objs) {
 		this->insert_dynamic(*obj);
 	}
 

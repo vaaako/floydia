@@ -17,13 +17,14 @@ namespace floyd {
 // - ProgramPipeline just binds in the constructor. If other ProgramPipeline is binded, the renderer stops working
 // - 'add(Renderable& obj)' overwrites 'Renderable::on_bind'
 // - Lights only render on the first pass that are called
+// - Static light are not rebuilded if changed
 
 class Renderer final {
 	public:
 		Renderer() noexcept;
 		~Renderer() = default;
 
-		// Updates the cached screen size and send 'u_screen_size' uniform to 'PROG_VERT_TEXT'
+		// Sends 'u_screen_size' uniform to 'PROG_VERT_TEXT'
 		void update_viewport(const u32 width, const u32 height) noexcept;
 
 		// Advances the frame index and rebuilds or patches static batches.
@@ -38,8 +39,13 @@ class Renderer final {
 
 		// Register a static object. This overwrites 'Renderable::on_dirty' callback
 		void add(Renderable& obj) noexcept;
+		// Register a static light object. Unlike Renderable objects, static lights are NOT patched incrementally
+		// if theirs transform changes after being added
+		void add(Light& light) noexcept;
 		// Render a object in the current pass
 		void draw(Renderable& obj) noexcept;
+		// Render a light object in the current pass
+		void draw(const Light& light) noexcept;
 		// Includes static objects in the current pass
 		void draw_persistent() noexcept;
 		// Render a text object in the current pass
@@ -47,6 +53,8 @@ class Renderer final {
 			const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept;
 		// Unregisters a static object
 		void remove(Renderable& obj) noexcept;
+		// Unregisters a static object
+		void remove(Light& light) noexcept;
 		// Update and draw objects
 		// Call once, after `begin_draw` and before `end_frame`
 		void flush() noexcept;
@@ -146,27 +154,31 @@ class Renderer final {
 		std::unordered_map<Font*, TextBatch> text_batches;
 
 		// Maps a static object to where its instance lives inside 'static_batches'
-		std::unordered_map<Renderable*, std::vector<SlotLocation>> static_lookup;
+		std::unordered_map<const Renderable*, std::vector<SlotLocation>> static_lookup;
 		// Flattened static instance data
 		std::vector<Renderable::InstanceData> static_instances;
+		// Flattened static light instance data
+		std::vector<Light::LightData> static_light_data;
 	
 		// All objects currently registered as static
 		std::vector<Renderable*> static_objs;
 		// All objects currently registered as dynamic
-		std::vector<Renderable*> dynamic_objs;
+		std::vector<const Renderable*> dynamic_objs;
 		// Static objects that transform changed last frame
 		std::vector<Renderable*> dirty_queue;
 
 		// All light objects currently registered as static
 		std::vector<Light*> static_lights;
 		// All light objects currently registered as dynamic
-		std::vector<Light*> dynamic_lights;
+		std::vector<const Light*> dynamic_lights;
 
 		// Flattened glyph instance data
 		std::vector<Font::GlyphData> glyphs;
 
 		// Reused across calls to avoid a heap allocation every 'render_batches'
 		std::vector<const Batch*> render_scratch;
+		// Scratch buffer for dynamic light data, Reused across calls to avoid a heap allocation every upload
+		std::vector<Light::LightData> light_scratch;
 
 	// Camera
 	private:
@@ -187,8 +199,6 @@ class Renderer final {
 		// Cached camera's position
 		vec3<float> campos;
 		int pass_index = -1;
-		// Used by Font shader
-		u32 wwidth, wheight;
 		// Data offset between each camera's pass
 		u32 ssbo_objs_pass_offset = 0;
 		// Empty VAO to satisfy core profile
@@ -199,6 +209,8 @@ class Renderer final {
 	private:
 		// Set when 'static_objs' changed membership, or an object's BatchKey changed
 		bool static_dirty = true;
+		// Set when 'static_lights' changed
+		bool static_lights_dirty = true;
 		// Set true when `flaten_persistent` ran. `draw_persistent` check when must
 		// test visibility for every batch
 		bool static_rebuilt_this_frame = false;
@@ -218,7 +230,7 @@ class Renderer final {
 		// Inserts a static object into 'static_batches'
 		void insert_static(Renderable& obj) noexcept;
 		// Inserts a dynamic object into 'dynamic_batches'
-		void insert_dynamic(Renderable& obj) noexcept;
+		void insert_dynamic(const Renderable& obj) noexcept;
 		// Rebuilds 'static_instances' from all persistent batches and assigns each batch's 'instance_index'
 		// (its offset into that buffer). Also recomputes each batch's AABB from its owners.
 		// Called only when 'persistent_dirty' is set
