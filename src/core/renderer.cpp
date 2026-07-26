@@ -1,5 +1,6 @@
 #include "floydia/core/renderer.hpp"
-#include "floydia/geometry/text.hpp"
+#include "floydia/core/core.hpp"
+#include "floydia/geometry/font.hpp"
 #include "floydia/rendering/light.hpp"
 #include <algorithm>
 #include <unordered_set>
@@ -14,15 +15,22 @@ Renderer::Renderer() noexcept :
 	ubo_camera(0, sizeof(Camera::CameraData) * 2),
 	ssbo_objs(1, sizeof(Renderable::InstanceData) * 128),
 	ssbo_lights(2, sizeof(Light::LightData) * 10),
-	ssbo_glyphs(3, sizeof(Text::GlyphData) * 255),
+	ssbo_glyphs(3, sizeof(Font::GlyphData) * 128),
 	ppipeline(ProgramPipeline())
 	{
+	
+	glGenVertexArrays(1, &this->emptyvao);
+	this->ppipeline.bind();
 
 	glEnable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
 
-	this->ppipeline.bind();
+void Renderer::update_viewport(const u32 width, const u32 height) noexcept {
+	this->wwidth = width;
+	this->wheight = height;
+	assets().defaults.PROG_VERT_TEXT->set_uniform_vec2f("u_screen_size", { (float)width, (float)height });
 }
 
 Renderer::Batch& Renderer::resolve_batch(const Model::SubMesh& sub, BatchTable& table) noexcept {
@@ -205,14 +213,15 @@ void Renderer::upload_camera() noexcept {
 	this->ubo_camera.flush(offset, sizeof(Camera::CameraData));
 }
 
-// TODO: Pending. Currently re-uploads every pass, redundantly
 void Renderer::upload_lights() noexcept {
+	if(this->wrote_lights) return; // Already sent to SSBO
+
 	const size_t header_size  = sizeof(Light::LightBuffer); // Readability
 	const size_t static_size  = (this->static_included) ? this->static_lights.size() * sizeof(Light::LightData) : 0;
 	const size_t dynamic_size = this->dynamic_lights.size() * sizeof(Light::LightData);
 	const size_t total_size   = header_size + static_size + dynamic_size;
 	if(static_size == 0 && dynamic_size == 0) return; // Nothing to upload
-	if(!this->wrote_lights) { this->ssbo_lights.wait(this->frame_index); this->wrote_lights = true; }
+	this->ssbo_lights.wait(this->frame_index); this->wrote_lights = true;
 
 	this->ssbo_lights.ensure_capacity(total_size);
 	const size_t offset = this->ssbo_lights.frame_offset(this->frame_index);
@@ -233,6 +242,19 @@ void Renderer::upload_lights() noexcept {
 	}
 
 	this->ssbo_lights.flush(offset, total_size);
+}
+
+void Renderer::upload_text() noexcept {
+	if(this->glyphs.empty()) return;
+
+	const size_t size = this->glyphs.size() * sizeof(Font::GlyphData);
+	if(!this->wrote_glyphs) { this->ssbo_glyphs.wait(this->frame_index); this->wrote_glyphs = true; }
+
+	this->ssbo_glyphs.ensure_capacity(size);
+	const size_t offset = this->ssbo_glyphs.frame_offset(this->frame_index);
+
+	this->ssbo_glyphs.update(this->glyphs.data(), size, offset);
+	this->ssbo_glyphs.flush(offset, size);
 }
 
 void Renderer::render_batches(const BatchTable& table) noexcept {
@@ -285,6 +307,29 @@ void Renderer::render_batches(const BatchTable& table) noexcept {
 			batch->instance_index // gl_BaseInstance
 		);
 	}
+}
+
+void Renderer::render_text() noexcept {
+	if(this->text_batches.empty()) return;
+
+	this->ppipeline.attach(assets().defaults.PROG_VERT_TEXT, Shader::Vertex);
+	this->ppipeline.attach(assets().defaults.PROG_FRAG_2D, Shader::Fragment);
+
+	glBindVertexArray(this->emptyvao);
+	glDepthMask(GL_FALSE); // Text draws over everything, doesn't need depth write
+
+	for(auto& [font, batch] : this->text_batches) {
+		if(batch.glyph_count == 0) continue;
+		font->atlas()->bind(0);
+
+		glDrawArraysInstancedBaseInstance(
+			GL_TRIANGLES, 0, 6,
+			batch.glyph_count, batch.glyph_start
+		);
+	}
+
+	glDepthMask(GL_TRUE);
+	glBindVertexArray(0);
 }
 
 
@@ -355,12 +400,22 @@ void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 
 	this->dynamic_batches.clear();
 	this->dynamic_objs.clear();
+	this->glyphs.clear();
+	this->text_batches.clear();
 	this->static_included = false;
 }
 
 void Renderer::add(Renderable& obj) noexcept {
-	this->static_objs.push_back(&obj);
+	// NOTE: RTTI (dynamic_cast) is acceptable here, `add()` is rarely called
+	if(dynamic_cast<Font*>(&obj) != nullptr) {
+		TRACELOG(logger::Error, "Text objects cannot be added as persistent. Please use 'draw_text()'");
+		return;
+	} else if(dynamic_cast<Sprite*>(&obj) != nullptr) {
+		TRACELOG(logger::Error, "2D objects cannot be added as persistent. Please use 'draw()' directly");
+		return;
+	}
 
+	this->static_objs.push_back(&obj);
 	obj.is_persistent = true;
 	obj.transform.on_dirty = [this, &obj]() {
 		if(!obj.is_dirty_queued) {
@@ -368,7 +423,6 @@ void Renderer::add(Renderable& obj) noexcept {
 			obj.is_dirty_queued = true;
 		}
 	};
-
 	this->mark_dirty(); // Forces 'flatten_persistent' next 'begin_frame'
 }
 
@@ -390,6 +444,58 @@ void Renderer::draw_persistent() noexcept {
 	}
 }
 
+void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Font>& font,
+	const float scale, const vec4<float>& color) noexcept {
+
+	if(text.empty() || !font) return;
+
+	auto [it, inserted] = this->text_batches.try_emplace(font.get(),
+		TextBatch { font.get(), static_cast<u32>(this->glyphs.size()), 0 });
+	TextBatch& batch = it->second;
+
+	const float ascent = font->ascent();
+	const u8* p = reinterpret_cast<const u8*>(text.c_str());
+	float pen_x = pos.x;
+	float pen_y = pos.y;
+
+	while(*p) {
+		const u32 codepoint = font->utf8_next(p);
+		if(codepoint == '\n') {
+			pen_x = pos.x;
+			pen_y += font->line_height() * scale;
+			continue;
+		}
+
+		const Font::Glyph g = font->glyph(codepoint, scale);
+		if(g.width > 0.0f && g.height > 0.0f) {
+			Font::GlyphData gd;
+			gd.pos   = { pen_x + g.offset_x, pen_y + ascent + g.offset_y };
+			gd.size  = { g.width, g.height };
+			gd.uv0   = g.uv0;
+			gd.uv1   = g.uv1;
+			gd.color = color;
+			this->glyphs.push_back(gd);
+			batch.glyph_count++;
+		}
+		pen_x += g.advance;
+	}
+}
+
+void Renderer::remove(Renderable& obj) noexcept {
+	if(!obj.is_persistent) return;
+	this->static_objs.erase(
+		std::remove(this->static_objs.begin(), this->static_objs.end(), &obj),
+		this->static_objs.end()
+	);
+	this->static_lookup.erase(&obj);
+
+	obj.is_persistent = false;
+	obj.is_dirty_queued = false;
+	obj.needs_rebatch = false;
+
+	this->mark_dirty();
+}
+
 void Renderer::flush() noexcept {
 	// -- Build Instances
 
@@ -406,18 +512,18 @@ void Renderer::flush() noexcept {
 		batch.instance_index = static_cast<u32>(offset);
 		offset += batch.gpu_data.size();
 	}
-	if(this->dynamic_batches.empty() && this->static_batches.empty()) return;
+	if(this->dynamic_batches.empty() && this->static_batches.empty() && this->glyphs.empty()) return;
 
 	// -- Upload objects to SSBO
 	this->upload_camera();
 	this->upload_objects();
 	this->upload_lights();
+	this->upload_text();
 
 	// -- Render batches
 	if(this->static_included) this->render_batches(this->static_batches);
 	this->render_batches(this->dynamic_batches);
-
-	// TODO: text/glyph batches
+	this->render_text();
 }
 
 } // namespace floyd

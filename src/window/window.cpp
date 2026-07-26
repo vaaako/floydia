@@ -80,6 +80,7 @@ Window::Window(const Settings& settings)
 	// Release context (if not first window). User must manually set current context
 	if(wincount > 1) this->disable_ctx();
 	this->renderer = Core::get().renderer.get();
+	this->renderer->update_viewport(settings.width, settings.height);
 
 	// Disable VSync by default
 	RGFW_window_swapInterval_OpenGL(pimpl->window, RGFW_FALSE);
@@ -209,6 +210,7 @@ void Window::set_min_size(const u32 width, const u32 height) noexcept { RGFW_win
 void Window::set_max_size(const u32 width, const u32 height) noexcept { RGFW_window_setMaxSize(pimpl->window, static_cast<int>(width), static_cast<int>(height)); }
 void Window::update_viewport(const u32 width, const u32 height) noexcept {
 	this->_width = width; this->_height = height;
+	this->renderer->update_viewport(width, height);
 	// RGFW_window_setAspectRatio(pimpl->window, static_cast<int>(width),
 	// 		static_cast<int>(height));
 	glViewport(0, 0, width, height);

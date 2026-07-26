@@ -11,13 +11,15 @@
 #include "floydia/window/keycode.hpp"
 #include "floydia/window/mousebutton.hpp"
 
-#include "floydia/camera/camera.hpp"
-#include "floydia/camera/perspectivecamera.hpp"
 #include "floydia/rendering/renderable.hpp"
 
 namespace floyd {
 
 class Window final {
+	public:
+		// Access renderer
+		Renderer* renderer; // Renderer cached to avoid repeated lookup
+
 	public:
 		struct Settings {
 			u32 width;
@@ -28,6 +30,7 @@ class Window final {
 			bool resizable = true;
 		};
 
+	public:
 		Window(const Settings& settings);
 		~Window();
 
@@ -103,53 +106,6 @@ class Window final {
 		bool ui_mouse_clicked() const noexcept;
 	#endif
 
-		// Casts a ray from the mouse position and returns the closest visible object hit.
-		// Returns nullptr if nothing was hit.
-		// Call AFTER 'begin_frame()', otherwise dynamic objects won't be included
-		Renderable* pick(const PerspectiveCamera& camera) const noexcept {
-		#if defined (FLOYD_NO_EDITOR_PANEL)
-			return nullptr;
-		#else
-			return nullptr;
-			// return renderer->pick(camera, this->mouse_pos(), this->size());
-		#endif
-		}
-
-		// // Debug draw an AABB.
-		// // Should not be used on release since it is a debug method
-		// inline void draw_aabb(const AABB& aabb, const vec4<float>& color) const { renderer->draw_aabb(aabb, color); }
-
-		// Advances 'frameindex' and waits for the GPU to finish reading
-		// the current frame's buffer slots before the CPU writes new data
-		void begin_frame(const vec4<float>& clear_color = { 0.1f, 0.1f, 0.1f, 0.1f }) noexcept { renderer->begin_frame(clear_color); }
-		// Singals GPU fences to mark this frame's buffer slots as in-flight,
-		// preventing the CPU from overwriting them before the GPU is done
-		void end_frame() noexcept { renderer->end_frame(); }
-		// Advances the frame index, syncs GPU fences, updates camera UBO,
-		// updates the frustum, and rebuilds persistent batches if dirty
-		inline void begin_draw(const Camera& camera, const bool cullface = true) const noexcept { renderer->begin_draw(camera, cullface); }
-		// Includes persistent objects in the current pass.
-		// Must be called after 'begin_draw()' and before 'flush()'.
-		// Persistent objects are only rebuilt when dirty (i.e. when 'add()' is called).
-		// Without this call, persistent objects are excluded from the current pass
-		void draw_persistent() const noexcept { renderer->draw_persistent(); }
-		// Submit a dynamic object for this frame.
-		// Use this for temporary objects, or objects that changes often
-		inline void draw(Renderable& obj) const noexcept { renderer->draw(obj); }
-		// Submit a persistent object.
-		// Use this for objects that rarely changes properties
-		inline void add(Renderable& obj) const noexcept { renderer->add(obj); }
-		// Submit a dynamic light object for this frame
-		// inline void draw(const Light& light) const noexcept { renderer->draw(light); }
-		// Submit a persistent light object
-		// inline void add(const Light& light) const noexcept { renderer->add(light); }
-		// Upload instance data to SSBo and issue draw calls
-		inline void flush() const { renderer->flush(); }
-
-		// Submit a text object for this frame
-		// void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font,
-		// 	const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept { renderer->draw_text(text, pos, font, scale, color); }
-
 		// Open an ImGui window to edit a Renderable
 		void editor_panel(Renderable* obj) const noexcept;
 
@@ -182,8 +138,6 @@ class Window final {
 		void disable_ctx() const noexcept;
 
 	private:
-		Renderer* renderer; // Renderer cached to avoid repeated lookup
-
 		struct impl; // hide external libraries from header
 		std::unique_ptr<impl> pimpl;
 

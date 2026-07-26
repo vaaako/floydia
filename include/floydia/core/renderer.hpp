@@ -2,6 +2,7 @@
 
 #include "floydia/camera/camera.hpp"
 #include "floydia/camera/frustum.hpp"
+#include "floydia/geometry/font.hpp"
 #include "floydia/gpu/programpipeline.hpp"
 #include "floydia/gpu/ssbo.hpp"
 #include "floydia/gpu/uniformbuffer.hpp"
@@ -12,14 +13,22 @@
 
 namespace floyd {
 
+// NOTE: Some limitations about this renderer
+// - ProgramPipeline just binds in the constructor. If other ProgramPipeline is binded, the renderer stops working
+// - 'add(Renderable& obj)' overwrites 'Renderable::on_bind'
+// - Lights only render on the first pass that are called
+
 class Renderer final {
 	public:
 		Renderer() noexcept;
 		~Renderer() = default;
 
+		// Updates the cached screen size and send 'u_screen_size' uniform to 'PROG_VERT_TEXT'
+		void update_viewport(const u32 width, const u32 height) noexcept;
+
 		// Advances the frame index and rebuilds or patches static batches.
 		// Call once per frame, before `begin_draw`
-		void begin_frame(const vec4<float>& clear_color = { 0.1f, 0.1f, 0.1f, 0.1f }) noexcept;
+		void begin_frame(const vec4<float>& clear_color = vec4<float>(0.1f)) noexcept;
 		// GPU fence signaling for this frame's buffer slots.
 		// Call once per frame
 		void end_frame() noexcept;
@@ -29,10 +38,13 @@ class Renderer final {
 
 		// Register a static object. This overwrites 'Renderable::on_dirty' callback
 		void add(Renderable& obj) noexcept;
-		// Registers a static object
+		// Render a object in the current pass
 		void draw(Renderable& obj) noexcept;
 		// Includes static objects in the current pass
 		void draw_persistent() noexcept;
+		// Render a text object in the current pass
+		void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Font>& font,
+			const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept;
 		// Unregisters a static object
 		void remove(Renderable& obj) noexcept;
 		// Update and draw objects
@@ -104,6 +116,12 @@ class Renderer final {
 			}
 		};
 
+		struct TextBatch {
+			Font* font;
+			u32 glyph_start; // First gl_InstanceID for this batch
+			u32 glyph_count;
+		};
+
 	private:
 		// Where a specific static object's instance data lives, so a
 		// transform change can be patched in-placee without a full rebuild
@@ -115,7 +133,6 @@ class Renderer final {
 		// Tracks a single camera's last known position and forward
 		struct CameraHistory {
 			const Camera* camera = nullptr;
-			// TODO: not necessary?
 			vec3<float> position;
 			vec3<float> forward;
 		};
@@ -126,6 +143,8 @@ class Renderer final {
 
 		BatchTable static_batches;
 		BatchTable dynamic_batches;
+		std::unordered_map<Font*, TextBatch> text_batches;
+
 		// Maps a static object to where its instance lives inside 'static_batches'
 		std::unordered_map<Renderable*, std::vector<SlotLocation>> static_lookup;
 		// Flattened static instance data
@@ -138,8 +157,13 @@ class Renderer final {
 		// Static objects that transform changed last frame
 		std::vector<Renderable*> dirty_queue;
 
+		// All light objects currently registered as static
 		std::vector<Light*> static_lights;
+		// All light objects currently registered as dynamic
 		std::vector<Light*> dynamic_lights;
+
+		// Flattened glyph instance data
+		std::vector<Font::GlyphData> glyphs;
 
 		// Reused across calls to avoid a heap allocation every 'render_batches'
 		std::vector<const Batch*> render_scratch;
@@ -163,8 +187,12 @@ class Renderer final {
 		// Cached camera's position
 		vec3<float> campos;
 		int pass_index = -1;
+		// Used by Font shader
+		u32 wwidth, wheight;
 		// Data offset between each camera's pass
 		u32 ssbo_objs_pass_offset = 0;
+		// Empty VAO to satisfy core profile
+		GLuint emptyvao;
 		size_t frame_index = 0;
 
 	// Flags
@@ -201,10 +229,14 @@ class Renderer final {
 		void upload_objects() noexcept;
 		// Upload this pass's camera data to 'ubo_camera'
 		void upload_camera() noexcept;
-		// Upload lights (static + dynamic) to 'ssbo_lights'
+		// Upload this pass's light data to 'ssbo_glyphs'
 		void upload_lights() noexcept;
+		// Upload this pass's glyph data to 'ssbo_glyphs'
+		void upload_text() noexcept;
 		// Draws every visible, non-empty batch
 		void render_batches(const BatchTable& table) noexcept;
+		// Draws every text batch
+		void render_text() noexcept;
 };
 
 } // namespace floyd
