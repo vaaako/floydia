@@ -20,7 +20,7 @@ Core::Core() noexcept {
 
 void Core::initialize() noexcept {
 	// was initialized already
-	if(this->assets != nullptr && this->renderer != nullptr
+	if(this->assets != nullptr
 #if !defined(FLOYD_SINGLE_THREAD)
 	&& this->jobsystem != nullptr
 #endif
@@ -34,7 +34,6 @@ void Core::initialize() noexcept {
 
 	// Initialize OpenGL dependend objects
 	this->assets = std::make_unique<Assets>();
-	this->renderer = std::make_unique<Renderer>();
 #if !defined(FLOYD_SINGLE_THREAD)
 	this->jobsystem = std::make_unique<JobSystem>(Core::thread_count);
 #endif

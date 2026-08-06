@@ -2,19 +2,19 @@ CC  = gcc
 CXX = g++
 AR  = gcc-ar
 
-DEBUG           ?= 0
-SINGLE_THREAD   ?= 0
-NO_EDITOR_PANEL ?= 0
+DEBUG         ?= 0
+SINGLE_THREAD ?= 0
+EDITOR_PANEL  ?= 0
 
 INCLUDE_DIRS := -Iinclude -Iinclude/external
-ifeq ($(NO_EDITOR_PANEL),0)
+ifeq ($(EDITOR_PANEL),1)
 # Include imgui if compiling with editor panel
 INCLUDE_DIRS += -Iinclude/external/imgui
 endif
 
-CXXFLAGS     := -std=c++17 -fPIC $(INCLUDE_DIRS)
-LDFLAGS :=
-LDLIBS   = -lX11 -lGL -lXrandr
+CXXFLAGS := -std=c++17 -fPIC $(INCLUDE_DIRS)
+LDFLAGS  :=
+LDLIBS    = -lX11 -lGL -lXrandr
 
 CFLAGS := -fPIC $(INCLUDE_DIRS)
 
@@ -65,10 +65,10 @@ CXXFLAGS += -DFLOYD_SINGLE_THREAD
 TARGET_SUFFIX += _single_thread
 endif
 
-# No editor panel
-ifeq ($(NO_EDITOR_PANEL),1)
-CXXFLAGS += -DFLOYD_NO_EDITOR_PANEL
-TARGET_SUFFIX += _no_editor
+# Editor panel
+ifeq ($(EDITOR_PANEL),1)
+CXXFLAGS += -DFLOYD_EDITOR_PANEL
+TARGET_SUFFIX += _editor
 endif
 
 # Final library name
@@ -86,7 +86,7 @@ IMGUI_SRC := $(LIB_DIR)/imgui/imgui.cpp \
              $(LIB_DIR)/imgui/imgui_widgets.cpp \
              $(LIB_DIR)/imgui/imgui_impl_opengl3.cpp
 SOURCES := $(SRC) $(RGFW_SRC) $(GLAD_SRC)
-ifeq ($(NO_EDITOR_PANEL),0)
+ifeq ($(EDITOR_PANEL),1)
 SOURCES += $(IMGUI_SRC)
 endif
 
@@ -116,7 +116,7 @@ $(OBJ_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
-ifeq ($(NO_EDITOR_PANEL),0)
+ifeq ($(EDITOR_PANEL),1)
 # lib/**/*.cpp (imgui)
 $(OBJ_DIR)/$(LIB_DIR)/%.o: $(LIB_DIR)/%.cpp
 	@mkdir -p $(dir $@)
@@ -144,7 +144,7 @@ vars: all
 	@echo "LIBRARY  : $(LIB_NAME)"
 	@echo "DEBUG    : $(DEBUG)"
 	@echo "SINGLE   : $(SINGLE_THREAD)"
-	@echo "EDITOR   : $(NO_EDITOR_PANEL)"
+	@echo "EDITOR   : $(EDITOR_PANEL)"
 	@echo "SOURCES  : $(SOURCES)"
 	@echo "OBJECTS  : $(OBJECTS)"
 	@echo "TARGET   : $(LIB_NAME)"

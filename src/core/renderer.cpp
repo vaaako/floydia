@@ -3,7 +3,6 @@
 #include "floydia/geometry/font.hpp"
 #include "floydia/rendering/light.hpp"
 #include <algorithm>
-#include <unordered_set>
 
 #if defined(FLOYD_DEBUG_RENDERER)
 #include "floydia/helpers/logger.hpp"

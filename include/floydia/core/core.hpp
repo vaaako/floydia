@@ -2,7 +2,6 @@
 
 #include "floydia/core/assets.hpp"
 #include "floydia/core/jobsystem.hpp"
-#include "floydia/core/renderer.hpp"
 #include <cstddef>
 #include <memory>
 
@@ -13,8 +12,6 @@ struct Core final {
 	// Set this before initializing window. '0' is the default for "all available"
 	static size_t thread_count;
 
-	// Renderer object
-	std::unique_ptr<Renderer> renderer = nullptr;
 	// Shader Program, Material, Texture and Mesh agregator
 	std::unique_ptr<Assets> assets = nullptr;
 	// Multithread manager

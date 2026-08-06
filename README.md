@@ -174,14 +174,14 @@ int main() {
 
 		move_camera(window, camera);
 
-		window.begin_frame();
+		window.renderer->begin_frame();
 			// 3D dynamic shapes
-			window.begin_draw(camera);
-				window.draw(lamp);
-				window.draw(cube);
-				window.draw(debug_lamp);
-			window.flush();
-		window.end_frame();
+			window.renderer->begin_draw(camera);
+				window.renderer->draw(lamp);
+				window.renderer->draw(cube);
+				window.renderer->draw(debug_lamp);
+			window.renderer->flush();
+		window.renderer->end_frame();
 
 		cube.update_scripts(dt); // Update scripts for this Object
 		lamp.update_scripts(dt);
@@ -244,23 +244,18 @@ void move_camera(const Window& window, PerspectiveCamera& camera) {
 The library has been tested on **Linux** and **Windows**
 
 ## Build Options
-| Option                       | Description                             |
-|-----------------------------|-----------------------------------------|
-| `DEBUG=1`           | Builds without optimization, enables debug macros, symbols and warnings |
-| `SINGLE_THREAD=1`   | Defines `FLOYD_SINGLE_THREAD`, disabling multithreading support |
-| `NO_EDITOR_PANEL=1` | Defines `FLOYD_NO_EDITOR_PANEL` and excludes Dear ImGui from the build. Recommended for **release** builds |
+| Option            | Description                             |
+|-------------------|-----------------------------------------|
+| `DEBUG=1`         | Builds without optimization, enables debug macros, symbols and warnings |
+| `SINGLE_THREAD=1` | Defines `FLOYD_SINGLE_THREAD`, disabling multithreading support |
+| `EDITOR_PANEL=1`  | Defines `FLOYD_EDITOR_PANEL` and includes Dear ImGui in this build. Recommended for **debug** builds |
 
 All options can be combined
 
 ## Build Commands
-Release build example:
-```sh
-make NO_EDITOR_PANEL=1
-```
-
 Debug build example:
 ```sh
-make DEBUG=1
+make DEBUG=1 EDITOR_PANEL=1
 ```
 
 Compile and print the current build configuration:
