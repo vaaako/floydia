@@ -15,11 +15,15 @@ namespace floyd {
 
 // NOTE: Some limitations about this renderer
 // - ProgramPipeline just binds in the constructor. If other ProgramPipeline is binded, the renderer stops working
-// - 'add(Renderable& obj)' overwrites 'Renderable::on_bind'
+// - 'add(Renderable& obj)' overwrites 'Transform::on_dirty'
 // - Lights only render on the first pass that are called
 // - Static light are not rebuilded if changed
 
 class Renderer final {
+	private:
+		// Below this threshold, dispatching costs more than it saves
+		static constexpr size_t PARALLEL_THRESHOLD = 256;
+
 	public:
 		Renderer() noexcept;
 		~Renderer() = default;
@@ -228,9 +232,11 @@ class Renderer final {
 		// Resolves the batch a submesh belongs to
 		Batch& resolve_batch(const Model::SubMesh& sub, BatchTable& table) noexcept;
 		// Inserts a static object into 'static_batches'
-		void insert_static(Renderable& obj) noexcept;
-		// Inserts a dynamic object into 'dynamic_batches'
-		void insert_dynamic(const Renderable& obj) noexcept;
+		void insert_static(Renderable& obj, BatchTable& table,
+			std::unordered_map<const Renderable*, std::vector<SlotLocation>>& lookup) noexcept;
+		// Inserts a dynamic object into 'dynamic_batches'.
+		// NOTE: 'table' paramter just exists for multithread usage inside 'flush'
+		void insert_dynamic(const Renderable& obj, BatchTable& table) noexcept;
 		// Rebuilds 'static_instances' from all persistent batches and assigns each batch's 'instance_index'
 		// (its offset into that buffer). Also recomputes each batch's AABB from its owners.
 		// Called only when 'persistent_dirty' is set
@@ -241,7 +247,7 @@ class Renderer final {
 		void upload_objects() noexcept;
 		// Upload this pass's camera data to 'ubo_camera'
 		void upload_camera() noexcept;
-		// Upload this pass's light data to 'ssbo_glyphs'
+		// Upload this pass's light data to 'ssbo_lights'
 		void upload_lights() noexcept;
 		// Upload this pass's glyph data to 'ssbo_glyphs'
 		void upload_text() noexcept;

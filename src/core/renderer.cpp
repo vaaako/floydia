@@ -48,13 +48,14 @@ Renderer::Batch& Renderer::resolve_batch(const Model::SubMesh& sub, BatchTable& 
 	return batch;
 }
 
-void Renderer::insert_static(Renderable& obj) noexcept {
+void Renderer::insert_static(Renderable& obj, BatchTable& table, std::unordered_map<const Renderable*, std::vector<SlotLocation>>& lookup) noexcept {
+	obj.world_aabb(); // Update so after 'model_matrix' the AABB is using the updated transform
 	const glm::mat4& m = obj.transform.model_matrix();
 	const vec4<float>& color = obj.color_norm();
 
-	std::vector<SlotLocation>& slots = this->static_lookup[&obj]; // new entry
+	std::vector<SlotLocation>& slots = lookup[&obj]; // new entry
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
-		Batch& batch = this->resolve_batch(sub, this->static_batches);
+		Batch& batch = this->resolve_batch(sub, table);
 		u32 idx = batch.push_static({
 			m, color, sub.material.metallic, sub.material.roughness, {}
 		}, &obj);
@@ -62,12 +63,12 @@ void Renderer::insert_static(Renderable& obj) noexcept {
 	}
 }
 
-void Renderer::insert_dynamic(const Renderable& obj) noexcept {
+void Renderer::insert_dynamic(const Renderable& obj, BatchTable& table) noexcept {
 	const glm::mat4& m = obj.transform.model_matrix();
 	const vec4<float>& color = obj.color_norm();
 
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
-		Batch& batch = this->resolve_batch(sub, this->dynamic_batches);
+		Batch& batch = this->resolve_batch(sub, table);
 		batch.push_dynamic({
 			m, color, sub.material.metallic, sub.material.roughness, {}
 		});
@@ -78,10 +79,65 @@ void Renderer::flatten_persistent() noexcept {
 	this->static_batches.clear();
 	this->static_lookup.clear();
 
+#if defined(FLOYD_SINGLE_THREAD)
 	// Rebuild every batch
 	for(Renderable* obj : this->static_objs) {
-		this->insert_static(*obj);
+		this->insert_static(*obj, this->static_batches, this->static_lookup);
 	}
+
+#else
+	if(this->static_objs.size() < Renderer::PARALLEL_THRESHOLD) {
+		for(Renderable* obj : this->static_objs) {
+			this->insert_static(*obj, this->static_batches, this->static_lookup);
+		}
+
+	} else {
+
+		struct LocalStatic {
+			BatchTable table;
+			std::unordered_map<const Renderable*, std::vector<SlotLocation>> lookup;
+		};
+		std::vector<LocalStatic> locals = std::vector<LocalStatic>(jobsystem().workers_count());
+
+		jobsystem().parallel_for_chunks(0, this->static_objs.size(),
+			[this, &locals](size_t begin, size_t end, size_t chunk_index) {
+				LocalStatic& local = locals[chunk_index];
+				for(size_t i = begin; i < end; ++i) {
+					this->insert_static(*this->static_objs[i], local.table, local.lookup);
+				}
+			}
+		);
+
+		// Merge, sequential, cheap relative to the parallel insertion work
+		for(LocalStatic& local : locals) {
+			for(auto& [key, local_batch] : local.table) {
+				Batch& batch = this->static_batches[key];
+				if(!batch.mesh) {
+					batch.mesh = local_batch.mesh;
+					batch.material = local_batch.material;
+				}
+
+				// NOTE: owners/gpu_data indices from local_batch are no longer
+				// valid after this concat, 'SlotLocation.index' must be rebased
+				const u32 rebase = static_cast<u32>(batch.gpu_data.size());
+				batch.gpu_data.insert(batch.gpu_data.end(), local_batch.gpu_data.begin(), local_batch.gpu_data.end());
+				batch.owners.insert(batch.owners.end(), local_batch.owners.begin(), local_batch.owners.end());
+				batch.instance_count += local_batch.instance_count;
+
+				// Fix up lookup entries from this chunk that pointed at local_batch
+				for(auto& [obj, slots] : local.lookup) {
+					for(SlotLocation& slot : slots) {
+						if(slot.batch == &local_batch) {
+							slot.batch = &batch;
+							slot.index += rebase;
+						}
+					}
+				}
+			}
+			this->static_lookup.insert(local.lookup.begin(), local.lookup.end());
+		}
+	}
+#endif
 
 	// Sum instance count across all batches first, so 'static_instances' is reserved exactly
 	size_t total = 0;
@@ -110,9 +166,6 @@ void Renderer::flatten_persistent() noexcept {
 }
 
 void Renderer::patch_dirty() noexcept {
-	// Batches that changed AABB
-	std::unordered_set<Batch*> touched_batches;
-
 	for(Renderable* obj : this->dirty_queue) {
 		obj->is_dirty_queued = false;
 
@@ -140,16 +193,13 @@ void Renderer::patch_dirty() noexcept {
 				m, color, sub.material.metallic, sub.material.roughness, {}
 			};
 			
-			if(transform_changed) touched_batches.insert(loc.batch);
-		}
-	}
-
-	// If a full rebuild got triggered, skip AABB/visibility patching
-	if(!this->static_dirty) {
-		for(Batch* batch : touched_batches) {
-			batch->aabb = AABB{};
-			for(Renderable* owner : batch->owners) batch->aabb.merge(owner->world_aabb());
-			batch->visible = this->frustum.test(batch->aabb);
+			// Just recompute AABB here, no frustum test
+			if(transform_changed) {
+				loc.batch->aabb = AABB{};
+				for(Renderable* owner : loc.batch->owners) loc.batch->aabb.merge(owner->world_aabb());
+				loc.batch->visible = true; // safe default until 'draw_persistent' tests it correctly
+				// NOTE: touched batch for 1 frame longer than it should, if exited from frustum on this frame
+			}
 		}
 	}
 
@@ -199,7 +249,6 @@ void Renderer::upload_camera() noexcept {
 	};
 
 	const size_t needed = (this->pass_index + 1) * sizeof(Camera::CameraData);
-	if(needed == 0) return; // Nothing to upload
 	if(!this->wrote_camera) { this->ubo_camera.wait(this->frame_index); this->wrote_camera = true; }
 
 	this->ubo_camera.ensure_capacity(needed);
@@ -279,6 +328,7 @@ void Renderer::render_batches(const BatchTable& table) noexcept {
 	}
 	if(this->render_scratch.empty()) return;
 
+	// TODO: not checked if it is efficient or not
 	std::sort(this->render_scratch.begin(), this->render_scratch.end(), [](const Batch* a, const Batch* b) {
 		if(a->material->vertex.get() != b->material->vertex.get()) return (a->material->vertex.get() < b->material->vertex.get());
 		if(a->material->fragment.get() != b->material->fragment.get()) return (a->material->fragment.get() < b->material->fragment.get());
@@ -533,9 +583,48 @@ void Renderer::flush() noexcept {
 
 	// Build dynamic batches
 	this->dynamic_batches.clear();
+
+#if defined(FLOYD_SINGLE_THREAD)
 	for(const Renderable* obj : this->dynamic_objs) {
-		this->insert_dynamic(*obj);
+		this->insert_dynamic(*obj, this->dynamic_batches);
 	}
+#else
+	if(this->dynamic_objs.size() < Renderer::PARALLEL_THRESHOLD) {
+		for(const Renderable* obj : this->dynamic_objs) {
+			this->insert_dynamic(*obj, this->dynamic_batches);
+		}
+	} else {
+		// Each chunk builds its own local batch table. No shared state
+		// written during the parallel phase, so no locking needed
+		struct LocalBatches {
+			BatchTable table;
+		};
+		std::vector<LocalBatches> locals = std::vector<LocalBatches>(jobsystem().workers_count());
+
+		jobsystem().parallel_for_chunks(0, this->dynamic_objs.size(),
+			[this, &locals](size_t begin, size_t end, size_t chunk_index) {
+
+			BatchTable& local_table = locals[chunk_index].table;
+			for(size_t i = begin; i < end; ++i) {
+				this->insert_dynamic(*this->dynamic_objs[i], local_table);
+			}
+		});
+
+		// Merge phase. Sequential, but cheap, just concatenating gpu_data
+		for(LocalBatches& local : locals) {
+			for(auto& [key, local_batch] : local.table) {
+				Batch& batch = this->dynamic_batches[key];
+				if(!batch.mesh) {
+					batch.mesh = local_batch.mesh;
+					batch.material = local_batch.material;
+				}
+				batch.gpu_data.insert(batch.gpu_data.end(),
+					local_batch.gpu_data.begin(), local_batch.gpu_data.end());
+				batch.instance_count += local_batch.instance_count;
+			}
+		}
+	}
+#endif
 
 	// Static instances
 	const size_t base = (this->static_included) ? this->static_instances.size() : 0;
