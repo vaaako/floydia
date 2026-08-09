@@ -133,6 +133,10 @@ I wrote most of the things here very tired, sorry for any english mistake
 	+ Remove `MaterialInstance` and make `Material` on `Mesh` a copy
 - [ ] `Model` is being copied by each `Renderable`
 	+ Share the same `Model` with multiple objects
+- [ ] `Assets` has no limitation for loaded assets
+- [ ] Be able to pass `UV` when drawing a 2D object, so it renders a cell from spritesheet using the GPU instead of storing a full texture
+	+ 2D shader need a new `UV` uniform
+	+ Need to change a bit the renderer design to handle this case
 
 - [ ] Error when sprite is not drawn
 

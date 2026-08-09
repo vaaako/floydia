@@ -19,6 +19,7 @@ class Billboard : public Renderable {
 		Billboard() noexcept;
 		// Update Billboard AABB
 		AABB world_aabb() noexcept override;
+
 	protected:
 		static std::shared_ptr<Model> create_model() noexcept;
 };

@@ -27,7 +27,7 @@ Renderer::Renderer() noexcept :
 }
 
 void Renderer::update_viewport(const u32 width, const u32 height) noexcept {
-	assets().defaults.PROG_VERT_TEXT->set_uniform_vec2f("u_screen_size", { (float)width, (float)height });
+	assets().progs.PROG_VERT_TEXT->set_uniform_vec2f("u_screen_size", { (float)width, (float)height });
 }
 
 Renderer::Batch& Renderer::resolve_batch(const Model::SubMesh& sub, BatchTable& table) noexcept {
@@ -375,8 +375,8 @@ void Renderer::render_batches(const BatchTable& table) noexcept {
 void Renderer::render_text() noexcept {
 	if(this->text_batches.empty()) return;
 
-	this->ppipeline.attach(assets().defaults.PROG_VERT_TEXT, Shader::Vertex);
-	this->ppipeline.attach(assets().defaults.PROG_FRAG_2D, Shader::Fragment);
+	this->ppipeline.attach(assets().progs.PROG_VERT_TEXT, Shader::Vertex);
+	this->ppipeline.attach(assets().progs.PROG_FRAG_2D, Shader::Fragment);
 
 	glBindVertexArray(this->emptyvao);
 	glDepthMask(GL_FALSE); // Text draws over everything, doesn't need depth write

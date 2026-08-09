@@ -15,7 +15,7 @@ AABB Renderable::world_aabb() noexcept {
 	return this->_world_aabb;
 }
 
-void Renderable::set_texture(const std::shared_ptr<Texture>& albedo, const size_t index) noexcept {
+void Renderable::set_albedo(const std::shared_ptr<Texture>& albedo, const size_t index) noexcept {
 	this->material(index).albedo = (albedo != nullptr) ? albedo : assets().load<Texture>(hash::of("d_white"));
 	if(this->is_persistent) this->needs_rebatch = true;
 }

@@ -31,6 +31,8 @@ namespace hash {
 	inline size_t of(const std::string& s) noexcept     { return hash::of<std::string_view>(s); }
 	inline size_t of(const std::string_view s) noexcept { return hash::of<std::string_view>(s); }
 
+	size_t of(const void* data, const size_t size) noexcept;
+
 	// Fast, deterministic, non-cryptographic hash for raw bytes.
 	// Use this for asset caching (textures, shaders, files).
 	// WARNING: Do NOT use raw pointers (like 'char*')

@@ -187,7 +187,7 @@ void ui::draw_editor_panel(Renderable* obj) noexcept {
 			}
 			if(ImGui::IsItemClicked()) {
 				selected = tex;
-				obj->set_texture(tex); // notifies the Renderer if persistent
+				obj->set_albedo(tex); // notifies the Renderer if persistent
 			}
 			ImGui::SameLine();
 		}

@@ -13,7 +13,7 @@ namespace floyd {
 Image::Image(const char* path) noexcept {
 	if(path != nullptr) this->data = stbi_load(path, &this->width, &this->height, &this->channels, 0);
 	if(this->data == nullptr) {
-		logger::log(logger::Error, "Image \"%s\" not found!", path);
+		TRACELOG(logger::Error, "Image \"%s\" not found!", path);
 		this->width = 2;
 		this->height = 2;
 		this->channels = 4;
@@ -27,7 +27,7 @@ Image::Image(const char* path) noexcept {
 Image::Image(const u8* data, const u32 width, const u32 height, const u8 channels) noexcept
 	: width(width), height(height), channels(channels) {
 	if(data == nullptr || width <= 0 || height <= 0 || (channels != 1 && channels != 3 && channels != 4)) {
-		logger::log(logger::Error, "Raw image data is invalid!");
+		TRACELOG(logger::Error, "Raw image data is invalid!");
 		this->width = 2;
 		this->height = 2;
 		this->channels = 4;
@@ -46,7 +46,7 @@ Image::Image(const u8* data, const u32 width, const u32 height, const u8 channel
 Image::Image(const u8* data, const int size) noexcept {
 	if(data != nullptr) this->data = stbi_load_from_memory(data, (int)size, &this->width, &this->height, &this->channels, 0);
 	if(this->data == nullptr) {
-		logger::log(logger::Error, "Image data is invalid!", path);
+		TRACELOG(logger::Error, "Image data is invalid!");
 		this->width = 2;
 		this->height = 2;
 		this->channels = 4;

@@ -40,8 +40,6 @@ class Renderable : public Object {
 		inline Model* model() noexcept { return this->_model.get(); }
 		// Returns Model class
 		inline const Model* model() const noexcept { return this->_model.get(); }
-		// Set a new model
-		inline void set_model(const std::shared_ptr<Model>& model) noexcept { this->_model = model; }
 		// How many meshes are inside the model
 		inline size_t mesh_count() const { return this->_model->meshes().size(); }
 
@@ -51,7 +49,7 @@ class Renderable : public Object {
 		inline const Material& material(const size_t index = 0) const noexcept { return this->_model->meshes().at(index).material; }
 
 		// Set a texture of a mesh (first mesh by default)
-		void set_texture(const std::shared_ptr<Texture>& albedo, const size_t index = 0) noexcept;
+		void set_albedo(const std::shared_ptr<Texture>& albedo, const size_t index = 0) noexcept;
 		// Set the same texture for all meshes
 		void set_albedo_all(const std::shared_ptr<Texture>& albedo) noexcept;
 	
