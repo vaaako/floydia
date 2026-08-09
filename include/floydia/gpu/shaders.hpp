@@ -231,7 +231,8 @@ struct InstanceData {
 	vec4 color;
 	float metallic;
 	float roughness;
-	vec2 _pad;
+	float billboard_type; // 0 = Full, 1 = Cylindrical
+	float _pad;
 };
 
 layout(std140, binding = 0) uniform CameraBlock {
@@ -241,11 +242,8 @@ layout(std140, binding = 0) uniform CameraBlock {
 };
 
 layout(std430, binding = 1) buffer InstanceBuffer {
-	 InstanceData instances[];
+	InstanceData instances[];
 };
-
-// 0 = Full, 1 = Cylindrical
-layout(location = 3) uniform int u_billboard_type;
 
 void main() {
 	InstanceData data = instances[gl_InstanceID + gl_BaseInstance];
@@ -268,7 +266,7 @@ void main() {
 	vec3 v_up;
 	vec3 v_forward;
 
-	if(u_billboard_type == 0) {
+	if(data.billboard_type == 0.0) {
 		// All axis face camera
 		v_right   = right   * sx;
 		v_up      = up      * sy;

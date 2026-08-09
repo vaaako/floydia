@@ -19,7 +19,8 @@ class Renderable : public Object {
 			glm::vec4 color;
 			float metallic;
 			float roughness;
-			float _pad[2]; // alignment
+			float billboard_type; // only used by billboard
+			float _pad; // alignment
 		};
 
 	public:
@@ -52,7 +53,10 @@ class Renderable : public Object {
 		void set_albedo(const std::shared_ptr<Texture>& albedo, const size_t index = 0) noexcept;
 		// Set the same texture for all meshes
 		void set_albedo_all(const std::shared_ptr<Texture>& albedo) noexcept;
-	
+
+		// Only used by billboard
+		virtual float billboard_type() const noexcept { return 0.0f; }
+
 	private:
 		// Set by Renderer. Tells if a object is static
 		bool is_persistent = false;

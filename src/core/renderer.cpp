@@ -56,7 +56,7 @@ void Renderer::insert_static(Renderable& obj, BatchTable& table, std::unordered_
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
 		Batch& batch = this->resolve_batch(sub, table);
 		u32 idx = batch.push_static({
-			m, color, sub.material.metallic, sub.material.roughness, {}
+			m, color, sub.material.metallic, sub.material.roughness, obj.billboard_type(), 0.0f
 		}, &obj);
 		slots.push_back({ &batch, idx });
 	}
@@ -69,7 +69,7 @@ void Renderer::insert_dynamic(const Renderable& obj, BatchTable& table) noexcept
 	for(const Model::SubMesh& sub : obj.model()->meshes()) {
 		Batch& batch = this->resolve_batch(sub, table);
 		batch.push_dynamic({
-			m, color, sub.material.metallic, sub.material.roughness, {}
+			m, color, sub.material.metallic, sub.material.roughness, obj.billboard_type(), 0.0f
 		});
 	}
 }
