@@ -42,7 +42,6 @@ AABB Billboard::world_aabb() noexcept {
 
 	this->_world_aabb.valid = true;
 	return this->_world_aabb;
-
 }
 
 } // namespace floyd

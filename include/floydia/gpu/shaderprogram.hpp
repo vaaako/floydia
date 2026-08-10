@@ -17,6 +17,8 @@ class ShaderProgram {
 	public:
 		ShaderProgram();
 		~ShaderProgram() noexcept;
+		ShaderProgram(const ShaderProgram&) = delete;
+		ShaderProgram& operator=(const ShaderProgram&) = delete;
 
 		// This does not check if program was linked
 		inline void bind() const noexcept { glUseProgram(this->program); }

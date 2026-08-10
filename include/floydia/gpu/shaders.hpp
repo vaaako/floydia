@@ -406,25 +406,7 @@ void main() {
 )glsl";
 
 
-// No light 3D object
-constexpr const char* DEFAULT_FRAGMENT_UNLIT = R"glsl(
-#version 460 core
-
-layout(location = 0) in vec2 texuv;
-layout(location = 1) in vec3 normal;  // Not used but have to declare
-layout(location = 2) in vec4 color;
-layout(location = 3) in vec3 fragpos;// Not used but have to declare 
-
-out vec4 fragcolor;
-uniform sampler2D albedo;
-
-void main() {
-	vec4 base = texture(albedo, texuv) * color;
-	fragcolor = base;
-}
-)glsl";
-
-constexpr const char* DEFAULT_DEBUG_AABB_VERTEX = R"glsl(
+constexpr const char* DEFAULT_AABB_VERTEX = R"glsl(
 #version 460 core
 layout(location = 0) uniform mat4 u_viewproj;
 layout(location = 1) uniform vec3 u_min;
@@ -449,11 +431,33 @@ void main() {
 }
 )glsl";
 
-constexpr const char* DEFAULT_DEBUG_AABB_FRAGMENT = R"glsl(
+constexpr const char* DEFAULT_AABB_FRAGMENT = R"glsl(
 #version 460 core
+
 layout(location = 3) uniform vec3 u_color;
 layout(location = 0) out vec4 fragcolor;
-void main() { fragcolor = vec4(u_color, 1.0); }
+
+void main() {
+	fragcolor = vec4(u_color, 1.0);
+}
+)glsl";
+
+// No light 3D object
+constexpr const char* DEFAULT_FRAGMENT_UNLIT = R"glsl(
+#version 460 core
+
+layout(location = 0) in vec2 texuv;
+layout(location = 1) in vec3 normal; // unused
+layout(location = 2) in vec4 color;
+layout(location = 3) in vec3 fragpos; // unused
+
+layout(location = 0) uniform sampler2D albedo;
+layout(location = 0) out vec4 fragcolor;
+
+void main() {
+	vec4 base = texture(albedo, texuv) * color;
+	fragcolor = base;
+}
 )glsl";
 
 

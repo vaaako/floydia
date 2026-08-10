@@ -26,7 +26,11 @@ class Renderer final {
 
 	public:
 		Renderer() noexcept;
-		~Renderer() = default;
+	#if defined(FLOYD_DEBUG_RENDERER)
+		~Renderer() noexcept;
+	#else
+		~Renderer() noexcept = default;
+	#endif
 
 		// Sends 'u_screen_size' uniform to 'PROG_VERT_TEXT'
 		void update_viewport(const u32 width, const u32 height) noexcept;
@@ -62,7 +66,8 @@ class Renderer final {
 		// Update and draw objects
 		// Call once, after `begin_draw` and before `end_frame`
 		void flush() noexcept;
-
+		// Debug-draws an AABB as a wireframe box. Outside the batch pipeline
+		void draw_aabb(const AABB& aabb, const vec4<float>& color) noexcept;
 		// Forces a static objects rebuild
 		inline void mark_dirty() noexcept { this->static_dirty = true; }
 
@@ -198,6 +203,11 @@ class Renderer final {
 		ShaderStorageBuffer ssbo_glyphs;
 		ProgramPipeline ppipeline;
 		Frustum frustum;
+
+	#if defined(FLOYD_DEBUG_RENDERER)
+		ShaderProgram* aabb_vertex;
+		ShaderProgram* aabb_fragment;
+	#endif
 
 	private:
 		// Cached camera's position

@@ -24,7 +24,28 @@ Renderer::Renderer() noexcept :
 	glEnable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+#if defined(FLOYD_DEBUG_RENDERER)
+	this->aabb_vertex = new ShaderProgram();
+	this->aabb_vertex->set_separable(true);
+	Shader vs = Shader(Shaders::DEFAULT_AABB_VERTEX, Shader::Vertex);
+	this->aabb_vertex->attach(vs);
+	this->aabb_vertex->link();
+
+	this->aabb_fragment = new ShaderProgram();
+	this->aabb_fragment->set_separable(true);
+	Shader fs = Shader(Shaders::DEFAULT_AABB_FRAGMENT, Shader::Fragment);
+	this->aabb_fragment->attach(fs);
+	this->aabb_fragment->link();
+#endif
 }
+
+#if defined(FLOYD_DEBUG_RENDERER)
+Renderer::~Renderer() noexcept {
+	delete this->aabb_vertex;
+	delete this->aabb_fragment;
+}
+#endif
 
 void Renderer::update_viewport(const u32 width, const u32 height) noexcept {
 	assets().progs.PROG_VERT_TEXT->set_uniform_vec2f("u_screen_size", { (float)width, (float)height });
@@ -189,7 +210,7 @@ void Renderer::patch_dirty() noexcept {
 			SlotLocation& loc = slots[i++];
 			// Write directly into the flattened buffer
 			this->static_instances[loc.batch->instance_index + loc.index] = Renderable::InstanceData {
-				m, color, sub.material.metallic, sub.material.roughness, {}
+				m, color, sub.material.metallic, sub.material.roughness, obj->billboard_type(), 0.0f
 			};
 			
 			// Just recompute AABB here, no frustum test
@@ -335,8 +356,8 @@ void Renderer::render_batches(const BatchTable& table) noexcept {
 		return a->mesh < b->mesh;
 	});
 
-	ShaderProgram* prev_vertex = nullptr;
-	ShaderProgram* prev_fragment = nullptr;
+	u32 prev_vertex = 999;
+	u32 prev_fragment = 999;
 	const Material* prev_material = nullptr;
 	Mesh* prev_mesh = nullptr;
 
@@ -347,14 +368,14 @@ void Renderer::render_batches(const BatchTable& table) noexcept {
 		}
 
 		if(batch->material != prev_material) {
-			if(batch->material->vertex.get() != prev_vertex) {
-				this->ppipeline.attach(batch->material->vertex, Shader::Vertex);
-				prev_vertex = batch->material->vertex.get();
+			if(batch->material->vertex->id() != prev_vertex) {
+				this->ppipeline.attach(batch->material->vertex->id(), Shader::Vertex);
+				prev_vertex = batch->material->vertex->id();
 			}
 
-			if(batch->material->fragment.get() != prev_fragment) {
-				this->ppipeline.attach(batch->material->fragment, Shader::Fragment);
-				prev_fragment = batch->material->fragment.get();
+			if(batch->material->fragment->id() != prev_fragment) {
+				this->ppipeline.attach(batch->material->fragment->id(), Shader::Fragment);
+				prev_fragment = batch->material->fragment->id();
 			}
 
 			batch->material->bind();
@@ -375,8 +396,8 @@ void Renderer::render_batches(const BatchTable& table) noexcept {
 void Renderer::render_text() noexcept {
 	if(this->text_batches.empty()) return;
 
-	this->ppipeline.attach(assets().progs.PROG_VERT_TEXT, Shader::Vertex);
-	this->ppipeline.attach(assets().progs.PROG_FRAG_2D, Shader::Fragment);
+	this->ppipeline.attach(assets().progs.PROG_VERT_TEXT->id(), Shader::Vertex);
+	this->ppipeline.attach(assets().progs.PROG_FRAG_2D->id(), Shader::Fragment);
 
 	glBindVertexArray(this->emptyvao);
 	glDepthMask(GL_FALSE); // Text draws over everything, doesn't need depth write
@@ -644,6 +665,24 @@ void Renderer::flush() noexcept {
 	if(this->static_included) this->render_batches(this->static_batches);
 	this->render_batches(this->dynamic_batches);
 	this->render_text();
+}
+
+void Renderer::draw_aabb(const AABB& aabb, const vec4<float>& color) noexcept {
+#if !defined(FLOYD_DEBUG_RENDERER)
+	(void)(aabb); (void)(color);
+#else
+	this->ppipeline.attach(this->aabb_vertex->id(), Shader::Vertex);
+	this->ppipeline.attach(this->aabb_fragment->id(), Shader::Fragment);
+
+	this->aabb_vertex->set_uniform_mat4f("u_viewproj", this->cached_proj * this->cached_view);
+	this->aabb_vertex->set_uniform_vec3f("u_min", aabb.min);
+	this->aabb_vertex->set_uniform_vec3f("u_max", aabb.max);
+	this->aabb_fragment->set_uniform_vec3f("u_color", { color.x, color.y, color.z });
+
+	glBindVertexArray(this->emptyvao);
+	glDrawArrays(GL_LINES, 0, 24);
+	glBindVertexArray(0);
+#endif
 }
 
 } // namespace floyd

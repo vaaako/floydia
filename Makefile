@@ -33,7 +33,8 @@ CXXFLAGS += -O0 \
 	-Wall -Wextra -Wuninitialized -Wunreachable-code \
 	-fsanitize=thread \
 	-DFLOYD_DEBUG_MAPPED_BUFFER \
-	-DFLOYD_DEBUG_TEXT
+	-DFLOYD_DEBUG_TEXT \
+	-DFLOYD_DEBUG_RENDERER
 CFLAGS += -DRGFW_DEBUG
 
 LDFLAGS += -fsanitize=thread
