@@ -27,12 +27,13 @@ namespace Shaders {
 constexpr const char* DEFAULT_VERTEX = R"glsl(
 #version 460 core
 
-layout(location = 0) in vec3 aPos;
-layout(location = 1) in vec3 aNor;
-layout(location = 2) in vec2 aTex;
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNor;
+layout (location = 2) in vec2 aTex;
 
-layout(location = 0) out vec2 texuv;
-layout(location = 1) out vec4 lit_color; // color * lightining, computed per-vertex
+layout (location = 0) out vec2 texuv;
+layout (location = 1) out vec4 lit_color; // color * lightining, computed per-vertex
+layout (location = 2) out float fog_factor;
 
 // Which built-ins this stage uses
 // Required for Program Pipeline
@@ -74,8 +75,14 @@ layout(std430, binding = 2) buffer LightBuffer {
 	LightData lights[];
 };
 
+const float DEFAULT_FOG_START = 20.0;
+const float DEFAULT_FOG_END = 100.0;
+
 layout (location = 1) uniform float u_ambient;
 layout (location = 2) uniform float u_ambient_factor; // 0.0 = disabled (metals use flat ambient)
+layout (location = 3) uniform float u_fog_start;
+layout (location = 4) uniform float u_fog_end;
+layout (location = 5) uniform float u_fog_disabled; // 1.0 = disable fog
 
 vec3 calc_light(vec3 n, vec3 light_color, float intensity, vec3 light_dir,
 	vec3 view_dir, vec3 base_color, float metallic, float roughness, float attenuation) {
@@ -164,6 +171,14 @@ void main() {
 		}
 	}
 
+	float fog_start = (u_fog_start == 0.0) ? DEFAULT_FOG_START : u_fog_start;
+	float fog_end   = (u_fog_end == 0.0) ? DEFAULT_FOG_END   : u_fog_end;
+
+	float dist = length(campos.xyz - worldpos.xyz);
+	fog_factor = (u_fog_disabled < 0.5)
+		? clamp((dist - fog_start) / (fog_end - fog_start), 0.0, 1.0)
+		: 0.0;
+
 	texuv = aTex;
 	lit_color = vec4(data.color.rgb * lighting, data.color.a);
 	gl_Position = proj * view * worldpos;
@@ -175,14 +190,19 @@ void main() {
 constexpr const char* DEFAULT_FRAGMENT = R"glsl(
 #version 460 core
 
-layout(location = 0) in vec2 texuv;
-layout(location = 1) in vec4 lit_color;
+layout (location = 0) in vec2 texuv;
+layout (location = 1) in vec4 lit_color;
+layout (location = 2) in float fog_factor;
 
-layout(location = 0) uniform sampler2D albedo;
-layout(location = 0) out vec4 fragcolor;
+layout (location = 0) uniform sampler2D albedo;
+layout (location = 1) uniform vec3 u_fog_color;
+
+layout (location = 0) out vec4 fragcolor;
 
 void main() {
-	fragcolor = texture(albedo, texuv) * lit_color;
+	// fragcolor = texture(albedo, texuv) * lit_color;
+	vec4 base = texture(albedo, texuv) * lit_color;
+	fragcolor = vec4(mix(base.rgb, u_fog_color, fog_factor), base.a);
 }
 )glsl";
 
