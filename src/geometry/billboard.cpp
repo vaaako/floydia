@@ -8,10 +8,7 @@ Billboard::Billboard() noexcept : Renderable(Billboard::create_model()) {}
 
 std::shared_ptr<Model> Billboard::create_model() noexcept {
 	std::shared_ptr<Mesh> mesh = assets().load_quad3d_mesh();
-	Material mat = Material(
-		assets().load_program(Shaders::DEFAULT_BILLBOARD_VERTEX, nullptr),
-		assets().progs.PROG_FRAG_3D
-	);
+	Material mat = Material(assets().progs.PROG_VERT_3D_BILL, assets().progs.PROG_FRAG_3D);
 	std::shared_ptr<Model> model = std::make_shared<Model>();
 	model->add_submesh(mesh, mat); // use default material
 	return model;

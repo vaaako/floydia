@@ -19,11 +19,49 @@ Assets::Assets() noexcept {
 	this->textures[hash::of("d_white")]    = { std::make_shared<Texture>(white, 1, 1), "[DEFAULT_TEXTURE]" };
 	this->textures[hash::of("d_notfound")] = { std::make_shared<Texture>(notfound, 2, 2), "[DEFAULT_TEXTURE]" };
 
+	// Register snippets to be used on shaders
+	this->register_shader_include("lighting_structs", Shaders::Snippets::LIGHTING_STRUCTS);
+	this->register_shader_include("lighting_uniforms", Shaders::Snippets::LIGHTING_UNIFORMS);
+	this->register_shader_include("lighting_functions", Shaders::Snippets::LIGHTING_FUNCTIONS);
+
 	this->progs.PROG_VERT_3D   = this->load_program(Shaders::DEFAULT_VERTEX, nullptr);
 	this->progs.PROG_FRAG_3D   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT);
+	this->progs.PROG_VERT_3D_BILL = this->load_program(Shaders::DEFAULT_BILLBOARD_VERTEX, nullptr);
 	this->progs.PROG_VERT_2D   = this->load_program(Shaders::DEFAULT_VERTEX_2D, nullptr);
 	this->progs.PROG_FRAG_2D   = this->load_program(nullptr, Shaders::DEFAULT_FRAGMENT_2D);
 	this->progs.PROG_VERT_TEXT = this->load_program(Shaders::DEFAULT_VERTEX_TEXT, nullptr);
+
+	// NOTE: if more shaders uses this light system, make a table to store them and just make a for-loop on the methods below
+	// this->lit_vertex_programs = { this->progs.PROG_VERT_3D, this->progs.PROG_VERT_3D_BILL };
+}
+
+void Assets::set_ambient_light(const float value) noexcept {
+	this->progs.PROG_VERT_3D->set_uniform_float("u_ambient", value);
+	this->progs.PROG_VERT_3D_BILL->set_uniform_float("u_ambient", value);
+}
+
+void Assets::set_ambient_light_factor(const float value) noexcept {
+	this->progs.PROG_VERT_3D->set_uniform_float("u_ambient_factor", value);
+	this->progs.PROG_VERT_3D_BILL->set_uniform_float("u_ambient_factor", value);
+}
+
+void Assets::set_fog_color(const vec3<float>& color) noexcept {
+	this->progs.PROG_FRAG_3D->set_uniform_vec3f("u_fog_color", color);
+}
+
+void Assets::set_fog_state(const bool state) noexcept {
+	this->progs.PROG_VERT_3D->set_uniform_float("u_fog_disabled", static_cast<float>(!state));
+	this->progs.PROG_VERT_3D_BILL->set_uniform_float("u_fog_disabled", static_cast<float>(!state));
+}
+
+void Assets::set_fog_start(const float value) noexcept {
+	this->progs.PROG_VERT_3D->set_uniform_float("u_fog_start", value);
+	this->progs.PROG_VERT_3D_BILL->set_uniform_float("u_fog_start", value);
+}
+
+void Assets::set_fog_end(const float value) noexcept {
+	this->progs.PROG_VERT_3D->set_uniform_float("u_fog_end", value);
+	this->progs.PROG_VERT_3D_BILL->set_uniform_float("u_fog_end", value);
 }
 
 std::shared_ptr<Texture> Assets::load_texture(const char* path) noexcept {
@@ -112,7 +150,6 @@ std::shared_ptr<Font> Assets::load_font(const char* path, const u32 size) {
 }
 
 std::shared_ptr<ShaderProgram> Assets::load_program(const char* vertex, const char* fragment) {
-	// TODO: format shader if custom goes here
 	if(vertex == nullptr && fragment == nullptr) throw std::invalid_argument("Vertex and Fragment Shader source are null");
 
 	// Hash the source content — pointer alone is not stable
@@ -127,12 +164,13 @@ std::shared_ptr<ShaderProgram> Assets::load_program(const char* vertex, const ch
 		program->set_separable(separable);
 
 		if(vertex) {
-			Shader vs = Shader(vertex, Shader::Vertex);
+			const std::string resolved = this->resolve_shader_includes(vertex);
+			Shader vs = Shader(resolved.c_str(), Shader::Vertex);
 			program->attach(vs);
 		}
-
 		if(fragment) {
-			Shader fs = Shader(fragment, Shader::Fragment);
+			const std::string resolved = this->resolve_shader_includes(fragment);
+			Shader fs = Shader(resolved.c_str(), Shader::Fragment);
 			program->attach(fs);
 		}
 
@@ -396,6 +434,37 @@ std::shared_ptr<Mesh> Assets::load_cube_mesh() noexcept {
 		return std::make_shared<Mesh>(vertices, indices, layout);
 	}();
 	return mesh;
+}
+
+
+void Assets::register_shader_include(const char* name, const char* source) noexcept {
+	this->shader_snippet[name] = source;
+}
+
+std::string Assets::resolve_shader_includes(const std::string& source) noexcept {
+    std::string result = source;
+    size_t pos = 0;
+
+    while((pos = result.find("#include \"", pos)) != std::string::npos) {
+        const size_t incl_start = pos + 10;
+        const size_t incl_end = result.find('"', incl_start);
+        if(incl_end == std::string::npos) break;
+
+        const std::string name = result.substr(incl_start, incl_end - incl_start);
+        size_t directive_end = incl_end + 1;
+
+        auto it = this->shader_snippet.find(name);
+        if(it == this->shader_snippet.end()) {
+            TRACELOG(logger::Error, "Shader snippet \"%s\" not found", name.c_str());
+            pos = directive_end;
+            continue;
+        }
+
+        result.replace(pos, directive_end - pos, it->second);
+        pos += it->second.size();
+    }
+
+    return result;
 }
 
 } // namespace floyd

@@ -24,11 +24,33 @@ class Assets final {
 			std::shared_ptr<ShaderProgram> PROG_FRAG_2D;
 			// Shader Program of Shaders::DEFAULT_VERTEX_TEXT
 			std::shared_ptr<ShaderProgram> PROG_VERT_TEXT;
+			// Shader Program of Shaders::DEFAULT_BILLBOARD_VERTEX
+			std::shared_ptr<ShaderProgram> PROG_VERT_3D_BILL;
 		} progs;
 
 	public:
 		Assets() noexcept;
 		~Assets() noexcept = default;
+
+		// Set ambient light value (normalized). Applied to default shaders that uses ambient light
+		void set_ambient_light(const float value) noexcept;
+		// Set ambient light factor value (normalized). A good value being '0.05'. Applied to default shaders that uses ambient light
+		// - <= 0.0: metals get the same flat ambient as non-metals
+		//    Useful for scenes without a rich ambient/reflection source to make metal look right
+		// - > 0.0: metals are darkened toward non-metals stay at full 'ambient light'.
+		//    Closer to physically-based behaviour
+		//    (metals have no diffuse response, and only reflect their surroundings)
+		//    at the cost of metal objects going nearly black in areas with no direct light
+		void set_ambient_light_factor(const float value) noexcept;
+
+		// Enables or disabled the fog (Default: true). Applied to default shaders that uses fog
+		void set_fog_state(const bool state) noexcept;
+		// Change fog color (normalized). Applied to default shaders that uses fog
+		void set_fog_color(const vec3<float>& color) noexcept;
+		// Change the distance where the fog starts (Default: 20.0f). Applied to default shaders that uses fog
+		void set_fog_start(const float value) noexcept;
+		// Change the distance where the fog ends (Default: 100.0f). Applied to default shaders that uses fog
+		void set_fog_end(const float value) noexcept;
 
 		// Builds a new Texture or returns an existing one
 		std::shared_ptr<Texture> load_texture(const char* path) noexcept;
@@ -69,7 +91,16 @@ class Assets final {
 		std::unordered_map<size_t, std::shared_ptr<Font>> texts;
 		std::unordered_map<size_t, std::shared_ptr<ShaderProgram>> programs;
 		std::unordered_map<size_t, std::shared_ptr<Model>> models;
-	
+
+		std::unordered_map<std::string, std::string> shader_snippet;	
+
+	private:
+		// Register a GLSL snippet that can be pulled into other shaders
+		void register_shader_include(const char* name, const char* source) noexcept;
+
+		// Resolves '#include "name"' by replacing each occurrence with the registered snippet's content. Not recursive
+		std::string resolve_shader_includes(const std::string& source) noexcept;
+
 	private:
 		template <typename T, typename Factory>
 		std::shared_ptr<T> find_or_create(std::unordered_map<size_t, std::shared_ptr<T>>& cache,

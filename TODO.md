@@ -137,8 +137,7 @@ I wrote most of the things here very tired, sorry for any english mistake
 - [ ] Be able to pass `UV` when drawing a 2D object, so it renders a cell from spritesheet using the GPU instead of storing a full texture
 	+ 2D shader need a new `UV` uniform
 	+ Need to change a bit the renderer design to handle this case
-
-- [ ] Error when sprite is not drawn
+- [ ] `lerp`: `float lerp(const float start, const float end, const float t) { return start * (1.0f - t) + end * t; }`
 
 - [ ] Scene serialization
 	+ Script builder

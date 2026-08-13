@@ -21,34 +21,13 @@ SSBO
 
 
 namespace floyd {
+
 namespace Shaders {
 
-// https://www.mbsoftworks.sk/tutorials/opengl3/17-spotlight/
-constexpr const char* DEFAULT_VERTEX = R"glsl(
-#version 460 core
+// Snippets used inside of some shaders
+namespace Snippets {
 
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNor;
-layout (location = 2) in vec2 aTex;
-
-layout (location = 0) out vec2 texuv;
-layout (location = 1) out vec4 lit_color; // color * lightining, computed per-vertex
-layout (location = 2) out float fog_factor;
-
-// Which built-ins this stage uses
-// Required for Program Pipeline
-out gl_PerVertex {
-	vec4 gl_Position;
-};
-
-struct InstanceData {
-	mat4 model;
-	vec4 color;
-	float metallic;
-	float roughness;
-	vec2 _pad;
-};
-
+constexpr const char* LIGHTING_STRUCTS = R"glsl(
 struct LightData {
 	vec4 position;
 	vec4 direction;
@@ -59,16 +38,6 @@ struct LightData {
 	uint type;
 };
 
-layout(std140, binding = 0) uniform CameraBlock {
-	mat4 view;
-	mat4 proj;
-	vec4 campos;
-};
-
-layout(std430, binding = 1) buffer InstanceBuffer {
-	InstanceData instances[];
-};
-
 layout(std430, binding = 2) buffer LightBuffer {
 	uint lights_count;
 	uint _pad[3];
@@ -77,13 +46,17 @@ layout(std430, binding = 2) buffer LightBuffer {
 
 const float DEFAULT_FOG_START = 20.0;
 const float DEFAULT_FOG_END = 100.0;
+)glsl";
 
+constexpr const char* LIGHTING_UNIFORMS = R"glsl(
 layout (location = 1) uniform float u_ambient;
 layout (location = 2) uniform float u_ambient_factor; // 0.0 = disabled (metals use flat ambient)
 layout (location = 3) uniform float u_fog_start;
 layout (location = 4) uniform float u_fog_end;
 layout (location = 5) uniform float u_fog_disabled; // 1.0 = disable fog
+)glsl";
 
+constexpr const char* LIGHTING_FUNCTIONS = R"glsl(
 vec3 calc_light(vec3 n, vec3 light_color, float intensity, vec3 light_dir,
 	vec3 view_dir, vec3 base_color, float metallic, float roughness, float attenuation) {
 	// Blinn-Phong halfway vector
@@ -131,7 +104,50 @@ vec3 calc_spot(LightData light, vec3 n, vec3 view_dir, vec3 fragpos, vec3 base_c
 	// Reuse point light calculation, scaled by cone factor
 	return calc_point(light, n, view_dir, fragpos, base_color, metallic, roughness) * factor;
 }
+)glsl";
 
+} // namespace Snippets
+
+// https://www.mbsoftworks.sk/tutorials/opengl3/17-spotlight/
+constexpr const char* DEFAULT_VERTEX = R"glsl(
+#version 460 core
+
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNor;
+layout (location = 2) in vec2 aTex;
+
+layout (location = 0) out vec2 texuv;
+layout (location = 1) out vec4 lit_color; // color * lightining, computed per-vertex
+layout (location = 2) out float fog_factor;
+
+// Which built-ins this stage uses
+// Required for Program Pipeline
+out gl_PerVertex {
+	vec4 gl_Position;
+};
+
+struct InstanceData {
+	mat4 model;
+	vec4 color;
+	float metallic;
+	float roughness;
+	vec2 _pad;
+};
+
+
+layout(std140, binding = 0) uniform CameraBlock {
+	mat4 view;
+	mat4 proj;
+	vec4 campos;
+};
+
+layout(std430, binding = 1) buffer InstanceBuffer {
+	InstanceData instances[];
+};
+
+#include "lighting_structs"
+#include "lighting_uniforms"
+#include "lighting_functions"
 
 void main() {
 	// gl_BaseInstance: Offset. Start of data
@@ -144,8 +160,8 @@ void main() {
 	// Ambient lighting reaching this surface
 	// - 'u_ambient_factor' <= 0.0: metals get the same flat ambient as non-metals
 	//    Useful for scenes without a rich ambient/reflection source to make metal look right
-	// - 'u_ambient_factor' > 0.0: metals are darkened toward,
-	//    non-metals stay at full 'u_ambient'. Closer to physically-based behaviour
+	// - 'u_ambient_factor' > 0.0: metals are darkened toward, non-metals stay at full 'u_ambient'.
+	//    Closer to physically-based behaviour
 	//    (metals have no diffuse response, and only reflect their surroundings)
 	//    at the cost of metal objects going nearly black in areas with no direct light
 	vec3 ambient = vec3(u_ambient);
@@ -215,12 +231,9 @@ layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec3 aNor;
 layout(location = 2) in vec2 aTex;
 
-layout(location = 0) out vec2 texuv;
-layout(location = 1) out vec3 normal;
-layout(location = 2) out vec4 color;
-layout(location = 3) out vec3 fragpos;
-layout(location = 4) flat out float v_metallic;
-layout(location = 5) flat out float v_roughness;
+layout (location = 0) out vec2 texuv;
+layout (location = 1) out vec4 lit_color; // color * lightining, computed per-vertex
+layout (location = 2) out float fog_factor;
 
 out gl_PerVertex {
 	vec4 gl_Position;
@@ -244,6 +257,10 @@ layout(std140, binding = 0) uniform CameraBlock {
 layout(std430, binding = 1) buffer InstanceBuffer {
 	InstanceData instances[];
 };
+
+#include "lighting_structs"
+#include "lighting_uniforms"
+#include "lighting_functions"
 
 void main() {
 	InstanceData data = instances[gl_InstanceID + gl_BaseInstance];
@@ -287,13 +304,48 @@ void main() {
 	);
 
 	vec4 worldpos = billboard * vec4(aPos, 1.0);
-	texuv   = aTex;
-	normal  = mat3(billboard) * aNor;
-	color   = data.color;
-	fragpos = worldpos.xyz;
-	v_metallic = data.metallic;
-	v_roughness = data.roughness;
 
+	// ---
+
+	vec3 n = normalize(mat3(data.model) * aNor);
+	vec3 view_dir = normalize(campos.xyz - worldpos.xyz);
+
+	vec3 ambient = vec3(u_ambient);
+	if(u_ambient_factor > 0.0) ambient = mix(vec3(u_ambient), vec3(u_ambient * u_ambient_factor), data.metallic);
+	vec3 lighting = ambient;
+
+	for(uint i = 0; i < lights_count; ++i) {
+		LightData light = lights[i];
+		switch(light.type) {
+			// Directional
+			case 0u: {
+				vec3 light_dir = normalize(-light.direction.xyz);
+				float attenuation = 1.0; // Directional has no attenuation
+				lighting += calc_light(n, light.color.rgb, light.color.a, light_dir, view_dir,
+					data.color.rgb, data.metallic, data.roughness, attenuation);
+				break;
+			}
+			case 1u: lighting += calc_point(light, n, view_dir, worldpos.xyz,
+										data.color.rgb, data.metallic, data.roughness); break;
+			case 2u: lighting += calc_spot(light, n, view_dir, worldpos.xyz,
+										data.color.rgb, data.metallic, data.roughness); break;
+			default: break;
+		}
+	}
+
+	float fog_start = (u_fog_start == 0.0) ? DEFAULT_FOG_START : u_fog_start;
+	float fog_end   = (u_fog_end == 0.0) ? DEFAULT_FOG_END   : u_fog_end;
+
+	float dist = length(campos.xyz - worldpos.xyz);
+	fog_factor = (u_fog_disabled < 0.5)
+		? clamp((dist - fog_start) / (fog_end - fog_start), 0.0, 1.0)
+		: 0.0;
+
+	// ---
+
+	texuv   = aTex;
+	// normal  = mat3(billboard) * aNor;
+	lit_color = vec4(data.color.rgb * lighting, data.color.a);
 	gl_Position = proj * view * worldpos;
 }
 )glsl";
