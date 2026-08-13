@@ -2,8 +2,8 @@
 
 #include <memory>
 #include <vector>
-#include <floydia/rendering/mesh.hpp>
-#include <floydia/material/materialinstance.hpp>
+#include "floydia/material/material.hpp"
+#include "floydia/rendering/mesh.hpp"
 
 namespace floyd {
 
@@ -14,11 +14,14 @@ class Model final {
 		
 		struct SubMesh {
 			std::shared_ptr<Mesh> mesh;
-			std::shared_ptr<MaterialInstance> material;
+			Material material;
+			// NOTE: Not pointer anymore
+			// - less heap allocation and access
+			// - solves the problem of shared Material
 		};
 
 	public:
-		void add_submesh(const std::shared_ptr<Mesh>& mesh, const std::shared_ptr<MaterialInstance>& matinst);
+		void add_submesh(const std::shared_ptr<Mesh>& mesh, const Material& matinst);
 		// Returns all meshes on Model
 		inline const std::vector<SubMesh>& meshes() const noexcept { return this->_submeshes; }
 		// Returns all meshes on Model

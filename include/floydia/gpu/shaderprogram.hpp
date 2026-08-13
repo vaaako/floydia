@@ -17,6 +17,8 @@ class ShaderProgram {
 	public:
 		ShaderProgram();
 		~ShaderProgram() noexcept;
+		ShaderProgram(const ShaderProgram&) = delete;
+		ShaderProgram& operator=(const ShaderProgram&) = delete;
 
 		// This does not check if program was linked
 		inline void bind() const noexcept { glUseProgram(this->program); }
@@ -71,7 +73,6 @@ class ShaderProgram {
 		std::unordered_map<std::string, GLint> uniforms_cache;
 		GLuint program;
 		// TODO: currently supporting only these shaders.
-		// Add geometry and compute later
 		GLuint v_shader = 0;
 		GLuint f_shader = 0;
 		bool linked = false;

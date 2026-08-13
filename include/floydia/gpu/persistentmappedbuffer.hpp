@@ -54,31 +54,19 @@ class PersistentMappedBuffer {
 			std::memcpy(static_cast<char*>(this->mapped) + offset, data, size);
 		}
 
-		// Resize buffer with new size if necessary.
-		// Does not flush
-		void resize(const size_t new_perframesize) noexcept;
+		// Grows buffer to exact size. Does not flush
+		void resize(const size_t needed) noexcept;
 
-		// Makes written data visible to GPU and binds the relevant buffer range.
-		// - SSBO: Range binding + Requires memory barrier.
-		// - UBO: Requires only range binding
-		virtual inline void flush(const size_t offset, const size_t size) const noexcept = 0;
+		// Grows doubling instead of to the exact size
+		void ensure_capacity(const size_t needed) noexcept;
 
 		// Block the CPU until the GPU has finished reading this frame's buffer slot.
 		// Must be called before writing to the slot to avoid overwriting data still in use
-		void wait(const u32 frameindex) noexcept {
-			GLsync& fence = this->fences[frameindex];
-			if(!fence) return;
-			glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
-			glDeleteSync(fence);
-			fence = nullptr;
-		}
+		void wait(const u32 frameindex) noexcept;
 
 		// Insert a fence after draw calls are issued for this frame.
 		// Signals to future wait() calls when it is safe to reuse this buffer slot
-		void lock(const u32 frameindex) noexcept {
-			if(this->fences[frameindex]) glDeleteSync(this->fences[frameindex]);
-			this->fences[frameindex] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-		}
+		void lock(const u32 frameindex) noexcept;
 
 		// Returns byte offset for the given frame's region.
 		// Ensures each frame writes to a separate memory slice (avoids CPU/GPU overlap)
@@ -91,6 +79,11 @@ class PersistentMappedBuffer {
 			}
 			return frameindex * this->_perframesize;
 		}
+
+		// Makes written data visible to GPU and binds the relevant buffer range.
+		// - SSBO: Range binding + Requires memory barrier.
+		// - UBO: Requires only range binding
+		virtual inline void flush(const size_t offset, const size_t size) const noexcept = 0;
 
 	protected:
 		GLsync fences[FRAMES_IN_FLIGHT] = {};

@@ -8,6 +8,7 @@ namespace floyd {
 // - Save only constant objects?
 // - Dont save camera?
 
+/*
 SceneBuilder SceneBuilder::load(const char* path, Renderer& renderer) noexcept {
 	SceneBuilder scene;
 	toml::parse_result root = toml::parse_file(path);
@@ -119,5 +120,5 @@ void SceneBuilder::save(const char* path, Renderer& renderer) noexcept {
 	std::ofstream file = std::ofstream(path);
 	file << root;
 }
-
+*/
 } // namespace floyd

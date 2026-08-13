@@ -26,7 +26,7 @@ Ray Ray::screen_to_ray(const PerspectiveCamera& camera, const vec2<u32>& mouse_p
 	};
 	// OpenGL have origin centered, Y grows up. If not inverted, ray will point to opposite side
 
-	const glm::mat4 inv_proj = glm::inverse(camera.projection());
+	const glm::mat4 inv_proj = glm::inverse(camera.proj());
 	const glm::mat4 inv_view = glm::inverse(camera.view());
 	
 	// Clip space to view space

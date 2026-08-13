@@ -8,8 +8,20 @@ void Transform::set_position(const vec3<float>& position) noexcept {
 	if(this->on_dirty) this->on_dirty();
 }
 
+void Transform::set_position(const vec2<float>& position) noexcept {
+	this->_position = { position.x, position.y, 0.0f };
+	this->dirty = true;
+	if(this->on_dirty) this->on_dirty();
+}
+
 void Transform::set_scale(const vec3<float>& scale) noexcept {
 	this->_scale = scale;
+	this->dirty = true;
+	if(this->on_dirty) this->on_dirty();
+}
+
+void Transform::set_scale(const vec2<float>& scale) noexcept {
+	this->_scale = { scale.x, scale.y, 0.0f };
 	this->dirty = true;
 	if(this->on_dirty) this->on_dirty();
 }

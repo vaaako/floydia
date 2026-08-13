@@ -6,7 +6,6 @@ namespace floyd {
 
 // Wrapper for stb_image
 struct Image {
-	const char* path;
 	u8* data = nullptr;
 	int width; // 'int' because turns into pointer
 	int height;
@@ -27,7 +26,10 @@ struct Image {
 	Image& operator=(Image&&) noexcept = default;
 
 	// Image size in bytes
-	inline constexpr size_t bytes() const noexcept { return this->width * this->height * this->channels; }
+	inline constexpr size_t bytes() const noexcept {
+		return static_cast<size_t>(this->width) * static_cast<size_t>(this->height) * static_cast<size_t>(this->channels);
+	}
+
 	// Write image to file
 	void write_to_file(const char* filename) const noexcept;
 

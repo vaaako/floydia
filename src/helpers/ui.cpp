@@ -1,8 +1,14 @@
 #include "floydia/helpers/ui.hpp"
+
+#if defined(FLOYD_EDITOR_PANEL)
+#include "floydia/core/core.hpp"
 #include "floydia/rgfwimpl.hpp"
 #include <algorithm>
+#endif
 
 namespace floyd {
+
+#if defined(FLOYD_EDITOR_PANEL)
 
 bool ui::slider_scroll_float(const char* label, float* value, float min, float max, const char* format) noexcept {
 	bool changed = ImGui::SliderFloat(label, value, min, max, format);
@@ -114,6 +120,95 @@ bool ui::color_edit_scroll4(const char* label, float color[4]) noexcept {
 	}
 
 	return changed;
+}
+
+void ui::draw_editor_panel(Renderable* obj) noexcept {
+	ImGui::Begin("Properties");
+	if(obj == nullptr) {
+		ImGui::TextDisabled("No object selected");
+		ImGui::End();
+		return;
+	}
+
+	ImGui::Text("UUID: %lu", obj->uuid());
+	if(!obj->name.empty()) ImGui::Text("Name: %s", obj->name.c_str());
+	ImGui::Separator();
+
+	// Material
+	if(ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const vec4<float> color = obj->color_norm();
+		float c[4] = { color.x, color.y, color.z, color.w };
+		if(ui::color_edit_scroll4("Color", c)) {
+			obj->set_color_norm({ c[0], c[1], c[2], c[3] });
+		}
+
+		Material& mat = obj->material(); // per-instance data, safe to mutate directly
+		float metallic = mat.metallic;
+		float roughness = mat.roughness;
+		if(ui::drag_scroll_float("Metallic", &metallic, 0.1f, 0.0f, 1.0f))   mat.metallic = metallic;
+		if(ui::drag_scroll_float("Roughness", &roughness, 0.1f, 0.0f, 1.0f)) mat.roughness = roughness;
+	}
+
+	ImGui::Separator();
+
+	// Transform
+	if(ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+		const vec3<float> pos = obj->transform.position();
+		float p[3] = { pos.x, pos.y, pos.z };
+		if(ui::drag_scroll_float3("Position", p, 0.1f,
+				std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max())) {
+			obj->transform.set_position({ p[0], p[1], p[2] });
+		}
+
+		const vec3<float> euler = obj->transform.euler_degrees();
+		float r[3] = { euler.x, euler.y, euler.z };
+		if(ui::drag_scroll_float3("Rotation", r, 0.25f, -360.0f, 360.0f)) {
+			obj->transform.set_rotation({ r[0], r[1], r[2] });
+		}
+	}
+
+	ImGui::Separator();
+
+	// Textures
+	if(ImGui::CollapsingHeader("Textures")) {
+		static std::shared_ptr<Texture> selected = nullptr;
+		if(selected == nullptr) selected = obj->material().albedo;
+
+		ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 8.0f);
+		ImGui::BeginChild("##tex_scroll", ImVec2(0, 64 + 16), false, ImGuiWindowFlags_HorizontalScrollbar);
+		for(auto& [_, texentry] : assets().textures) {
+			std::shared_ptr<Texture> tex = texentry.texture;
+
+			ImGui::Image((ImTextureID)(intptr_t)tex->id(), ImVec2(64, 64), ImVec2(0, 1), ImVec2(1, 0));
+			if(ImGui::IsItemHovered()) {
+				ImGui::BeginTooltip();
+				ImGui::Text("%s", texentry.path.c_str());
+				ImGui::EndTooltip();
+			}
+			if(ImGui::IsItemClicked()) {
+				selected = tex;
+				obj->set_albedo(tex); // notifies the Renderer if persistent
+			}
+			ImGui::SameLine();
+		}
+		ImGui::EndChild();
+		ImGui::PopStyleVar();
+
+		ImGui::Separator();
+		ImGui::Text("Filter:");
+		if(ImGui::Button("Nearest")) selected->set_filter(Texture::Filter::Nearest);
+		ImGui::SameLine();
+		if(ImGui::Button("Linear")) selected->set_filter(Texture::Filter::Linear);
+		ImGui::Separator();
+		ImGui::Text("Wrap:");
+		if(ImGui::Button("Repeat")) selected->set_filter(Texture::Filter::Repeat);
+		ImGui::SameLine();
+		if(ImGui::Button("Clamp")) selected->set_filter(Texture::Filter::Clamp);
+		ImGui::SameLine();
+		if(ImGui::Button("Mirrored")) selected->set_filter(Texture::Filter::Mirrored);
+	}
+
+	ImGui::End();
 }
 
 // https://github.com/Hedgehogsoft/imgui_impl_rgfw.h/blob/main/imgui_impl_rgfw.h
@@ -242,5 +337,33 @@ ImGuiKey ui::KeyToImGuiKey(const int key) noexcept {
 		default:                return ImGuiKey_None;
 	}
 }
+
+#else
+
+bool slider_scroll_float(const char* label, float* value, float min, float max, const char* format = "%.3f") noexcept {
+	(void)label; (void)value; (void)min; (void)max; (void)format;
+	return false;
+}
+
+bool drag_scroll_float(const char* label, float* value, float speed, float min, float max, const char* format = "%.3f") noexcept {
+	(void)label; (void)value; (void)speed; (void)min; (void)max; (void)format;
+	return false;
+}
+
+bool drag_scroll_float3(const char* label, float v[3], float speed, float min, float max, const char* format = "%.3f") noexcept {
+	(void)label; (void)v; (void)speed; (void)min; (void)max; (void)format;
+	return false;
+}
+
+bool color_edit_scroll4(const char* label, float color[4]) noexcept {
+	(void)label; (void)color;
+	return false;
+}
+
+void draw_editor_panel(Renderable* obj) noexcept {
+	(void)obj;
+}
+
+#endif
 
 } // namespace floyd

@@ -1,12 +1,13 @@
 #pragma once
 
 #include <cstdint>
-#include <floydia/helpers/string.hpp>
+#include "floydia/helpers/string.hpp"
 
 #define TRACELOG(level, ...) floyd::logger::log(level, __VA_ARGS__)
 
 namespace floyd {
 namespace logger {
+
 enum level : uint8_t { Trace, Debug, Info, Warning, Error };
 
 // Converts 'logger' to 'const char*'

@@ -19,7 +19,7 @@ class PerspectiveCamera final : public Camera {
 		PerspectiveCamera(const float fov, const float width, const float height) noexcept;
 
 		// Calculate projection matrix
-		glm::mat4 projection() const noexcept override;
+		glm::mat4 proj() const noexcept override;
 		// Calculate view matrix
 		inline glm::mat4 view() const noexcept override {
 			return glm::lookAt(this->position, this->position + this->forward, this->up);

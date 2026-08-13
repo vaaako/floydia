@@ -28,12 +28,32 @@ PersistentMappedBuffer::~PersistentMappedBuffer() noexcept {
 	}
 }
 
-void PersistentMappedBuffer::resize(const size_t new_perframesize) noexcept {
+void PersistentMappedBuffer::resize(const size_t needed) noexcept {
 #if defined(FLOYD_DEBUG_MAPPED_BUFFER)
 	TRACELOG(logger::Info, "Resizing %s. %zu -> %zu",
-		this->enum_to_str(this->btype).c_str(), this->_perframesize, new_perframesize);
+		this->enum_to_str(this->btype).c_str(), this->_perframesize, needed);
 #endif
-	this->make_buffer(new_perframesize);
+	this->make_buffer(needed);
+}
+
+void PersistentMappedBuffer::ensure_capacity(const size_t needed) noexcept {
+	if(needed <= this->perframesize()) return;
+	size_t new_size = (this->perframesize() > 0) ? this->_perframesize : 1;
+	while(new_size < needed) new_size *= 2;
+	this->resize(new_size);
+}
+
+void PersistentMappedBuffer::wait(const u32 frameindex) noexcept {
+	GLsync& fence = this->fences[frameindex];
+	if(!fence) return;
+	glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, GL_TIMEOUT_IGNORED);
+	glDeleteSync(fence);
+	fence = nullptr;
+}
+
+void PersistentMappedBuffer::lock(const u32 frameindex) noexcept {
+	if(this->fences[frameindex]) glDeleteSync(this->fences[frameindex]);
+	this->fences[frameindex] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 }
 
 void PersistentMappedBuffer::make_buffer(const size_t perframesize) noexcept {
@@ -71,21 +91,8 @@ void PersistentMappedBuffer::make_buffer(const size_t perframesize) noexcept {
 
 	// If has a buffer. Replace
 	if(this->buffer != 0) {
-		// Preserve existing data. Each ring-buffer frame slot moved to a new
-		// offset, so copy slot by slot instead of a single flat copy
-		const size_t copy_per_frame = std::min(this->_perframesize, perframe);
-		for(u32 i = 0; i < FRAMES_IN_FLIGHT; ++i) {
-			glCopyNamedBufferSubData(
-				this->buffer, buffer,
-				i * this->_perframesize, // Old offset
-				i * perframe, // New offset
-				copy_per_frame
-			);
-		}
-
 		// Wait on ALL fences before deleting old buffer
 		this->delete_fences();
-		glUnmapNamedBuffer(this->buffer);
 		glDeleteBuffers(1, &this->buffer); // Delete old buffer
 		this->mapped = nullptr;
 	}

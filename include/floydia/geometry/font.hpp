@@ -7,11 +7,11 @@
 #include <memory>
 #include <unordered_map>
 
-// https://github.com/johnWRS/LearnOpenGLTextRenderingImprovement
+// Credits: https://github.com/johnWRS/LearnOpenGLTextRenderingImprovement
 
 namespace floyd {
 
-class Text : protected Sprite {
+class Font : protected Sprite {
 	public:
 		struct Glyph {
 			// Horizontal advance in pixels
@@ -37,8 +37,8 @@ class Text : protected Sprite {
 		};
 
 	public:
-		Text(const char* path, const u32 size);
-		~Text() noexcept;
+		Font(const char* path, const u32 size);
+		~Font() noexcept;
 
 		inline const Texture* atlas() { return this->atlas_texture.get(); }
 		inline float line_height() { return this->base_height; }

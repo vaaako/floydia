@@ -2,7 +2,6 @@
 
 #include <floydia/gpu/shader.hpp>
 #include <floydia/gpu/shaderprogram.hpp>
-#include <memory>
 
 namespace floyd {
 
@@ -18,7 +17,7 @@ class ProgramPipeline final {
 		inline u32 id() const noexcept { return this->pipeline; }
 
 		// Attach a program to Program Pipeline
-		void attach(const std::shared_ptr<ShaderProgram>& program, const Shader::Type type) const;
+		void attach(const u32 program_id, const Shader::Type type) const;
 		// Optional. Make sure attachments are ok
 		void validate() const;
 

@@ -1,30 +1,12 @@
-#include "floydia/physics/ray.hpp"
-#include "floydia/core/core.hpp"
-#include "floydia/gpu/shader.hpp"
 #include "floydia/core/renderer.hpp"
-
-#include "floydia/gpu/programpipeline.hpp"
-
-#include "floydia/helpers/opengl.hpp"
-#include <unordered_set>
+#include "floydia/core/core.hpp"
+#include "floydia/geometry/font.hpp"
+#include "floydia/rendering/light.hpp"
+#include <algorithm>
 
 #if defined(FLOYD_DEBUG_RENDERER)
 #include "floydia/helpers/logger.hpp"
 #endif
-
-// Design choices i am not satisfied with:
-// - Duplicated objects inside "DrawBatch" when is a persistent object
-// - "is_visible" on DrawBatch
-// - Cloning on flat vectors and maps (not duplicated objects, but different members for the same objects)
-
-/*
-- 5000 Cubes
-- 5000 Planes
-- No culling face
-- Around 30s test for each
-Shader Program: ~224-285 fps
-Program Pipeline: ~257-303 fps
-*/
 
 namespace floyd {
 
@@ -32,422 +14,538 @@ Renderer::Renderer() noexcept :
 	ubo_camera(0, sizeof(Camera::CameraData) * 2),
 	ssbo_objs(1, sizeof(Renderable::InstanceData) * 128),
 	ssbo_lights(2, sizeof(Light::LightData) * 10),
-	ssbo_glyphs(3, sizeof(Text::GlyphData) * 256),
+	ssbo_glyphs(3, sizeof(Font::GlyphData) * 128),
 	ppipeline(ProgramPipeline())
 	{
-
-	// Reserve right away
-	this->instances.reserve(128);
-	this->persistent_instances.reserve(128);
-	this->lights.reserve(10);
-	this->glyphs.reserve(256);
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	glEnable(GL_DEPTH_TEST);
-
-	glGenVertexArrays(1, &this->empty_vao);
+	
+	glGenVertexArrays(1, &this->emptyvao);
 	this->ppipeline.bind();
 
-#if !defined(FLOYD_NO_EDITOR_PANEL)
-	Shader vs = Shader(Shaders::DEFAULT_DEBUG_AABB_VERTEX, Shader::Vertex);
-	Shader fs = Shader(Shaders::DEFAULT_DEBUG_AABB_FRAGMENT, Shader::Fragment);
-	this->aabb_program.attach(vs);
-	this->aabb_program.attach(fs);
-	this->aabb_program.link();
+	glEnable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+#if defined(FLOYD_DEBUG_RENDERER)
+	this->aabb_vertex = new ShaderProgram();
+	this->aabb_vertex->set_separable(true);
+	Shader vs = Shader(Shaders::DEFAULT_AABB_VERTEX, Shader::Vertex);
+	this->aabb_vertex->attach(vs);
+	this->aabb_vertex->link();
+
+	this->aabb_fragment = new ShaderProgram();
+	this->aabb_fragment->set_separable(true);
+	Shader fs = Shader(Shaders::DEFAULT_AABB_FRAGMENT, Shader::Fragment);
+	this->aabb_fragment->attach(fs);
+	this->aabb_fragment->link();
 #endif
 }
 
-// TODO: optimize
-Renderable* Renderer::pick(const PerspectiveCamera& camera, const vec2<u32>& mouse_pos, const vec2<u32>& win_size) const noexcept {
-#if defined(FLOYD_NO_EDITOR_PANEL)
-	return nullptr;
-#else
-	Ray ray = Ray::screen_to_ray(camera, mouse_pos, win_size);
-	Renderable* obj = nullptr;
-	float obj_t = std::numeric_limits<float>::max();
-
-	auto test = [&](Renderable* r) {
-		if(r == nullptr || !r->visible || r->world_aabb().is_2d) return;
-		const float t = ray.test_aabb(r->world_aabb());
-		// 100.0f here is the max distance
-		if(t >= 0.0f && t < 100.0f && t < obj_t) {
-			obj_t = t;
-			obj = r;
-		}
-	};
-
-	for(Renderable* r : this->persistent_objs) {
-		test(r);
-	}
-
-	for(Renderable* r : this->dynamic_objs) {
-		test(r);
-	}
-
-	return obj;
-#endif
+#if defined(FLOYD_DEBUG_RENDERER)
+Renderer::~Renderer() noexcept {
+	delete this->aabb_vertex;
+	delete this->aabb_fragment;
 }
+#endif
 
 void Renderer::update_viewport(const u32 width, const u32 height) noexcept {
-	this->win_width = width;
-	this->win_height = height;
-	assets().defaults.PROG_VERT_TEXT->set_uniform_vec2f("u_screen_size", { this->win_width, this->win_height });
+	assets().progs.PROG_VERT_TEXT->set_uniform_vec2f("u_screen_size", { (float)width, (float)height });
 }
 
-void Renderer::set_clear_color(const vec4<u8>& color) noexcept {
-	this->clear_color[0] = color.x / 255.0f;
-	this->clear_color[1] = color.y / 255.0f;
-	this->clear_color[2] = color.z / 255.0f;
-	this->clear_color[3] = color.w / 255.0f;
+Renderer::Batch& Renderer::resolve_batch(const Model::SubMesh& sub, BatchTable& table) noexcept {
+	BatchKey key {
+		sub.mesh.get(),
+		sub.material.vertex->id(),
+		sub.material.fragment->id(),
+		sub.material.albedo ? sub.material.albedo->id() : 1
+	};
+
+	Batch& batch = table[key]; // Creates a new default Batch if new
+	if(!batch.mesh) {
+		// New batch
+		batch.mesh = sub.mesh.get();
+		batch.material = &sub.material;
+	}
+	return batch;
 }
 
-void Renderer::mark_dirty() noexcept {
-	this->persistent_dirty = true;
-	this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
+void Renderer::insert_static(Renderable& obj, BatchTable& table, std::unordered_map<const Renderable*, std::vector<SlotLocation>>& lookup) noexcept {
+	obj.world_aabb(); // Update so after 'model_matrix' the AABB is using the updated transform
+	const glm::mat4& m = obj.transform.model_matrix();
+	const vec4<float>& color = obj.color_norm();
+
+	std::vector<SlotLocation>& slots = lookup[&obj]; // new entry
+	for(const Model::SubMesh& sub : obj.model()->meshes()) {
+		Batch& batch = this->resolve_batch(sub, table);
+		u32 idx = batch.push_static({
+			m, color, sub.material.metallic, sub.material.roughness, obj.billboard_type(), 0.0f
+		}, &obj);
+		slots.push_back({ &batch, idx });
+	}
 }
 
-void Renderer::draw_aabb(const AABB& aabb, const vec4<float>& color) noexcept {
-#if defined(FLOYD_NO_EDITOR_PANEL)
-	return;
+void Renderer::insert_dynamic(const Renderable& obj, BatchTable& table) noexcept {
+	const glm::mat4& m = obj.transform.model_matrix();
+	const vec4<float>& color = obj.color_norm();
+
+	for(const Model::SubMesh& sub : obj.model()->meshes()) {
+		Batch& batch = this->resolve_batch(sub, table);
+		batch.push_dynamic({
+			m, color, sub.material.metallic, sub.material.roughness, obj.billboard_type(), 0.0f
+		});
+	}
+}
+
+void Renderer::flatten_persistent() noexcept {
+	this->static_batches.clear();
+	this->static_lookup.clear();
+
+#if defined(FLOYD_SINGLE_THREAD)
+	// Rebuild every batch
+	for(Renderable* obj : this->static_objs) {
+		this->insert_static(*obj, this->static_batches, this->static_lookup);
+	}
+
 #else
-	this->aabb_program.bind();
-	this->aabb_program.set_uniform_mat4f("u_viewproj", this->cached_proj * this->cached_view);
-	this->aabb_program.set_uniform_vec3f("u_min", aabb.min);
-	this->aabb_program.set_uniform_vec3f("u_max", aabb.max);
-	this->aabb_program.set_uniform_vec3f("u_color", { color.x, color.y, color.z });
+	if(this->static_objs.size() < Renderer::PARALLEL_THRESHOLD) {
+		for(Renderable* obj : this->static_objs) {
+			this->insert_static(*obj, this->static_batches, this->static_lookup);
+		}
 
-	glBindVertexArray(this->empty_vao);
-	glDrawArrays(GL_LINES, 0, 24);
+	} else {
 
-	glBindVertexArray(0);
-	this->aabb_program.unbind();
+		struct LocalStatic {
+			BatchTable table;
+			std::unordered_map<const Renderable*, std::vector<SlotLocation>> lookup;
+		};
+		std::vector<LocalStatic> locals = std::vector<LocalStatic>(jobsystem().workers_count());
+
+		jobsystem().parallel_for_chunks(0, this->static_objs.size(),
+			[this, &locals](size_t begin, size_t end, size_t chunk_index) {
+				LocalStatic& local = locals[chunk_index];
+				for(size_t i = begin; i < end; ++i) {
+					this->insert_static(*this->static_objs[i], local.table, local.lookup);
+				}
+			}
+		);
+
+		// Merge, sequential, cheap relative to the parallel insertion work
+		for(LocalStatic& local : locals) {
+			for(auto& [key, local_batch] : local.table) {
+				Batch& batch = this->static_batches[key];
+				if(!batch.mesh) {
+					batch.mesh = local_batch.mesh;
+					batch.material = local_batch.material;
+				}
+
+				// NOTE: owners/gpu_data indices from local_batch are no longer
+				// valid after this concat, 'SlotLocation.index' must be rebased
+				const u32 rebase = static_cast<u32>(batch.gpu_data.size());
+				batch.gpu_data.insert(batch.gpu_data.end(), local_batch.gpu_data.begin(), local_batch.gpu_data.end());
+				batch.owners.insert(batch.owners.end(), local_batch.owners.begin(), local_batch.owners.end());
+				batch.instance_count += local_batch.instance_count;
+
+				// Fix up lookup entries from this chunk that pointed at local_batch
+				for(auto& [obj, slots] : local.lookup) {
+					for(SlotLocation& slot : slots) {
+						if(slot.batch == &local_batch) {
+							slot.batch = &batch;
+							slot.index += rebase;
+						}
+					}
+				}
+			}
+			this->static_lookup.insert(local.lookup.begin(), local.lookup.end());
+		}
+	}
 #endif
+
+	// Sum instance count across all batches first, so 'static_instances' is reserved exactly
+	size_t total = 0;
+	for(auto& [key, batch] : this->static_batches) {
+		total += batch.gpu_data.size();
+	}
+
+	this->static_instances.clear();
+	this->static_instances.reserve(total);
+
+	for(auto& [key, batch] : this->static_batches) {
+		batch.instance_index = static_cast<u32>(this->static_instances.size());
+
+		this->static_instances.insert(this->static_instances.end(),
+			batch.gpu_data.begin(), batch.gpu_data.end());
+
+		batch.aabb = AABB{};
+		for(Renderable* owner : batch.owners) {
+			batch.aabb.merge(owner->world_aabb());
+		}
+
+		// 'gpu_data' is only needed as scratch to build 'static_instances'
+		batch.gpu_data.clear();
+		batch.gpu_data.shrink_to_fit();
+	}
 }
 
-void Renderer::clear() const noexcept {
-	glClearColor(this->clear_color[0], this->clear_color[1], this->clear_color[2], this->clear_color[3]);
+void Renderer::patch_dirty() noexcept {
+	for(Renderable* obj : this->dirty_queue) {
+		obj->is_dirty_queued = false;
+
+		// Material/Mesh changed this object's BatchKey.
+		// Can't patch in-place and its old slot no longer corresponds to the right batch.
+		// Need to have a full rebuild next frame instead
+		if(obj->needs_rebatch) {
+			obj->needs_rebatch = false;
+			this->static_dirty = true;
+			continue;
+		}
+
+		const bool transform_changed = obj->transform.isdirty();
+		if(transform_changed) obj->world_aabb();
+	
+		const glm::mat4& m = obj->transform.model_matrix();
+		const vec4<float>& color = obj->color_norm();
+
+		size_t i = 0;
+		std::vector<SlotLocation>& slots = this->static_lookup.at(obj);
+		for(const Model::SubMesh& sub : obj->model()->meshes()) {
+			SlotLocation& loc = slots[i++];
+			// Write directly into the flattened buffer
+			this->static_instances[loc.batch->instance_index + loc.index] = Renderable::InstanceData {
+				m, color, sub.material.metallic, sub.material.roughness, obj->billboard_type(), 0.0f
+			};
+			
+			// Just recompute AABB here, no frustum test
+			if(transform_changed) {
+				loc.batch->aabb = AABB{};
+				for(Renderable* owner : loc.batch->owners) loc.batch->aabb.merge(owner->world_aabb());
+				loc.batch->visible = true; // safe default until 'draw_persistent' tests it correctly
+				// NOTE: touched batch for 1 frame longer than it should, if exited from frustum on this frame
+			}
+		}
+	}
+
+	this->dirty_queue.clear();
+}
+
+void Renderer::upload_objects() noexcept {
+	const size_t static_size = (this->static_included)
+		? this->static_instances.size() * sizeof(Renderable::InstanceData) : 0;
+
+	size_t dynamic_size = 0;
+	for(auto& [key, batch] : this->dynamic_batches) {
+		dynamic_size += batch.gpu_data.size() * sizeof(Renderable::InstanceData);
+	}
+
+	const size_t total_size = static_size + dynamic_size;
+	if(total_size == 0) return; // Nothing to upload
+	if(!this->wrote_objs) { this->ssbo_objs.wait(this->frame_index); this->wrote_objs = true; }
+
+	const size_t needed = this->ssbo_objs_pass_offset + total_size;
+	this->ssbo_objs.ensure_capacity(needed);
+
+	const size_t pass_base = this->ssbo_objs.frame_offset(this->frame_index) + this->ssbo_objs_pass_offset;
+	// Subtracting converts 'instance_index' into a byte offset relative to 'pass_base', without relying on iteration order
+	// ('base' matches the offset 'build_dynamic_batches')
+	const size_t base = (this->static_included) ? this->static_instances.size() : 0;
+	if(static_size > 0) {
+		this->ssbo_objs.update(this->static_instances.data(), static_size, pass_base);
+	}
+
+	for(auto& [key, batch] : this->dynamic_batches) {
+		if(batch.gpu_data.empty()) continue;
+		const size_t batch_bytes = batch.gpu_data.size() * sizeof(Renderable::InstanceData);
+		const size_t batch_offset = pass_base + static_size + (batch.instance_index - base) * sizeof(Renderable::InstanceData);
+		this->ssbo_objs.update(batch.gpu_data.data(), batch_bytes, batch_offset);
+	}
+
+	this->ssbo_objs.flush(pass_base, total_size);
+	this->ssbo_objs_pass_offset += total_size;
+}
+
+void Renderer::upload_camera() noexcept {
+	const Camera::CameraData cam {
+		.view = this->cached_view,
+		.proj = this->cached_proj,
+		.camerapos = vec4<float>(this->campos, 1.0f)
+	};
+
+	const size_t needed = (this->pass_index + 1) * sizeof(Camera::CameraData);
+	if(!this->wrote_camera) { this->ubo_camera.wait(this->frame_index); this->wrote_camera = true; }
+
+	this->ubo_camera.ensure_capacity(needed);
+	const size_t offset = this->ubo_camera.frame_offset(this->frame_index)
+		+ this->pass_index * sizeof(Camera::CameraData);
+
+	this->ubo_camera.update(&cam, sizeof(Camera::CameraData), offset);
+	this->ubo_camera.flush(offset, sizeof(Camera::CameraData));
+}
+
+void Renderer::upload_lights() noexcept {
+	if(this->wrote_lights) return; // Already sent to SSBO
+
+	// Rebuild static light data only when the set changed
+	if(this->static_lights_dirty) {
+		this->static_light_data.clear();
+		this->static_light_data.reserve(this->static_lights.size());
+		for(Light* light : this->static_lights) {
+			this->static_light_data.push_back(light->to_gpu_data());
+		}
+		this->static_lights_dirty = false;
+	}
+
+	// Dynamic lights: rebuilt every upload
+	this->light_scratch.clear();
+	this->light_scratch.reserve(this->dynamic_lights.size());
+	for(const Light* light : this->dynamic_lights) {
+		this->light_scratch.push_back(light->to_gpu_data());
+	}
+
+	const size_t header_size  = sizeof(Light::LightBuffer); // Readability
+	const size_t static_size  = (this->static_included) ? this->static_light_data.size() * sizeof(Light::LightData) : 0;
+	const size_t dynamic_size = this->light_scratch.size() * sizeof(Light::LightData);
+	const size_t total_size   = header_size + static_size + dynamic_size;
+	if(static_size == 0 && dynamic_size == 0) return; // Nothing to upload
+	this->ssbo_lights.wait(this->frame_index); this->wrote_lights = true;
+
+	this->ssbo_lights.ensure_capacity(total_size);
+	const size_t offset = this->ssbo_lights.frame_offset(this->frame_index);
+
+	// Upload header first
+	Light::LightBuffer header;
+	header.count = ((this->static_included) ? this->static_light_data.size() : 0) + static_cast<u32>(this->light_scratch.size());
+	this->ssbo_lights.update(&header, header_size, offset);
+
+	// Upload after header
+	if(static_size > 0) {
+		this->ssbo_lights.update(this->static_light_data.data(), static_size, offset + header_size);
+	}
+
+	// Upload after header and static lights
+	if(dynamic_size > 0) {
+		this->ssbo_lights.update(this->light_scratch.data(), dynamic_size, offset + header_size + static_size);
+	}
+
+	this->ssbo_lights.flush(offset, total_size);
+}
+
+void Renderer::upload_text() noexcept {
+	if(this->glyphs.empty()) return;
+
+	const size_t size = this->glyphs.size() * sizeof(Font::GlyphData);
+	if(!this->wrote_glyphs) { this->ssbo_glyphs.wait(this->frame_index); this->wrote_glyphs = true; }
+
+	this->ssbo_glyphs.ensure_capacity(size);
+	const size_t offset = this->ssbo_glyphs.frame_offset(this->frame_index);
+
+	this->ssbo_glyphs.update(this->glyphs.data(), size, offset);
+	this->ssbo_glyphs.flush(offset, size);
+}
+
+void Renderer::render_batches(const BatchTable& table) noexcept {
+	this->render_scratch.clear();
+	for(auto& [key, batch] : table) {
+		if(batch.instance_count == 0 || !batch.visible) continue;
+		this->render_scratch.push_back(&batch);
+	}
+	if(this->render_scratch.empty()) return;
+
+	// TODO: not checked if it is efficient or not
+	std::sort(this->render_scratch.begin(), this->render_scratch.end(), [](const Batch* a, const Batch* b) {
+		if(a->material->vertex.get() != b->material->vertex.get()) return (a->material->vertex.get() < b->material->vertex.get());
+		if(a->material->fragment.get() != b->material->fragment.get()) return (a->material->fragment.get() < b->material->fragment.get());
+		if(a->material->texture() != b->material->texture()) return (a->material->texture() < b->material->texture());
+		return a->mesh < b->mesh;
+	});
+
+	u32 prev_vertex = 999;
+	u32 prev_fragment = 999;
+	const Material* prev_material = nullptr;
+	Mesh* prev_mesh = nullptr;
+
+	for(const Batch* batch : this->render_scratch) {
+		if(batch->mesh != prev_mesh) {
+			prev_mesh = batch->mesh;
+			glBindVertexArray(prev_mesh->vaoid());
+		}
+
+		if(batch->material != prev_material) {
+			if(batch->material->vertex->id() != prev_vertex) {
+				this->ppipeline.attach(batch->material->vertex->id(), Shader::Vertex);
+				prev_vertex = batch->material->vertex->id();
+			}
+
+			if(batch->material->fragment->id() != prev_fragment) {
+				this->ppipeline.attach(batch->material->fragment->id(), Shader::Fragment);
+				prev_fragment = batch->material->fragment->id();
+			}
+
+			batch->material->bind();
+			prev_material = batch->material;
+		}
+
+		glDrawElementsInstancedBaseInstance(
+			GL_TRIANGLES,
+			batch->mesh->index_count,
+			batch->mesh->index_type,
+			(void*)0,
+			batch->instance_count,
+			batch->instance_index // gl_BaseInstance
+		);
+	}
+}
+
+void Renderer::render_text() noexcept {
+	if(this->text_batches.empty()) return;
+
+	this->ppipeline.attach(assets().progs.PROG_VERT_TEXT->id(), Shader::Vertex);
+	this->ppipeline.attach(assets().progs.PROG_FRAG_2D->id(), Shader::Fragment);
+
+	glBindVertexArray(this->emptyvao);
+	glDepthMask(GL_FALSE); // Text draws over everything, doesn't need depth write
+
+	for(auto& [font, batch] : this->text_batches) {
+		if(batch.glyph_count == 0) continue;
+		font->atlas()->bind(0);
+
+		glDrawArraysInstancedBaseInstance(
+			GL_TRIANGLES, 0, 6,
+			batch.glyph_count, batch.glyph_start
+		);
+	}
+
+	glDepthMask(GL_TRUE);
+	glBindVertexArray(0);
+}
+
+
+// -------
+
+
+void Renderer::begin_frame(const vec4<float>& clear_color) noexcept {
+	glClearColor(clear_color[0], clear_color[1], clear_color[2], clear_color[3]);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
 
-void Renderer::begin_frame() noexcept {
-	// Reset passes
 	this->pass_index = -1;
 	this->ssbo_objs_pass_offset = 0;
-	// Advance frame
-	this->frameindex = (this->frameindex + 1) % PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Cap to ring buffer size
-	// Set all to false
-	this->wrote_camera  = this->wrote_objs  = this->wrote_lights  = this->wrote_glyphs  = false;
+	this->frame_index = (this->frame_index + 1) % PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Cap to ring buffer size
+	this->static_rebuilt_this_frame = false;
 
-#if !defined(FLOYD_SINGLE_THREAD) || !defined(FLOYD_NO_EDITOR_PANEL)
-	this->dynamic_objs.clear();
-#endif
-
-
-	// Rebuild persistent batch cache only when dirty
-	if(this->persistent_dirty) {
-		this->persistent_batches.clear();
-		this->persistent_instances.clear();
-		this->dirty_queue.clear();
-
-		// Group batches
-		for(Renderable* obj : this->persistent_objs) {
-			if(!obj) continue;
-			this->add_batch(*obj, this->persistent_batches, &obj->persistent_slot);
-		}
-
-		// flatten + fix slots + build AABB
-		for(auto& [key, batch] : this->persistent_batches) {
-			const u32 base = (u32)this->persistent_instances.size();
-			batch.instance_index = base;
-			// Fix each object's slot and build batch AABB in one loop
-			batch.aabb = AABB{};
-
-			for(Renderable* obj : batch.objects) {
-				obj->persistent_slot += base;
-				batch.aabb.merge(obj->world_aabb());
-			}
-
-			this->persistent_instances.insert(
-				this->persistent_instances.end(),
-				batch.instances.begin(),
-				batch.instances.end()
-			);
-		}
-
-		this->persistent_dirty = false;
-		this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // Re-upload SSBO
-
-	// Incremental patch. Full rebuild is skipped
-	// Only objects with dirty transform are updated
+	if(this->static_dirty) {
+		this->flatten_persistent();
+		this->static_dirty = false;
+		this->static_rebuilt_this_frame = true;
 	} else if(!this->dirty_queue.empty()) {
-	#if defined(FLOYD_SINGLE_THREAD)
-		// Track which batches need AABB rebuild
-		std::unordered_set<BatchKey, BatchKeyHash> dirty_batches;
-
-		for(const size_t index : this->dirty_queue) {
-			Renderable* obj = this->persistent_objs[index];
-			if(!obj) continue;
-			// Recalculate world AABB while dirty flag is still set
-			if(obj->transform.isdirty()) obj->world_aabb();
-
-			const glm::mat4& mmatrix = obj->transform.model_matrix();
-			const vec4<float>& colornorm = obj->color_norm();
-			u32 slot = obj->persistent_slot;
-
-			// Mark all submeshes for AABB rebuild
-			for(const Model::SubMesh& sub : obj->model()->meshes()) {
-				if(obj->transform.isdirty()) {
-					dirty_batches.insert({
-						sub.mesh.get(),
-						sub.material->base->vertex->id(),
-						sub.material->base->fragment->id(),
-						(sub.material->albedo) ? sub.material->albedo->id() : 1
-					});
-				}
-
-				// Patch one slot per submesh.
-				// submeshes are stored consecutively from there
-				this->persistent_instances[slot++] = {
-					mmatrix,
-					colornorm,
-					sub.material->metallic,
-					sub.material->roughness,
-					{} // Padding
-				};
-			}
-			obj->is_dirty_queued = false;
-		}
-	#else
-		// WARNING: For this job to work 'job_queue' CAN NOT have duplicated objects
-
-		// Local buffer by thread. Each chunk writes on its own unordered_set
-		// (that is why 'parallel_for_chunks' is used)
-		struct LocalBatches {
-			std::unordered_set<BatchKey, BatchKeyHash> batches;
-		};
-		std::vector<LocalBatches> local_dirty = std::vector<LocalBatches>(jobsystem().workers_count());
-	
-		// A dispatch per chunk
-		jobsystem().parallel_for_chunks(0, this->dirty_queue.size(), [this, &local_dirty](size_t begin, size_t end, size_t chunk_index) {
-			std::unordered_set<BatchKey, BatchKeyHash>& local_dirty_batches = local_dirty[chunk_index].batches;
-
-			// This chunk
-			for(size_t i = begin; i < end; ++i) {
-				Renderable* obj = this->persistent_objs[this->dirty_queue[i]];
-				if(!obj) continue;
-				if(obj->transform.isdirty()) obj->world_aabb(); // Safe because only this thread changes this value
-				
-				const glm::mat4& mmatrix = obj->transform.model_matrix(); // Also safe
-				const vec4<float>& colornorm = obj->color_norm();
-				u32 slot = obj->persistent_slot; // SSBO slot is unique by object so it is save to write
-
-				// Mark all submeshes for AABB rebuild
-				for(const Model::SubMesh& sub : obj->model()->meshes()) {
-					if(obj->transform.isdirty()) {
-						// Write on this chunk unordered_set
-						local_dirty_batches.insert({
-							sub.mesh.get(),
-							sub.material->base->vertex->id(),
-							sub.material->base->fragment->id(),
-							(sub.material->albedo) ? sub.material->albedo->id() : 1
-						});
-					}
-
-					// Write on this object's unique slot
-					this->persistent_instances[slot++] = {
-						mmatrix,
-						colornorm,
-						sub.material->metallic,
-						sub.material->roughness,
-						{} // Padding
-					};
-				}
-				obj->is_dirty_queued = false;
-			}
-		});
-
-		// Insert all chunks
-		std::unordered_set<BatchKey, BatchKeyHash> dirty_batches;
-		for(auto& local : local_dirty) dirty_batches.insert(local.batches.begin(), local.batches.end());
-	#endif
-
-
-		// Rebuild AABB only for affected batches
-	#if defined(FLOYD_SINGLE_THREAD)
-		for(const BatchKey& key : dirty_batches) {
-			DrawBatch& batch = this->persistent_batches.at(key);
-			batch.aabb = AABB{};
-			for(Renderable* obj : batch.objects) batch.aabb.merge(obj->world_aabb());
-		}
-	#else
-		// TODO: i will remove this auxiliary vector later
-		std::vector<DrawBatch*> batches;
-		batches.reserve(dirty_batches.size());
-		for(const BatchKey& key : dirty_batches) batches.push_back(&this->persistent_batches[key]);
-
-		jobsystem().parallel_for(0, batches.size(), [&batches](size_t i) {
-			DrawBatch* batch = batches[i];
-			batch->aabb = AABB{};
-			for(Renderable* obj : batch->objects) batch->aabb.merge(obj->world_aabb());
-		});
-	#endif
-
-		this->dirty_queue.clear();
-		this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT;
+		this->patch_dirty();
 	}
 }
 
 void Renderer::end_frame() noexcept {
-	// Persistent objects are added once, so it is needed to manually
-	// force upload for each FRAMES_IN_FLIGHT slot. Decrement until all slots are filled
-	if(this->persistent_ssbo_objs_dirty > 0) --this->persistent_ssbo_objs_dirty;
-	if(this->persistent_ssbo_light_dirty > 0) --this->persistent_ssbo_light_dirty;
-
-	// Signal GPU fence, marks this frame's buffer slots as in-flight
-	if(this->wrote_camera) this->ubo_camera.lock(this->frameindex);
-	if(this->wrote_objs)   this->ssbo_objs.lock(this->frameindex);
-	if(this->wrote_lights) this->ssbo_lights.lock(this->frameindex);
-	if(this->wrote_glyphs) this->ssbo_glyphs.lock(this->frameindex);
+	if(this->wrote_camera) this->ubo_camera.lock(this->frame_index);
+	if(this->wrote_objs)   this->ssbo_objs.lock(this->frame_index);
+	if(this->wrote_lights) this->ssbo_lights.lock(this->frame_index);
+	if(this->wrote_glyphs) this->ssbo_glyphs.lock(this->frame_index);
+	this->wrote_camera = this->wrote_objs = this->wrote_lights = this->wrote_glyphs = false;
 }
 
 void Renderer::begin_draw(const Camera& camera, const bool cullface) noexcept {
 	static bool lastcullface = false;
 	if(cullface != lastcullface) {
 		lastcullface = cullface;
-		if(cullface) glEnable(GL_CULL_FACE);
-		else glDisable(GL_CULL_FACE);
+		if(cullface) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
 	}
 
 	this->pass_index++;
-	// Clear previous frame
+	this->cached_view = camera.view();
+	this->cached_proj = camera.proj();
+	this->frustum.update(this->cached_proj * this->cached_view);
+	this->campos = camera.position;
+
+	// Find this camera's history
+	CameraHistory* hist = nullptr;
+	for(CameraHistory& h : this->camera_history) {
+		if(h.camera == &camera) {
+			hist = &h;
+			break;
+		}
+	}
+
+	if(!hist) {
+		this->camera_history.push_back({
+			&camera,
+			camera.position,
+			camera.forward
+		});
+		this->camera_dirty = true; // first time
+	} else {
+		this->camera_dirty = glm::distance(hist->position, camera.position) > 1e-6f
+			|| glm::distance(hist->forward, camera.forward) > 1e-6f;
+		hist->position = camera.position;
+		hist->forward = camera.forward;
+	}
+
 	this->dynamic_batches.clear();
-	this->instances.clear();
-	this->lights.clear();
+	this->dynamic_objs.clear();
+	this->dynamic_lights.clear();
 	this->text_batches.clear();
 	this->glyphs.clear();
-	this->total_text_instances = 0;
-	this->persistent_included = false;
-
-	// Update Camera and Camera Uniform Buffer
-	this->cached_view = camera.view();
-	this->cached_proj = camera.projection();
-
-	// Update frustum once per frame
-	const glm::mat4 vp = this->cached_proj * this->cached_view;
-	this->frustum.update(vp);
-	this->camera_dirty = this->camera_moved(camera.position, camera.forward); // this->campos set here
+	this->static_included = false;
 }
 
-void Renderer::draw_persistent() noexcept {
-	this->persistent_included = true;
-
-	// Test frustum on persistent batches if camera moved or persistent changed
-	if(this->camera_dirty || this->persistent_dirty || !this->dirty_queue.empty()) {
-	#if defined(FLOYD_SINGLE_THREAD)
-		for(auto& [key, batch] : this->persistent_batches) batch.visible = this->frustum.test(batch.aabb);
-	#else
-		// TODO: I will remove this auxiliary vector later
-		std::vector<DrawBatch*> batches;
-		batches.reserve(this->persistent_batches.size());
-		for(auto& [_, batch] : this->persistent_batches) batches.push_back(&batch);	
-
-		jobsystem().parallel_for(0, batches.size(), [this, &batches](size_t i) {
-			DrawBatch* batch = batches[i];
-			batch->visible = this->frustum.test(batch->aabb);
-		});
-	#endif
+void Renderer::add(Renderable& obj) noexcept {
+	// NOTE: RTTI (dynamic_cast) is acceptable here, `add()` is rarely called
+	if(dynamic_cast<Font*>(&obj) != nullptr) {
+		TRACELOG(logger::Error, "Text objects cannot be added as persistent. Please use 'draw_text()'");
+		return;
+	} else if(dynamic_cast<Sprite*>(&obj) != nullptr) {
+		TRACELOG(logger::Error, "2D objects cannot be added as persistent. Please use 'draw()' directly");
+		return;
 	}
-}
 
-void Renderer::draw(Renderable& obj) noexcept {
-	// Only cull if obj changed or camera moved
-	if(obj.transform.isdirty()) {
-		obj.visible = this->frustum.test(obj.world_aabb());
-	} else if(this->camera_dirty) {
-		obj.visible = this->frustum.test(obj.world_aabb());
-	}
-	if(!obj.visible) return;
-
-#if defined(FLOYD_SINGLE_THREAD)
-	this->add_batch(obj, this->dynamic_batches);
-	// On multithreading was moved to 'flush' because the amount of dynamic objects
-	// in this frame is needed
-#endif
-
-#if !defined(FLOYD_SINGLE_THREAD) || !defined(FLOYD_NO_EDITOR_PANEL)
-	this->dynamic_objs.push_back(&obj);
-#endif
-}
-
-size_t Renderer::add(Renderable& obj) noexcept {
-	const size_t index = this->persistent_objs.size();
-	this->persistent_objs.push_back(&obj);
-	this->persistent_dirty = true;
-	this->persistent_ssbo_objs_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
-
-	obj.index = index;
+	this->static_objs.push_back(&obj);
 	obj.is_persistent = true;
-	// When a persistent object changes, rebuild instance
-	obj.transform.on_dirty = [this, &obj, index]() {
+	obj.transform.on_dirty = [this, &obj]() {
 		if(!obj.is_dirty_queued) {
-			this->dirty_queue.push_back(index);
+			this->dirty_queue.push_back(&obj);
 			obj.is_dirty_queued = true;
 		}
 	};
-	return index;
+	this->mark_dirty(); // Forces 'flatten_persistent' next 'begin_frame'
 }
 
-void Renderer::remove(Renderable& obj) noexcept {
-	if(!obj.is_persistent) return;
+void Renderer::add(Light& light) noexcept {
+	this->static_lights.push_back(&light);
+	this->static_lights_dirty = true; // Forces re-upload of the LightData
+}
 
-	const size_t index = obj.index;
-	const size_t last = this->persistent_objs.size() - 1;
-
-	// Move to last index
-	if(index != last) {
-		Renderable* moved = this->persistent_objs[last];
-		this->persistent_objs[index] = moved;
-		// Change index for moved object
-		moved->transform.on_dirty = [this, moved, index]() {
-			if(!moved->is_dirty_queued) {
-				moved->is_dirty_queued = true;
-				this->dirty_queue.push_back(index);
-			}
-		};
+void Renderer::draw(Renderable& obj) noexcept {
+	if(obj.transform.isdirty() || this->camera_dirty) {
+		obj.visible = this->frustum.test(obj.world_aabb());
 	}
-
-	this->persistent_objs.pop_back();
-	obj.is_persistent = false;
-	obj.is_dirty_queued = false;
-	obj.index = SIZE_MAX;
-	obj.transform.on_dirty = nullptr;
-	// Rebuild persistent batches
-	this->mark_dirty();
+	if(!obj.visible) return;
+	this->dynamic_objs.push_back(&obj);
 }
 
 void Renderer::draw(const Light& light) noexcept {
-	this->lights.push_back(light.to_gpu_data());
+	this->dynamic_lights.push_back(&light);
 }
 
-size_t Renderer::add(const Light& light) noexcept {
-	this->persistent_lights.push_back(light.to_gpu_data());
-	this->persistent_ssbo_light_dirty = PersistentMappedBuffer::FRAMES_IN_FLIGHT; // upload to all frame slots
-	return this->persistent_lights.size() - 1;
+void Renderer::draw_persistent() noexcept {
+	this->static_included = true;
+	// Re-test every batch if the camera moved or a full rebuild
+	if(this->camera_dirty || this->static_rebuilt_this_frame) {
+		for(auto& [key, batch] : this->static_batches) {
+			batch.visible = this->frustum.test(batch.aabb);
+		}
+	}
 }
 
-void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font, const float scale, const vec4<float>& color) noexcept {
+void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Font>& font,
+	const float scale, const vec4<float>& color) noexcept {
+
 	if(text.empty() || !font) return;
 
 	auto [it, inserted] = this->text_batches.try_emplace(font.get(),
-		TextBatch {
-			font.get(),
-			this->total_text_instances,
-			0,
-		}
-	);
-	TextBatch* batch = &it->second;
+		TextBatch { font.get(), static_cast<u32>(this->glyphs.size()), 0 });
+	TextBatch& batch = it->second;
 
 	const float ascent = font->ascent();
 	const u8* p = reinterpret_cast<const u8*>(text.c_str());
@@ -457,306 +555,135 @@ void Renderer::draw_text(const std::string& text, const vec2<float>& pos, const 
 	while(*p) {
 		const u32 codepoint = font->utf8_next(p);
 		if(codepoint == '\n') {
-			pen_x  = pos.x;
+			pen_x = pos.x;
 			pen_y += font->line_height() * scale;
 			continue;
 		}
 
-		const Text::Glyph g = font->glyph(codepoint, scale);
+		const Font::Glyph g = font->glyph(codepoint, scale);
 		if(g.width > 0.0f && g.height > 0.0f) {
-			Text::GlyphData gd;
-			gd.pos = { pen_x + g.offset_x, pen_y + ascent + g.offset_y };
+			Font::GlyphData gd;
+			gd.pos   = { pen_x + g.offset_x, pen_y + ascent + g.offset_y };
 			gd.size  = { g.width, g.height };
 			gd.uv0   = g.uv0;
 			gd.uv1   = g.uv1;
 			gd.color = color;
-
 			this->glyphs.push_back(gd);
-			++batch->glyph_count;
+			batch.glyph_count++;
 		}
 		pen_x += g.advance;
 	}
-	this->total_text_instances = this->glyphs.size();
+}
+
+void Renderer::remove(Renderable& obj) noexcept {
+	if(!obj.is_persistent) return;
+	this->static_objs.erase(
+		std::remove(this->static_objs.begin(), this->static_objs.end(), &obj),
+		this->static_objs.end()
+	);
+	this->static_lookup.erase(&obj);
+
+	obj.is_persistent = false;
+	obj.is_dirty_queued = false;
+	obj.needs_rebatch = false;
+
+	this->mark_dirty();
+}
+
+void Renderer::remove(Light& light) noexcept {
+	this->static_lights.erase(
+		std::remove(this->static_lights.begin(), this->static_lights.end(), &light),
+		this->static_lights.end()
+	);
+	this->static_lights_dirty = true;
 }
 
 void Renderer::flush() noexcept {
-#if !defined(FLOYD_SINGLE_THREAD)
+	// -- Build Instances
+
 	// Build dynamic batches
-	struct LocalBatches {
-		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> map;
-	};
-	std::vector<LocalBatches> local = std::vector<LocalBatches>(jobsystem().workers_count());
-
-	jobsystem().parallel_for_chunks(0, this->dynamic_objs.size(), [&](size_t begin, size_t end, size_t c) {
-		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target = local[c].map;
-		// Safe because 'out_slot' is not accessed
-		for(size_t i = begin; i < end; ++i) this->add_batch(*this->dynamic_objs[i], target, nullptr);
-	});
-
-	// Concatenate
 	this->dynamic_batches.clear();
-	for(LocalBatches& lb : local) {
-		for(auto& [key, chunk_batch] : lb.map) {
-			DrawBatch& batches = this->dynamic_batches[key];
-			if(!batches.mesh) {
-				batches.mesh = chunk_batch.mesh;
-				batches.matinst = chunk_batch.matinst;
+
+#if defined(FLOYD_SINGLE_THREAD)
+	for(const Renderable* obj : this->dynamic_objs) {
+		this->insert_dynamic(*obj, this->dynamic_batches);
+	}
+#else
+	if(this->dynamic_objs.size() < Renderer::PARALLEL_THRESHOLD) {
+		for(const Renderable* obj : this->dynamic_objs) {
+			this->insert_dynamic(*obj, this->dynamic_batches);
+		}
+	} else {
+		// Each chunk builds its own local batch table. No shared state
+		// written during the parallel phase, so no locking needed
+		struct LocalBatches {
+			BatchTable table;
+		};
+		std::vector<LocalBatches> locals = std::vector<LocalBatches>(jobsystem().workers_count());
+
+		jobsystem().parallel_for_chunks(0, this->dynamic_objs.size(),
+			[this, &locals](size_t begin, size_t end, size_t chunk_index) {
+
+			BatchTable& local_table = locals[chunk_index].table;
+			for(size_t i = begin; i < end; ++i) {
+				this->insert_dynamic(*this->dynamic_objs[i], local_table);
 			}
-			batches.instances.insert(batches.instances.end(), chunk_batch.instances.begin(), chunk_batch.instances.end());
-			batches.instance_count += chunk_batch.instance_count;
+		});
+
+		// Merge phase. Sequential, but cheap, just concatenating gpu_data
+		for(LocalBatches& local : locals) {
+			for(auto& [key, local_batch] : local.table) {
+				Batch& batch = this->dynamic_batches[key];
+				if(!batch.mesh) {
+					batch.mesh = local_batch.mesh;
+					batch.material = local_batch.material;
+				}
+				batch.gpu_data.insert(batch.gpu_data.end(),
+					local_batch.gpu_data.begin(), local_batch.gpu_data.end());
+				batch.instance_count += local_batch.instance_count;
+			}
 		}
 	}
 #endif
 
-	const size_t persistent_count = (this->persistent_included) ? this->persistent_instances.size() : 0;
-
-	// Skip if no object
-	if(!this->dynamic_batches.empty() || !this->persistent_batches.empty()) {
-		// A bit overkill for UBO
-		if(!this->wrote_camera) { this->ubo_camera.wait(this->frameindex); this->wrote_camera = true; }
-
-		// Update camera here so 'lights' is updated
-		const Camera::CameraData cam = { this->cached_view, this->cached_proj, glm::vec4(this->campos, 1.0f) };
-	
-		const size_t offset = this->ubo_camera.frame_offset(frameindex)
-			+ this->pass_index * sizeof(Camera::CameraData);
-		const size_t size = (this->pass_index + 1) * sizeof(Camera::CameraData);
-		if(size > this->ubo_camera.perframesize()) this->ubo_camera.resize(size);
-
-		this->ubo_camera.update(&cam, sizeof(Camera::CameraData), offset);
-		this->ubo_camera.flush(offset, sizeof(Camera::CameraData)); // Bind for shader use
-
-		// Update dynamic batches
-		for(auto& [_, batch] : this->dynamic_batches) {
-			batch.instance_index = persistent_count + this->instances.size();
-			this->instances.insert(
-				this->instances.end(),
-				batch.instances.begin(),
-				batch.instances.end()
-			);
-		}
-
-	#if defined(FLOYD_DEBUG_RENDERER)
-		const size_t total_batches   = this->dynamic_batches.size() + this->persistent_batches.size();
-		const size_t total_instances = this->instances.size();
-		const float avg = (float)total_instances / total_batches;
-		TRACELOG(logger::Debug, "Avg instances per batch: %.2f", avg);
-		TRACELOG(logger::Debug, "Draw calls: %zu -> %zu", total_instances, total_batches);
-	#endif
+	// Static instances
+	const size_t base = (this->static_included) ? this->static_instances.size() : 0;
+	size_t offset = base;
+	for(auto& [key, batch] : this->dynamic_batches) {
+		batch.instance_index = static_cast<u32>(offset);
+		offset += batch.gpu_data.size();
 	}
+	if(this->dynamic_batches.empty() && this->static_batches.empty() && this->glyphs.empty()) return;
 
-	// Only process persistent data in the pass that owns it. Prevents later passes from overwriting the SSBO with stale/empty data
-	if(!this->instances.empty() ||
-			(this->persistent_included && (!this->persistent_instances.empty() || this->persistent_ssbo_objs_dirty > 0))) {
-		if(!this->wrote_objs) { this->ssbo_objs.wait(this->frameindex); this->wrote_objs = true; }
+	// -- Upload objects to SSBO
+	this->upload_camera();
+	this->upload_objects();
+	this->upload_lights();
+	this->upload_text();
 
-		const size_t dynamic_size = this->instances.size() * sizeof(Renderable::InstanceData);
-		const size_t persistent_size = persistent_count * sizeof(Renderable::InstanceData);
-		const size_t total_size = persistent_size + dynamic_size;
-		const size_t needed = this->ssbo_objs_pass_offset + total_size; // Pass index + needed size
-		if(needed > this->ssbo_objs.perframesize()) this->ssbo_objs.resize(needed); // Resize if needed
-
-		const size_t pass_base = this->ssbo_objs.frame_offset(this->frameindex) + this->ssbo_objs_pass_offset;
-
-		// Send persistent
-		if(this->persistent_included && persistent_size > 0) {
-			this->ssbo_objs.update(this->persistent_instances.data(), persistent_size, pass_base);
-		}
-
-		// Send dynamic
-		if(dynamic_size > 0) {
-			this->ssbo_objs.update(this->instances.data(), dynamic_size, pass_base + persistent_size);
-		}
-
-		this->ssbo_objs.flush(pass_base, total_size); // Send both data blocks
-		this->ssbo_objs_pass_offset += total_size; // Offset for next draw
-	}
-
-	// Update lights on scene
-	if(!this->lights.empty() ||
-			(this->persistent_included && (!this->persistent_lights.empty() || this->persistent_ssbo_light_dirty > 0))) {
-		if(!this->wrote_lights) { this->ssbo_lights.wait(this->frameindex); this->wrote_lights = true; }
-
-		const size_t header_size     = sizeof(Light::LightBuffer);
-		const size_t persistent_size = this->persistent_lights.size() * sizeof(Light::LightData);
-		const size_t dynamic_size    = this->lights.size() * sizeof(Light::LightData);
-		const size_t total_size      = header_size + persistent_size + dynamic_size;
-		if(total_size > this->ssbo_lights.perframesize()) this->ssbo_lights.resize(total_size);
-
-		const size_t offset = this->ssbo_lights.frame_offset(this->frameindex);
-
-		Light::LightBuffer header;
-		header.count = static_cast<u32>(
-			(this->persistent_included ? this->persistent_lights.size() : 0)
-			+ this->lights.size()
-		);
-		this->ssbo_lights.update(&header, header_size, offset); // Send header
-
-		// Send persistent
-		if(this->persistent_included && this->persistent_ssbo_light_dirty > 0) {
-			this->ssbo_lights.update(this->persistent_lights.data(), persistent_size, offset + header_size);
-		}
-
-		// Send dynamic
-		if(!this->lights.empty()) {
-			this->ssbo_lights.update(this->lights.data(), dynamic_size, offset + header_size + persistent_size);
-		}
-
-		this->ssbo_lights.flush(offset, total_size);
-	}
-
-	// Render all objects
-	if(this->persistent_included) this->draw_map(this->persistent_batches);
-	this->draw_map(this->dynamic_batches);
-	if(!this->text_batches.empty() || !this->glyphs.empty()) this->draw_text_batches();
+	// -- Render batches
+	if(this->static_included) this->render_batches(this->static_batches);
+	this->render_batches(this->dynamic_batches);
+	this->render_text();
 }
 
+void Renderer::draw_aabb(const AABB& aabb, const vec4<float>& color) noexcept {
+#if !defined(FLOYD_DEBUG_RENDERER)
+	(void)(aabb); (void)(color);
+#else
+	this->ppipeline.attach(this->aabb_vertex->id(), Shader::Vertex);
+	this->ppipeline.attach(this->aabb_fragment->id(), Shader::Fragment);
 
-void Renderer::add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target, u32* out_slot) noexcept {
-	// For persistent objects, initialize world_aabb while dirty is still true
-	if(out_slot) obj.world_aabb();
-	const glm::mat4& mmatrix = obj.transform.model_matrix(); // this updates model matrix
-	const vec4<float>& colornorm = obj.color_norm();
+	this->aabb_vertex->set_uniform_mat4f("u_viewproj", this->cached_proj * this->cached_view);
+	this->aabb_vertex->set_uniform_vec3f("u_min", aabb.min);
+	this->aabb_vertex->set_uniform_vec3f("u_max", aabb.max);
+	this->aabb_fragment->set_uniform_vec3f("u_color", { color.x, color.y, color.z });
 
-	// Create draw commands with instance index
-	for(const Model::SubMesh& sub : obj.model()->meshes()) {
-		// Try to find existing batch
-		BatchKey key = {
-			sub.mesh.get(),
-			sub.material->base->vertex->id(),
-			sub.material->base->fragment->id(),
-			(sub.material->albedo) ? sub.material->albedo->id() : 1
-		};
-
-		Renderable::InstanceData data = {
-			mmatrix,
-			colornorm,
-			sub.material->metallic,
-			sub.material->roughness,
-			{} // Padding
-		};
-
-		auto [it, emplaced] = target.try_emplace(key);
-		// 'emplaced' is false if collided (batch exists)
-		DrawBatch& batch = it->second;
-		if(emplaced) {
-		#if defined(FLOYD_DEBUG_RENDERER)
-			TRACELOG(logger::Debug, "Pushing NEW batch. Instance Index: %d", this->instances.size());
-		#endif
-			batch.mesh = sub.mesh.get();
-			batch.matinst = sub.material.get();
-		}
-
-		// Persistent objects
-		if(out_slot) {
-			*out_slot = (u32)batch.instances.size(); // Record base slot on first submesh
-			out_slot = nullptr; // Clear so next submesh doesn't overwrite
-			batch.objects.push_back(&obj); // Add objects in this batch
-			// AABB is calculated inside 'begin_draw'
-		}
-
-		batch.instance_count++;
-		batch.instances.push_back(data);
-		// NOTE: If 'instances' were appended here
-		// the layout would follow this order:
-		// - Mesh A: [A0]
-		// - Mesh B: [A0, B1]
-		// - Mesh A: [A0, B1, A2]
-		//
-		// The GPU requires per-batch contiguous ranges.
-		// Pushing indices inside 'flush' becomes:
-		// - Batch A: [A0, A2]
-		// - Batch B: [B1]
-	}
-}
-
-void Renderer::draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap)  noexcept {
-	Mesh* prev_mesh = nullptr;
-	ShaderProgram* prev_vertex = nullptr;
-	ShaderProgram* prev_fragment = nullptr;
-	MaterialInstance* prev_material = nullptr;
-
-	for(const auto& [_, batch] : batchmap) {
-		// 'batch.instance_count' is >0 only if batch passes individual frustum inside 'add_batch'
-		if(batch.instance_count == 0 || !batch.visible) continue;
-
-		if(batch.mesh != prev_mesh) {
-			glBindVertexArray(batch.mesh->vaoid());
-			prev_mesh = batch.mesh;
-		}
-
-		if(prev_material != batch.matinst) {
-			Material& mat = *batch.matinst->base; // cache
-			// pipeline stage swaps
-			if(prev_vertex != mat.vertex.get()) {
-				this->ppipeline.attach(mat.vertex, Shader::Vertex);
-				prev_vertex = mat.vertex.get();
-			}
-			if(prev_fragment != mat.fragment.get()) {
-				this->ppipeline.attach(mat.fragment, Shader::Fragment);
-				prev_fragment = mat.fragment.get();
-			}
-			batch.matinst->bind();
-			prev_material = batch.matinst;
-		}
-
-		// Draw N instances starting from offset X in the instance buffer
-		glDrawElementsInstancedBaseInstance(
-			GL_TRIANGLES,
-			batch.mesh->index_count,
-			batch.mesh->index_type,
-			(void*)0, // indices
-			batch.instance_count,
-			batch.instance_index // gl_BaseInstance
-		);
-	}
-}
-
-void Renderer::draw_text_batches() noexcept {
-	if(!this->wrote_glyphs) { this->ssbo_glyphs.wait(this->frameindex); this->wrote_glyphs = true; }
-
-	// Upload all glyphs at once
-	const size_t size = this->glyphs.size() * sizeof(Text::GlyphData);
-	if(size > this->ssbo_glyphs.perframesize()) this->ssbo_glyphs.resize(size);
-
-	const size_t base_offset = this->ssbo_glyphs.frame_offset(this->frameindex);
-	this->ssbo_glyphs.update(this->glyphs.data(), size, base_offset);
-	this->ssbo_glyphs.flush(base_offset, size);
-
-	// Switch pipeline
-	this->ppipeline.attach(assets().defaults.PROG_VERT_TEXT, Shader::Vertex);
-	this->ppipeline.attach(assets().defaults.PROG_FRAG_2D, Shader::Fragment);
-
-	glBindVertexArray(this->empty_vao);
-	glDepthMask(GL_FALSE);
-
-	for(const auto& [_, batch] : this->text_batches) {
-		if(batch.glyph_count == 0) continue;
-		batch.font->atlas()->bind(0);
-
-		glDrawArraysInstancedBaseInstance(
-			GL_TRIANGLES,
-			0,
-			6,
-			batch.glyph_count,
-			batch.glyph_start
-		);
-	}
-
-	glDepthMask(GL_TRUE);
+	glBindVertexArray(this->emptyvao);
+	glDrawArrays(GL_LINES, 0, 24);
 	glBindVertexArray(0);
-}
-
-bool Renderer::camera_moved(const vec3<float>& campos, const vec3<float>& forward) noexcept {
-	// Epsilon comparison instead of exact float equality
-	if(glm::distance(this->campos, campos) > 1e-6f || glm::distance(this->camforward, forward) > 1e-6f) {
-		this->campos = campos;
-		this->camforward = forward;
-		return true;
-	}
-	return false;
+#endif
 }
 
 } // namespace floyd
-
 

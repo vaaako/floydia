@@ -1,219 +1,270 @@
 #pragma once
 
-#include "floydia/camera/perspectivecamera.hpp"
-#include "floydia/geometry/text.hpp"
-#include "floydia/rendering/light.hpp"
-#include "floydia/gpu/programpipeline.hpp"
-#include "floydia/camera/frustum.hpp"
-#include "floydia/types.hpp"
 #include "floydia/camera/camera.hpp"
-#include "floydia/rendering/renderable.hpp"
-#include "floydia/rendering/mesh.hpp"
-#include "floydia/gpu/uniformbuffer.hpp"
+#include "floydia/camera/frustum.hpp"
+#include "floydia/geometry/font.hpp"
+#include "floydia/gpu/programpipeline.hpp"
 #include "floydia/gpu/ssbo.hpp"
+#include "floydia/gpu/uniformbuffer.hpp"
 #include "floydia/helpers/hash.hpp"
-
-#include <vector>
+#include "floydia/rendering/light.hpp"
+#include "floydia/rendering/mesh.hpp"
+#include "floydia/rendering/renderable.hpp"
 
 namespace floyd {
 
-class Window;
+// NOTE: Some limitations about this renderer
+// - ProgramPipeline just binds in the constructor. If other ProgramPipeline is binded, the renderer stops working
+// - 'add(Renderable& obj)' overwrites 'Transform::on_dirty'
+// - Lights only render on the first pass that are called
+// - Static light are not rebuilded if changed
 
 class Renderer final {
-	friend struct SceneBuilder;
+	private:
+		// Below this threshold, dispatching costs more than it saves
+		static constexpr size_t PARALLEL_THRESHOLD = 256;
 
 	public:
 		Renderer() noexcept;
-		~Renderer() = default;
+	#if defined(FLOYD_DEBUG_RENDERER)
+		~Renderer() noexcept;
+	#else
+		~Renderer() noexcept = default;
+	#endif
 
-		// Casts a ray from the mouse position and returns the closest visible object hit.
-		// Returns nullptr if nothing was hit.
-		// Call AFTER 'begin_frame()', otherwise dynamic objects won't be included
-		Renderable* pick(const PerspectiveCamera& camera, const vec2<u32>& mouse_pos, const vec2<u32>& win_size) const noexcept;
-		// Update stored width and height values
+		// Sends 'u_screen_size' uniform to 'PROG_VERT_TEXT'
 		void update_viewport(const u32 width, const u32 height) noexcept;
-		// Changes the clear color
-		void set_clear_color(const vec4<u8>& color) noexcept;
-		// Mark persistent objects as dirty
-		void mark_dirty() noexcept;
-		// Debug draw an AABB.
-		// Should not be used on release since it is a debug method
-		void draw_aabb(const AABB& aabb, const vec4<float>& color) noexcept;
 
-		// Clear the screen
-		void clear() const noexcept;
-		// Advances 'frameindex' and waits for the GPU to finish reading
-		// the current frame's buffer slots before the CPU writes new data
-		void begin_frame() noexcept;
-		// Singals GPU fences to mark this frame's buffer slots as in-flight,
-		// preventing the CPU from overwriting them before the GPU is done
+		// Advances the frame index and rebuilds or patches static batches.
+		// Call once per frame, before `begin_draw`
+		void begin_frame(const vec4<float>& clear_color = vec4<float>(0.1f)) noexcept;
+		// GPU fence signaling for this frame's buffer slots.
+		// Call once per frame
 		void end_frame() noexcept;
-		// NOTE: both avoid 'wait', 'lock' and 'frameindex' running multiple times per frame
+		// Starts a new camera pass.
+		// Call once, after `begin_frame` and before `flush`
+		void begin_draw(const Camera& camera, const bool cullface = false) noexcept;
 
-		// Advances the frame index, syncs GPU fences, updates camera UBO,
-		// updates the frustum, and rebuilds persistent batches if dirty
-		void begin_draw(const Camera& camera, const bool cullface = true) noexcept;
-
-		// Includes persistent objects in the current pass.
-		// Must be called after 'begin_draw()' and before 'flush()'.
-		// Persistent objects are only rebuilt when dirty (i.e. when 'add()' is called).
-		// Without this call, persistent objects are excluded from the current pass
-		void draw_persistent() noexcept;
-
-		// Submit a dynamic object for this frame.
-		// Use this for temporary objects, or objects that changes often
+		// Register a static object. This overwrites 'Renderable::on_dirty' callback
+		void add(Renderable& obj) noexcept;
+		// Register a static light object. Unlike Renderable objects, static lights are NOT patched incrementally
+		// if theirs transform changes after being added
+		void add(Light& light) noexcept;
+		// Render a object in the current pass
 		void draw(Renderable& obj) noexcept;
-		// Submit a persistent object.
-		// Use this for objects that rarely changes properties
-		size_t add(Renderable& obj) noexcept;
-		// Removes a persistent objcet from the renderer
-		void remove(Renderable& obj) noexcept;
-
-		// Submit a dynamic object for this frame
+		// Render a light object in the current pass
 		void draw(const Light& light) noexcept;
-		// Submit a persistent light object
-		size_t add(const Light& light) noexcept;
-
-		// Submit a text object for this frame
-		void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Text>& font,
+		// Includes static objects in the current pass
+		void draw_persistent() noexcept;
+		// Render a text object in the current pass
+		void draw_text(const std::string& text, const vec2<float>& pos, const std::shared_ptr<Font>& font,
 			const float scale = 1.0f, const vec4<float>& color = vec4<float>(1.0f)) noexcept;
-
-		// Upload instance data to SSBo and issue draw calls
+		// Unregisters a static object
+		void remove(Renderable& obj) noexcept;
+		// Unregisters a static object
+		void remove(Light& light) noexcept;
+		// Update and draw objects
+		// Call once, after `begin_draw` and before `end_frame`
 		void flush() noexcept;
+		// Debug-draws an AABB as a wireframe box. Outside the batch pipeline
+		void draw_aabb(const AABB& aabb, const vec4<float>& color) noexcept;
+		// Forces a static objects rebuild
+		inline void mark_dirty() noexcept { this->static_dirty = true; }
 
 	private:
-		struct DrawBatch {
-			Mesh* mesh;
-			// MaterialInstance holds textures + points to cached Material (Shaders)
-			// BatchKey uses GPU IDs so different instances with same state share a batch
-			MaterialInstance* matinst;
-			// world AABB for batch
-			AABB aabb;
-			// To send to SSBO
-			std::vector<Renderable::InstanceData> instances;
-			// All objects in this batch
-			std::vector<Renderable*> objects;
-			// Start index in SSBO
-			u32 instance_index; // start offset into the instance buffer
-			// Number of instances for this mesh
-			u32 instance_count;
-			bool visible = true;
-		};
-
-		struct TextBatch {
-			Text* font;
-			// First gl_InstanceID on SSBO
-			u32 glyph_start;
-			u32 glyph_count;
-		};
-
+		// Identifies a unique draw batch
 		struct BatchKey {
 			Mesh* mesh;
-			GLuint vert_id;
-			GLuint frag_id;
-			GLuint albedo_id;
-			// Metallic and Roughness removed.
-			// Hashing floats is fragile: values that differ only by floating-point
-			// noise produce different hashes and split batches that should be merged.
-			// Per-instance material properties belong in InstanceData on the SSBO, not in the batch key
+			u32 vertex_id;
+			u32 fragment_id;
+			u32 albedo_id;
+
 			bool operator==(const BatchKey& other) const noexcept {
-				return mesh   == other.mesh     &&
-					vert_id   == other.vert_id  &&
-					frag_id   == other.frag_id  &&
-					albedo_id == other.albedo_id;
+				return this->mesh == other.mesh &&
+					this->vertex_id == other.vertex_id &&
+					this->fragment_id == other.fragment_id &&
+					this->albedo_id == other.albedo_id;
 			}
 		};
 
 		struct BatchKeyHash {
-			std::size_t operator()(const BatchKey& k) const noexcept {
+			size_t operator()(const BatchKey& k) const noexcept {
 				size_t seed = 0;
 				hash::combine(seed, std::hash<Mesh*>()(k.mesh));
-				hash::combine(seed, std::hash<GLuint>()(k.vert_id));
-				hash::combine(seed, std::hash<GLuint>()(k.frag_id));
-				hash::combine(seed, std::hash<GLuint>()(k.albedo_id));
+				hash::combine(seed, std::hash<u32>()(k.vertex_id));
+				hash::combine(seed, std::hash<u32>()(k.fragment_id));
+				hash::combine(seed, std::hash<u32>()(k.albedo_id));
 				return seed;
 			}
 		};
 
+		struct Batch {
+			Mesh* mesh = nullptr;
+			const Material* material = nullptr;
+			AABB aabb;
+
+			// Per-instance GPU data
+			std::vector<Renderable::InstanceData> gpu_data;
+			// Object owning each entry in 'gpu_data', same index.
+			// Only used for static batches
+			std::vector<Renderable*> owners;
+			// Dangerous if pointer becomes dangling
+
+			// Index of this batch on instances
+			u32 instance_index = 0;
+			// Number of instances in this batch.
+			// NOTE: Not using 'gpu_data' or 'owners.size()', because persistent batches
+			// clear 'gpu_data' after flattening, and dynamic batches don't
+			u32 instance_count = 0;
+			// Static only. Result of the last frustum test
+			bool visible = true;
+
+			inline size_t push_dynamic(const Renderable::InstanceData& d) noexcept {
+				this->gpu_data.push_back(d);
+				this->instance_count++;
+				return this->gpu_data.size() - 1;
+			}
+			
+			inline size_t push_static(const Renderable::InstanceData& d, Renderable* owner) noexcept {
+				this->gpu_data.push_back(d);
+				this->owners.push_back(owner);
+				this->instance_count++;
+				return this->gpu_data.size() - 1;
+			}
+		};
+
+		struct TextBatch {
+			Font* font;
+			u32 glyph_start; // First gl_InstanceID for this batch
+			u32 glyph_count;
+		};
+
 	private:
-		// Dynamic batches, rebuilt every frame
-		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> dynamic_batches;
-		// Pre-built batches from persistent objects, rebuilt only when dirty. Used to draw batches
-		std::unordered_map<BatchKey, DrawBatch, BatchKeyHash> persistent_batches;
-		// All dynamic instance data
-		std::vector<Renderable::InstanceData> instances;
-		// All persistent instance data
-		std::vector<Renderable::InstanceData> persistent_instances;
+		// Where a specific static object's instance data lives, so a
+		// transform change can be patched in-placee without a full rebuild
+		struct SlotLocation {
+			Batch* batch;
+			size_t index; // slot in 'gpu_data'
+		};
 
-		// Used to rebuilt 'persistent_instances'. Stored by pointer to avoid copies
-		std::vector<Renderable*> persistent_objs;
+		// Tracks a single camera's last known position and forward
+		struct CameraHistory {
+			const Camera* camera = nullptr;
+			vec3<float> position;
+			vec3<float> forward;
+		};
 
-	#if !defined(FLOYD_SINGLE_THREAD) || !defined(FLOYD_NO_EDITOR_PANEL)
-		// Used for multithreading and ray picking
-		std::vector<Renderable*> dynamic_objs;
-	#endif
+	// Objects
+	private:
+		using BatchTable = std::unordered_map<BatchKey, Batch, BatchKeyHash>;
+
+		BatchTable static_batches;
+		BatchTable dynamic_batches;
+		std::unordered_map<Font*, TextBatch> text_batches;
+
+		// Maps a static object to where its instance lives inside 'static_batches'
+		std::unordered_map<const Renderable*, std::vector<SlotLocation>> static_lookup;
+		// Flattened static instance data
+		std::vector<Renderable::InstanceData> static_instances;
+		// Flattened static light instance data
+		std::vector<Light::LightData> static_light_data;
 	
-	#if !defined(FLOYD_NO_EDITOR_PANEL)
-		// Used to debug AABB
-		ShaderProgram aabb_program;
-	#endif
+		// All objects currently registered as static
+		std::vector<Renderable*> static_objs;
+		// All objects currently registered as dynamic
+		std::vector<const Renderable*> dynamic_objs;
+		// Static objects that transform changed last frame
+		std::vector<Renderable*> dirty_queue;
 
-		// All dynamic light instance data
-		std::vector<Light::LightData> lights;
-		// All dynamic persistent instance data
-		std::vector<Light::LightData> persistent_lights;
+		// All light objects currently registered as static
+		std::vector<Light*> static_lights;
+		// All light objects currently registered as dynamic
+		std::vector<const Light*> dynamic_lights;
 
-		std::unordered_map<Text*, TextBatch> text_batches;
-		std::vector<Text::GlyphData> glyphs;
+		// Flattened glyph instance data
+		std::vector<Font::GlyphData> glyphs;
 
-		// Persistent objs dirty this frame
-		std::vector<size_t> dirty_queue;
+		// Reused across calls to avoid a heap allocation every 'render_batches'
+		std::vector<const Batch*> render_scratch;
+		// Scratch buffer for dynamic light data, Reused across calls to avoid a heap allocation every upload
+		std::vector<Light::LightData> light_scratch;
 
+	// Camera
+	private:
+		std::vector<CameraHistory> camera_history;
 		glm::mat4 cached_view;
 		glm::mat4 cached_proj;
-		vec3<float> campos;
-		vec3<float> camforward; // Cheap check when camera moved
 
-		float clear_color[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
-
-		Frustum frustum;
+	// GPU
+	private:
 		UniformBuffer ubo_camera;
 		ShaderStorageBuffer ssbo_objs;
 		ShaderStorageBuffer ssbo_lights;
 		ShaderStorageBuffer ssbo_glyphs;
 		ProgramPipeline ppipeline;
+		Frustum frustum;
 
-		u32 total_text_instances = 0; // Only used to resize 'ssbo_glyphs'
-		GLuint empty_vao; // empty vao to satisfy core profile
-		
-		// Cache if necessary
-		u32 win_width;
-		u32 win_height;
-		u32 frameindex = 0;
-		// Counts down from FRAMES_IN_FLIGHT to ensure persistent data
-		// is uploaded to every buffer slot after a change
-		u32 persistent_ssbo_objs_dirty;
-		u32 persistent_ssbo_light_dirty;
-		int pass_index = -1; // Tracks the current pass within a frame. Incremented on each begin_draw call
-							 // Used to offset the camera UBO so each pass has its own camera slot without overwriting others
-		size_t ssbo_objs_pass_offset = 0; // Tracks current pass within frame. Other SSBOs do not appear on other passes, no need
-		bool camera_dirty = true; // Check if camera moved
-		bool persistent_dirty = true; // Track if persistent batch cache is dirty
-		bool persistent_included = false; // Set by draw_persistent() to indicate persistant objects should be draw this pass
-										  // Without this flag, draw_map(persistent_batches) would run every flush() with stale instance_index
-										  // values, corrupting the SSBO reads for dynamic objects
-		// Check when SSBO was waited for this frame to lock it on end_frame
-		// This makes only necessary SSBOs wait and lock
-		bool wrote_camera  = false,
-			 wrote_objs    = false,
-			 wrote_lights  = false,
-			 wrote_glyphs  = false;
+	#if defined(FLOYD_DEBUG_RENDERER)
+		ShaderProgram* aabb_vertex;
+		ShaderProgram* aabb_fragment;
+	#endif
 
 	private:
-		bool camera_moved(const vec3<float>& campos, const vec3<float>& forward) noexcept;
-		void add_batch(Renderable& obj, std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& target, u32* out_slot = nullptr) noexcept;
-		void draw_map(const std::unordered_map<BatchKey, DrawBatch, BatchKeyHash>& batchmap) noexcept;
-		void draw_text_batches() noexcept;
+		// Cached camera's position
+		vec3<float> campos;
+		int pass_index = -1;
+		// Data offset between each camera's pass
+		u32 ssbo_objs_pass_offset = 0;
+		// Empty VAO to satisfy core profile
+		GLuint emptyvao;
+		size_t frame_index = 0;
+
+	// Flags
+	private:
+		// Set when 'static_objs' changed membership, or an object's BatchKey changed
+		bool static_dirty = true;
+		// Set when 'static_lights' changed
+		bool static_lights_dirty = true;
+		// Set true when `flaten_persistent` ran. `draw_persistent` check when must
+		// test visibility for every batch
+		bool static_rebuilt_this_frame = false;
+		// Wheter the current pass's camera moved since its own last use.
+		// Sourced from 'CameraHistory'
+		bool camera_dirty = true;
+		// Set by `draw_persistent`
+		bool static_included = false;
+
+		// Signals GPU fences for every buffer written to this frame.
+		bool wrote_camera = false, wrote_objs   = false,
+			 wrote_lights = false, wrote_glyphs = false;
+
+	private:
+		// Resolves the batch a submesh belongs to
+		Batch& resolve_batch(const Model::SubMesh& sub, BatchTable& table) noexcept;
+		// Inserts a static object into 'static_batches'
+		void insert_static(Renderable& obj, BatchTable& table,
+			std::unordered_map<const Renderable*, std::vector<SlotLocation>>& lookup) noexcept;
+		// Inserts a dynamic object into 'dynamic_batches'.
+		// NOTE: 'table' paramter just exists for multithread usage inside 'flush'
+		void insert_dynamic(const Renderable& obj, BatchTable& table) noexcept;
+		// Rebuilds 'static_instances' from all persistent batches and assigns each batch's 'instance_index'
+		// (its offset into that buffer). Also recomputes each batch's AABB from its owners.
+		// Called only when 'persistent_dirty' is set
+		void flatten_persistent() noexcept;
+		// Incremental patch, only objects queued in 'dirty_queue'
+		void patch_dirty() noexcept;
+		// Upload this pass's instance data (static + dynamic) to 'ssbo_objs'
+		void upload_objects() noexcept;
+		// Upload this pass's camera data to 'ubo_camera'
+		void upload_camera() noexcept;
+		// Upload this pass's light data to 'ssbo_lights'
+		void upload_lights() noexcept;
+		// Upload this pass's glyph data to 'ssbo_glyphs'
+		void upload_text() noexcept;
+		// Draws every visible, non-empty batch
+		void render_batches(const BatchTable& table) noexcept;
+		// Draws every text batch
+		void render_text() noexcept;
 };
 
 } // namespace floyd

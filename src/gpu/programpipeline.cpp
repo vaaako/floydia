@@ -15,10 +15,10 @@ ProgramPipeline::~ProgramPipeline() noexcept {
 	glDeleteProgramPipelines(1, &this->pipeline);
 }
 
-void ProgramPipeline::attach(const std::shared_ptr<ShaderProgram>& program, const Shader::Type type) const {
+void ProgramPipeline::attach(const u32 program_id, const Shader::Type type) const {
 	glUseProgramStages(this->pipeline,
 		(type == Shader::Vertex) ? GL_VERTEX_SHADER_BIT : GL_FRAGMENT_SHADER_BIT,
-		program->id()
+		program_id
 	);
 }
 

@@ -31,14 +31,15 @@ Contact me on discord: **vakothebat**
 	+ Basic shapes: `Cube`, `Sprite`, `Billboard`
 	+ Wavefront OBJ loading with `.mtl` material support
 	+ `PerspectiveCamera` and `OrthoCamera`
-- **Lighting System**: Blinn-Phong shading with three light types: Directional, Point and Spot
+- **Lighting System**: Per-vertex shading with three light types: Directional, Point and Spot
 - **Material System**
 	+ Per-object `metallic` and `roughness` properties
 	+ Custom GLSL shader support via separable shader pipeline
 - **Batch Renderer**: Automatic instanced draw call batching grouped by mesh, shader and texture
 - **Frustum Culling**: Automatic per-object visibility testing against the camera frustum
 - **AABB**: Per-model and per-submesh axis-aligned bounding boxes
-- **Asset Manager**: Automatic caching of meshes, shaders, textures and materials
+- **Asset Manager**: Automatic caching of meshes, shaders and textures
+	+ Texture map support
 - **Script System**: Custom and reusable scripts attachable to Objects
 - **Editor Panel**: Built-in editor panel
 
@@ -118,6 +119,9 @@ int main() {
 	});
 	window.set_vsync(false);
 
+	// A bit dark
+	floyd::assets().set_ambient_light(0.8f);
+
 	// FOV, Window width, Window height
 	PerspectiveCamera camera = PerspectiveCamera(90.0f, 800.0f, 600.0f);
 	camera.sensitivity = 0.2f; // Changing camera's sensibility
@@ -126,8 +130,8 @@ int main() {
 	Cube cube = Cube();
 	cube.transform.set_position({ 0.0f, 0.0f, 0.0f });
 	cube.set_color({ 202, 23, 115, 255 });
-	cube.material()->metallic = 1.0f;
-	cube.material()->roughness = 0.0f; // Maximum shine
+	cube.material().metallic = 1.0f;
+	cube.material().roughness = 0.0f; // Maximum shine
 	cube.attach_script<Rotator>(); // Attach script
 
 	// Set up light source
@@ -151,7 +155,6 @@ int main() {
 	float rotation = 0.0f;
 	float dt = 0.0f;
 	while(window.is_open()) {
-		window.clear();
 		window.poll_events();
 		dt = window.dt();
 
@@ -174,14 +177,14 @@ int main() {
 
 		move_camera(window, camera);
 
-		window.begin_frame();
+		window.renderer->begin_frame();
 			// 3D dynamic shapes
-			window.begin_draw(camera);
-				window.draw(lamp);
-				window.draw(cube);
-				window.draw(debug_lamp);
-			window.flush();
-		window.end_frame();
+			window.renderer->begin_draw(camera);
+				window.renderer->draw(lamp);
+				window.renderer->draw(cube);
+				window.renderer->draw(debug_lamp);
+			window.renderer->flush();
+		window.renderer->end_frame();
 
 		cube.update_scripts(dt); // Update scripts for this Object
 		lamp.update_scripts(dt);
@@ -244,23 +247,18 @@ void move_camera(const Window& window, PerspectiveCamera& camera) {
 The library has been tested on **Linux** and **Windows**
 
 ## Build Options
-| Option                       | Description                             |
-|-----------------------------|-----------------------------------------|
-| `DEBUG=1`           | Builds without optimization, enables debug macros, symbols and warnings |
-| `SINGLE_THREAD=1`   | Defines `FLOYD_SINGLE_THREAD`, disabling multithreading support |
-| `NO_EDITOR_PANEL=1` | Defines `FLOYD_NO_EDITOR_PANEL` and excludes Dear ImGui from the build. Recommended for **release** builds |
+| Option            | Description                             |
+|-------------------|-----------------------------------------|
+| `DEBUG=1`         | Builds without optimization, enables debug macros, symbols and warnings |
+| `SINGLE_THREAD=1` | Defines `FLOYD_SINGLE_THREAD`, disabling multithreading support |
+| `EDITOR_PANEL=1`  | Defines `FLOYD_EDITOR_PANEL` and includes Dear ImGui in this build. Recommended for **debug** builds |
 
 All options can be combined
 
 ## Build Commands
-Release build example:
-```sh
-make NO_EDITOR_PANEL=1
-```
-
 Debug build example:
 ```sh
-make DEBUG=1
+make DEBUG=1 EDITOR_PANEL=1
 ```
 
 Compile and print the current build configuration:

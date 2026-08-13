@@ -19,6 +19,11 @@ class Billboard : public Renderable {
 		Billboard() noexcept;
 		// Update Billboard AABB
 		AABB world_aabb() noexcept override;
+
+		// The type of this billboard.
+		// Used to send data to GPU
+		float billboard_type() const noexcept override { return static_cast<float>(this->type); }
+
 	protected:
 		static std::shared_ptr<Model> create_model() noexcept;
 };

@@ -129,16 +129,24 @@ I wrote most of the things here very tired, sorry for any english mistake
 
 - [ ] Discord RPC support?
 
-- [ ] Error when sprite is not drawn
+- [x] Better `Material` handling on `Renderable`. I dont like the "only access first material" thing
+	+ Remove `MaterialInstance` and make `Material` on `Mesh` a copy
+- [ ] `Model` is being copied by each `Renderable`
+	+ Share the same `Model` with multiple objects
+- [ ] `Assets` has no limitation for loaded assets
+- [ ] Be able to pass `UV` when drawing a 2D object, so it renders a cell from spritesheet using the GPU instead of storing a full texture
+	+ 2D shader need a new `UV` uniform
+	+ Need to change a bit the renderer design to handle this case
+- [ ] `lerp`: `float lerp(const float start, const float end, const float t) { return start * (1.0f - t) + end * t; }`
+
 - [ ] Scene serialization
 	+ Script builder
 	+ Persistent only (?)
 
+- [ ] 2D work with cullface on
 - [ ] Frustum Culling for 2D shapes (?)
 - [ ] Peristent object for 2D shapes (?)
 
-- [ ] 2D work with cullface on
-- [ ] Better `Material` handling on `Renderable`. I dont like the "only access first material" thing
 - [ ] scarablib stuff
 	+ [ ] Alarm
 	+ [ ] 3D Uniform Grid Collision
